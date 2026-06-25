@@ -48,7 +48,7 @@ function HeatmapDot({ rating, empty }: { rating: number | null; empty?: boolean 
   return <View style={[styles.dot, { backgroundColor: color }]} />;
 }
 
-function ShowCard({ show }: { show: Show }) {
+function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
   const season = show.seasons[show.currentSeasonIndex];
   if (!season) return null;
 
@@ -60,7 +60,7 @@ function ShowCard({ show }: { show: Show }) {
   );
 
   return (
-    <View style={styles.showCard}>
+    <TouchableOpacity style={styles.showCard} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.showCardHeader}>
         <View style={{ flex: 1 }}>
           <Text style={styles.showTitle}>{show.title}</Text>
@@ -132,7 +132,7 @@ function ShowCard({ show }: { show: Show }) {
           />
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -217,17 +217,27 @@ export default function Dashboard() {
         {/* Slate */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>YOUR SLATE</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/shows')}>
-            <Text style={styles.seeAll}>See all →</Text>
+          <TouchableOpacity onPress={() => router.push('/create-show')}>
+            <Text style={styles.seeAll}>+ Create Show</Text>
           </TouchableOpacity>
         </View>
 
         {activeShows.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No active shows. Create one or check your inbox for pitches.</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.emptyState}
+            onPress={() => router.push('/create-show')}
+          >
+            <Text style={styles.emptyText}>No active shows.</Text>
+            <Text style={[styles.emptyText, { color: C.accent, marginTop: 6 }]}>+ Create your first show</Text>
+          </TouchableOpacity>
         ) : (
-          activeShows.map(show => <ShowCard key={show.id} show={show} />)
+          activeShows.map(show => (
+            <ShowCard
+              key={show.id}
+              show={show}
+              onPress={() => router.push(`/show/${show.id}`)}
+            />
+          ))
         )}
 
         {/* Inbox preview */}
