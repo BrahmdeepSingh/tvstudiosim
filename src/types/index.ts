@@ -8,7 +8,28 @@ export type Genre =
   | 'reality'
   | 'limited-series';
 
-export type Tone = 'prestige' | 'mainstream' | 'experimental' | 'procedural';
+export type Theme =
+  | 'romance'
+  | 'superhero'
+  | 'medieval'
+  | 'space'
+  | 'western'
+  | 'crime'
+  | 'political'
+  | 'holiday'
+  | 'dystopian'
+  | 'historical'
+  | 'sports'
+  | 'music'
+  | 'survival'
+  | 'war'
+  | 'legal'
+  | 'medical'
+  | 'horror'
+  | 'workplace'
+  | 'coming-of-age'
+  | 'supernatural'
+  | 'fantasy';
 
 export type TalentRole = 'showrunner' | 'director' | 'actor';
 
@@ -155,7 +176,7 @@ export interface Show {
   id: string;
   title: string;
   genre: Genre;
-  tone: Tone;
+  theme: Theme;
   inHouse: boolean; // false = came from an outside pitch
   status: ShowStatus;
   seasons: Season[];
@@ -168,7 +189,7 @@ export interface Pitch {
   id: string;
   title: string;
   genre: Genre;
-  tone: Tone;
+  theme: Theme;
   logline: string;
   showrunnerID: string;
   askingFlatFee: number;

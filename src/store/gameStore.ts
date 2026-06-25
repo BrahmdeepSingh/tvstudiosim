@@ -7,9 +7,10 @@ import {
   Talent,
   TalentDeal,
   Genre,
-  Tone,
+  Theme,
   ShowStatus,
   InboxItem,
+  NewsItem,
 } from '../types';
 import { advanceWeek as engineAdvanceWeek } from '../engine/advancement';
 import { generateInitialTalentPool } from '../engine/talent';
@@ -40,7 +41,7 @@ interface GameStore extends GameState {
   advanceWeek: () => void;
 
   // In-house show creation
-  createShow: (title: string, genre: Genre, tone: Tone, episodeCount: number, leadActorSlots: number, supportingActorSlots: number) => string;
+  createShow: (title: string, genre: Genre, theme: Theme, episodeCount: number, leadActorSlots: number, supportingActorSlots: number) => string;
 
   // Talent hiring (returns true if successful)
   hireShowrunner: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number) => boolean;
@@ -161,7 +162,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Show Creation ─────────────────────────────────────────────────────────
 
-  createShow: (title, genre, tone, episodeCount, leadActorSlots, supportingActorSlots) => {
+  createShow: (title, genre, theme, episodeCount, leadActorSlots, supportingActorSlots) => {
     const showID = nanoid();
     const seasonID = nanoid();
 
@@ -218,7 +219,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       id: showID,
       title,
       genre,
-      tone,
+      theme,
       inHouse: true,
       status: 'writing',
       seasons: [season],
@@ -517,7 +518,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       id: showID,
       title: pitch.title,
       genre: pitch.genre,
-      tone: pitch.tone,
+      theme: pitch.theme,
       inHouse: false,
       status: 'writing',
       seasons: [season],
@@ -630,6 +631,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
       prevSeason.directorID,
     ].filter(Boolean) as string[];
 
+    const viewers = prevSeason.totalViewers;
+    const vStr = viewers >= 1_000_000
+      ? `${(viewers / 1_000_000).toFixed(1)}M`
+      : viewers >= 1_000
+      ? `${(viewers / 1_000).toFixed(0)}K`
+      : String(viewers);
+
+    const renewalNews: NewsItem = {
+      id: nanoid(),
+      week: state.network.currentWeek,
+      year: state.network.currentYear,
+      type: 'player',
+      read: false,
+      headline: viewers > 0
+        ? `"${show.title}" renewed for Season ${newSeasonNumber} — ${vStr} viewers watched S${prevSeason.seasonNumber}`
+        : `"${show.title}" renewed for Season ${newSeasonNumber}`,
+      body: `The network has officially greenlit another season. Pre-production begins immediately.`,
+    };
+
     set(s => ({
       shows: s.shows.map(sh =>
         sh.id === showID
@@ -649,6 +669,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           ? { ...t, available: true, bookedForSeasonID: null }
           : t,
       ),
+      newsItems: [...s.newsItems, renewalNews].slice(-150),
     }));
   },
 

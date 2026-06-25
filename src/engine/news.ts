@@ -128,6 +128,40 @@ export function makeFilmingWrapNews(showTitle: string, ctx: Ctx): NewsItem {
   };
 }
 
+export function makePremiereNews(showTitle: string, genre: string, ctx: Ctx): NewsItem {
+  const lines = [
+    `Audiences tuned in for the series premiere of "${showTitle}" tonight. Early social reaction has been strong.`,
+    `"${showTitle}" opened to eager viewers. Critics and fans are already weighing in on the debut episode.`,
+    `The first episode of "${showTitle}" has aired. The ${genre} series is now officially part of the conversation.`,
+  ];
+  return {
+    id: nanoid(),
+    week: ctx.week,
+    year: ctx.year,
+    type: 'player',
+    read: false,
+    headline: `"${showTitle}" premieres tonight`,
+    body: lines[Math.floor(Math.random() * lines.length)],
+  };
+}
+
+export function makeFinaleNews(showTitle: string, seasonNumber: number, ctx: Ctx): NewsItem {
+  const lines = [
+    `The Season ${seasonNumber} finale of "${showTitle}" has aired. Fan reaction to the ending is pouring in.`,
+    `"${showTitle}" wraps Season ${seasonNumber} tonight. The finale leaves viewers with plenty to talk about.`,
+    `Season ${seasonNumber} of "${showTitle}" comes to a close. The network will now weigh renewal options.`,
+  ];
+  return {
+    id: nanoid(),
+    week: ctx.week,
+    year: ctx.year,
+    type: 'player',
+    read: false,
+    headline: `"${showTitle}" airs its Season ${seasonNumber} finale`,
+    body: lines[Math.floor(Math.random() * lines.length)],
+  };
+}
+
 export function makeEmmyCeremonyNews(playerWins: number, ctx: Ctx): NewsItem {
   return {
     id: nanoid(),

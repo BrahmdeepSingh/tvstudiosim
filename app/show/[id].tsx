@@ -104,7 +104,7 @@ export default function ShowDetailScreen() {
           <View style={{ flex: 1 }}>
             <Text style={sd.showTitle}>{show.title}</Text>
             <Text style={sd.showMeta}>
-              {show.genre.charAt(0).toUpperCase() + show.genre.slice(1)} · {show.tone.charAt(0).toUpperCase() + show.tone.slice(1)} · Season {season.seasonNumber}
+              {show.genre.charAt(0).toUpperCase() + show.genre.slice(1)} · {show.theme.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-')} · Season {season.seasonNumber}
             </Text>
           </View>
           <View style={[sd.statusPill, { backgroundColor: statusColor + '22', borderColor: statusColor }]}>

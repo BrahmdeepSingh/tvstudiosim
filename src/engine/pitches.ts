@@ -1,4 +1,4 @@
-import { Pitch, Talent, Genre, Tone } from '../types';
+import { Pitch, Talent, Genre, Theme } from '../types';
 import {
   MIN_EPISODES,
   MAX_EPISODES,
@@ -10,7 +10,12 @@ import { nanoid } from '../utils/nanoid';
 import { randomBetween, randomItem, randomFloat, roundToNearest } from '../utils/random';
 
 const GENRES: Genre[] = ['drama', 'comedy', 'sci-fi', 'procedural', 'reality', 'limited-series'];
-const TONES: Tone[] = ['prestige', 'mainstream', 'experimental', 'procedural'];
+const THEMES: Theme[] = [
+  'romance', 'superhero', 'medieval', 'space', 'western', 'crime',
+  'political', 'holiday', 'dystopian', 'historical', 'sports', 'music',
+  'survival', 'war', 'legal', 'medical', 'horror', 'workplace',
+  'coming-of-age', 'supernatural', 'fantasy',
+];
 
 const TITLES: Record<Genre, string[]> = {
   drama:            ['The Hollow Hours', 'Salt & Smoke', 'The Weight of Proof', 'River Deep', 'The Last Signal', 'Without Witness'],
@@ -63,7 +68,7 @@ export function generatePitch(
 
   const showrunner = randomItem(availableShowrunners);
   const genre = randomItem(GENRES);
-  const tone = randomItem(TONES);
+  const theme = randomItem(THEMES);
 
   // Hidden quality influenced by showrunner stats + variance
   let baseQuality = 50;
@@ -97,7 +102,7 @@ export function generatePitch(
     id: nanoid(),
     title: randomItem(TITLES[genre]),
     genre,
-    tone,
+    theme,
     logline: randomItem(LOGLINES[genre]),
     showrunnerID: showrunner.id,
     askingFlatFee,

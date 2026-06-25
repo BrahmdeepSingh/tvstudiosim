@@ -66,7 +66,7 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
     <View>
       <View style={d.pitchGenreRow}>
         <View style={d.tag}><Text style={d.tagText}>{pitch.genre.toUpperCase()}</Text></View>
-        <View style={d.tag}><Text style={d.tagText}>{pitch.tone.toUpperCase()}</Text></View>
+        <View style={d.tag}><Text style={d.tagText}>{pitch.theme.toUpperCase()}</Text></View>
         <View style={d.tag}><Text style={d.tagText}>{pitch.proposedEpisodeCount} EPS</Text></View>
       </View>
 

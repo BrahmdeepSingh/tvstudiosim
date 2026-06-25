@@ -84,7 +84,7 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
           <Text style={styles.showTitle} numberOfLines={1}>{show.title}</Text>
           <Text style={styles.showMeta}>
             {show.genre.charAt(0).toUpperCase() + show.genre.slice(1)}
-            {' · '}{show.tone.charAt(0).toUpperCase() + show.tone.slice(1)}
+            {' · '}{show.theme.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-')}
             {seasonCount > 1 ? ` · ${seasonCount} seasons` : ' · Season 1'}
             {!show.inHouse ? ' · Pitch' : ''}
           </Text>

@@ -15,7 +15,7 @@ import { advanceCompetitors } from './competitors';
 import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
 import { generateStreamingOffer } from './streaming';
 import { generatePitch } from './pitches';
-import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews } from './news';
+import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews } from './news';
 import { nanoid } from '../utils/nanoid';
 import { randomChance } from '../utils/random';
 
@@ -50,6 +50,20 @@ export function advanceWeek(state: GameState): GameState {
   for (let i = 0; i < state.shows.length; i++) {
     if (state.shows[i].status === 'filming' && shows[i].status === 'marketing') {
       newNewsItems.push(makeFilmingWrapNews(shows[i].title, { week: newWeek, year: newYear }));
+    }
+  }
+
+  // Detect premiere and finale episode airings
+  for (let i = 0; i < state.shows.length; i++) {
+    const before = state.shows[i].seasons[state.shows[i].currentSeasonIndex];
+    const after = shows[i].seasons[shows[i].currentSeasonIndex];
+    if (!before || !after) continue;
+    if (state.shows[i].status === 'airing' || shows[i].status === 'renewal-pending') {
+      if (before.episodesAired === 0 && after.episodesAired === 1) {
+        newNewsItems.push(makePremiereNews(shows[i].title, shows[i].genre, { week: newWeek, year: newYear }));
+      } else if (before.episodesAired === before.episodeCount - 1 && after.episodesAired === after.episodeCount) {
+        newNewsItems.push(makeFinaleNews(shows[i].title, after.seasonNumber, { week: newWeek, year: newYear }));
+      }
     }
   }
 

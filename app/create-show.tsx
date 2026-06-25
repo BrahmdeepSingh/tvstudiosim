@@ -5,7 +5,7 @@ import {
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../src/store/gameStore';
-import { Genre, Tone } from '../src/types';
+import { Genre, Theme } from '../src/types';
 import { MIN_EPISODES, MAX_EPISODES } from '../src/constants/game';
 
 const C = {
@@ -23,11 +23,28 @@ const GENRES: { value: Genre; label: string }[] = [
   { value: 'limited-series', label: 'Limited Series' },
 ];
 
-const TONES: { value: Tone; label: string; desc: string }[] = [
-  { value: 'prestige',     label: 'Prestige',     desc: 'Awards-driven, adult themes' },
-  { value: 'mainstream',   label: 'Mainstream',   desc: 'Broad appeal, accessible' },
-  { value: 'experimental', label: 'Experimental', desc: 'Unconventional, niche audience' },
-  { value: 'procedural',   label: 'Procedural',   desc: 'Case-of-the-week format' },
+const THEMES: { value: Theme; label: string }[] = [
+  { value: 'romance',       label: 'Romance' },
+  { value: 'superhero',     label: 'Superhero' },
+  { value: 'medieval',      label: 'Medieval' },
+  { value: 'space',         label: 'Space' },
+  { value: 'western',       label: 'Western' },
+  { value: 'crime',         label: 'Crime' },
+  { value: 'political',     label: 'Political' },
+  { value: 'holiday',       label: 'Holiday' },
+  { value: 'dystopian',     label: 'Dystopian' },
+  { value: 'historical',    label: 'Historical' },
+  { value: 'sports',        label: 'Sports' },
+  { value: 'music',         label: 'Music' },
+  { value: 'survival',      label: 'Survival' },
+  { value: 'war',           label: 'War' },
+  { value: 'legal',         label: 'Legal' },
+  { value: 'medical',       label: 'Medical' },
+  { value: 'horror',        label: 'Horror' },
+  { value: 'workplace',     label: 'Workplace' },
+  { value: 'coming-of-age', label: 'Coming-of-Age' },
+  { value: 'supernatural',  label: 'Supernatural' },
+  { value: 'fantasy',       label: 'Fantasy' },
 ];
 
 export default function CreateShowScreen() {
@@ -36,16 +53,16 @@ export default function CreateShowScreen() {
 
   const [title, setTitle] = useState('');
   const [genre, setGenre] = useState<Genre | null>(null);
-  const [tone, setTone] = useState<Tone | null>(null);
+  const [theme, setTheme] = useState<Theme | null>(null);
   const [episodes, setEpisodes] = useState(10);
   const [leadSlots, setLeadSlots] = useState(2);
   const [supportingSlots, setSupportingSlots] = useState(3);
 
-  const canProceed = title.trim().length > 0 && genre !== null && tone !== null;
+  const canProceed = title.trim().length > 0 && genre !== null && theme !== null;
 
   function handleCreate() {
-    if (!canProceed || !genre || !tone) return;
-    const showID = createShow(title.trim(), genre, tone, episodes, leadSlots, supportingSlots);
+    if (!canProceed || !genre || !theme) return;
+    const showID = createShow(title.trim(), genre, theme, episodes, leadSlots, supportingSlots);
     router.replace(`/hire-talent?showID=${showID}&role=showrunner`);
   }
 
@@ -93,19 +110,18 @@ export default function CreateShowScreen() {
             ))}
           </View>
 
-          {/* Tone */}
-          <Text style={s.label}>TONE</Text>
-          <View style={s.toneGrid}>
-            {TONES.map(t => (
+          {/* Theme */}
+          <Text style={s.label}>THEME</Text>
+          <View style={s.themeGrid}>
+            {THEMES.map(t => (
               <TouchableOpacity
                 key={t.value}
-                style={[s.toneCard, tone === t.value && s.toneCardActive]}
-                onPress={() => setTone(t.value)}
+                style={[s.themePill, theme === t.value && s.themePillActive]}
+                onPress={() => setTheme(t.value)}
               >
-                <Text style={[s.toneLabel, tone === t.value && s.toneLabelActive]}>
+                <Text style={[s.themePillText, theme === t.value && s.themePillTextActive]}>
                   {t.label}
                 </Text>
-                <Text style={s.toneDesc}>{t.desc}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -225,12 +241,11 @@ const s = StyleSheet.create({
   pillText:          { color: C.muted, fontSize: 14 },
   pillTextActive:    { color: C.accent, fontWeight: '600' },
 
-  toneGrid:          { gap: 8 },
-  toneCard:          { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 14 },
-  toneCardActive:    { borderColor: C.accent, backgroundColor: C.accent + '18' },
-  toneLabel:         { color: C.text, fontSize: 15, fontWeight: '500', marginBottom: 3 },
-  toneLabelActive:   { color: C.accent },
-  toneDesc:          { color: C.muted, fontSize: 13 },
+  themeGrid:         { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  themePill:         { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
+  themePillActive:   { borderColor: C.accent, backgroundColor: C.accent + '22' },
+  themePillText:     { color: C.muted, fontSize: 13 },
+  themePillTextActive: { color: C.accent, fontWeight: '600' },
 
   episodeRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24 },
   episodeBtn:        { width: 48, height: 48, borderRadius: 12, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
