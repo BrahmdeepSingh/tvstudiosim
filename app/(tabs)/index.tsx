@@ -29,9 +29,11 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function fmt(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n}`;
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+  return `${sign}$${abs}`;
 }
 
 function fmtViewers(n: number): string {
@@ -114,23 +116,38 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
           </View>
         </>
       ) : (
-        <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${show.status === 'writing'
-                  ? (season.writingWeeksCompleted / season.writingWeeksTotal) * 100
-                  : show.status === 'filming'
-                  ? (season.filmingWeeksCompleted / season.filmingWeeksTotal) * 100
-                  : show.status === 'marketing'
-                  ? (season.marketingWeeksCompleted / Math.max(season.marketingWeeksTotal, 1)) * 100
-                  : 0}%`,
-                backgroundColor: statusColor,
-              },
-            ]}
-          />
-        </View>
+        <>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${show.status === 'writing'
+                    ? (season.writingWeeksCompleted / season.writingWeeksTotal) * 100
+                    : show.status === 'filming'
+                    ? (season.filmingWeeksCompleted / season.filmingWeeksTotal) * 100
+                    : show.status === 'marketing'
+                    ? (season.marketingWeeksCompleted / Math.max(season.marketingWeeksTotal, 1)) * 100
+                    : 0}%`,
+                  backgroundColor: statusColor,
+                },
+              ]}
+            />
+          </View>
+          <View style={styles.progressFooter}>
+            <Text style={[styles.progressLabel, { color: statusColor }]}>
+              {show.status === 'writing'
+                ? `${season.writingWeeksTotal - season.writingWeeksCompleted} week${season.writingWeeksTotal - season.writingWeeksCompleted !== 1 ? 's' : ''} remaining`
+                : show.status === 'filming'
+                ? `${season.filmingWeeksTotal - season.filmingWeeksCompleted} week${season.filmingWeeksTotal - season.filmingWeeksCompleted !== 1 ? 's' : ''} remaining`
+                : show.status === 'marketing' && season.airDateWeek != null
+                ? `Premieres Week ${season.airDateWeek}, Year ${season.airDateYear}`
+                : show.status === 'marketing'
+                ? 'No air date set'
+                : ''}
+            </Text>
+          </View>
+        </>
       )}
     </TouchableOpacity>
   );
@@ -333,6 +350,8 @@ const styles = StyleSheet.create({
 
   progressBar:     { height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
   progressFill:    { height: '100%', borderRadius: 2 },
+  progressFooter:  { marginTop: 6 },
+  progressLabel:   { fontSize: 12, fontWeight: '500' },
 
   emptyState:      { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: 'center', marginBottom: 16 },
   emptyText:       { color: C.muted, fontSize: 14, textAlign: 'center', lineHeight: 20 },

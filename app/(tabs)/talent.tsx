@@ -211,11 +211,17 @@ export default function TalentScreen() {
     }).sort((a, b) => b.popularity - a.popularity);
   }, [talent, network.prestige, roleFilter, availFilter, search]);
 
-  const counts = useMemo(() => ({
-    all:       talent.filter(t => t.prestigeRequired <= network.prestige).length,
-    available: talent.filter(t => t.prestigeRequired <= network.prestige && t.available).length,
-    booked:    talent.filter(t => t.prestigeRequired <= network.prestige && !t.available).length,
-  }), [talent, network.prestige]);
+  const counts = useMemo(() => {
+    const byRole = talent.filter(t =>
+      t.prestigeRequired <= network.prestige &&
+      (roleFilter === 'all' || t.role === roleFilter)
+    );
+    return {
+      all:       byRole.length,
+      available: byRole.filter(t => t.available).length,
+      booked:    byRole.filter(t => !t.available).length,
+    };
+  }, [talent, network.prestige, roleFilter]);
 
   return (
     <SafeAreaView style={s.container}>

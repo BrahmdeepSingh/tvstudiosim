@@ -139,47 +139,40 @@ export default function CreateShowScreen() {
 
           {/* Cast slots */}
           <Text style={s.label}>CAST SLOTS</Text>
-          <View style={s.castSlotsRow}>
-            <View style={s.castSlotBlock}>
-              <Text style={s.castSlotTitle}>Lead Actors</Text>
-              <View style={s.episodeRow}>
+          <View style={s.castSlotSection}>
+            <View style={s.castSlotRow}>
+              <Text style={s.castSlotLabel}>Lead Actors</Text>
+              <View style={s.stepperCompact}>
                 <TouchableOpacity
-                  style={[s.episodeBtn, leadSlots <= 1 && s.episodeBtnDisabled]}
+                  style={[s.stepBtnSm, leadSlots <= 1 && s.episodeBtnDisabled]}
                   onPress={() => setLeadSlots(n => Math.max(1, n - 1))}
                 >
-                  <Text style={s.episodeBtnText}>−</Text>
+                  <Text style={s.stepBtnSmText}>−</Text>
                 </TouchableOpacity>
-                <View style={s.episodeDisplay}>
-                  <Text style={s.episodeCount}>{leadSlots}</Text>
-                </View>
+                <Text style={s.stepValueSm}>{leadSlots}</Text>
                 <TouchableOpacity
-                  style={[s.episodeBtn, leadSlots >= 6 && s.episodeBtnDisabled]}
+                  style={[s.stepBtnSm, leadSlots >= 6 && s.episodeBtnDisabled]}
                   onPress={() => setLeadSlots(n => Math.min(6, n + 1))}
                 >
-                  <Text style={s.episodeBtnText}>+</Text>
+                  <Text style={s.stepBtnSmText}>+</Text>
                 </TouchableOpacity>
               </View>
             </View>
-
-            <View style={s.castSlotDivider} />
-
-            <View style={s.castSlotBlock}>
-              <Text style={s.castSlotTitle}>Supporting</Text>
-              <View style={s.episodeRow}>
+            <View style={[s.castSlotRow, s.castSlotRowBorder]}>
+              <Text style={s.castSlotLabel}>Supporting Actors</Text>
+              <View style={s.stepperCompact}>
                 <TouchableOpacity
-                  style={[s.episodeBtn, supportingSlots <= 1 && s.episodeBtnDisabled]}
+                  style={[s.stepBtnSm, supportingSlots <= 1 && s.episodeBtnDisabled]}
                   onPress={() => setSupportingSlots(n => Math.max(1, n - 1))}
                 >
-                  <Text style={s.episodeBtnText}>−</Text>
+                  <Text style={s.stepBtnSmText}>−</Text>
                 </TouchableOpacity>
-                <View style={s.episodeDisplay}>
-                  <Text style={s.episodeCount}>{supportingSlots}</Text>
-                </View>
+                <Text style={s.stepValueSm}>{supportingSlots}</Text>
                 <TouchableOpacity
-                  style={[s.episodeBtn, supportingSlots >= 8 && s.episodeBtnDisabled]}
+                  style={[s.stepBtnSm, supportingSlots >= 8 && s.episodeBtnDisabled]}
                   onPress={() => setSupportingSlots(n => Math.min(8, n + 1))}
                 >
-                  <Text style={s.episodeBtnText}>+</Text>
+                  <Text style={s.stepBtnSmText}>+</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -250,10 +243,14 @@ const s = StyleSheet.create({
   hint:              { backgroundColor: C.card, borderRadius: 8, padding: 12, marginTop: 16, borderWidth: 1, borderColor: C.border },
   hintText:          { color: C.muted, fontSize: 13, lineHeight: 19 },
 
-  castSlotsRow:      { flexDirection: 'row', gap: 12 },
-  castSlotBlock:     { flex: 1 },
-  castSlotTitle:     { color: C.text, fontSize: 14, fontWeight: '500', textAlign: 'center', marginBottom: 8 },
-  castSlotDivider:   { width: 1, backgroundColor: C.border },
+  castSlotSection:   { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  castSlotRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
+  castSlotRowBorder: { borderTopWidth: 1, borderTopColor: C.border },
+  castSlotLabel:     { color: C.text, fontSize: 15, fontWeight: '500' },
+  stepperCompact:    { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  stepBtnSm:         { width: 36, height: 36, borderRadius: 8, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
+  stepBtnSmText:     { color: C.text, fontSize: 20, lineHeight: 24 },
+  stepValueSm:       { color: C.text, fontSize: 22, fontWeight: '700', minWidth: 32, textAlign: 'center' },
 
   footer:            { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
   cashNote:          { color: C.muted, fontSize: 13, textAlign: 'center' },

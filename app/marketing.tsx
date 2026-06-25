@@ -13,9 +13,11 @@ const C = {
 };
 
 function fmt(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n}`;
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+  return `${sign}$${abs}`;
 }
 
 function qualityLabel(q: number): { label: string; color: string } {
@@ -36,13 +38,13 @@ export default function MarketingScreen() {
 
   const [weeksOut, setWeeksOut] = useState(
     season?.airDateWeek != null ? (() => {
-      // rehydrate stepper from existing air date
       const { currentWeek, currentYear } = network;
       const aw = season.airDateWeek!;
       const ay = season.airDateYear!;
       return (ay - currentYear) * WEEKS_PER_YEAR + (aw - currentWeek);
     })() : 2
   );
+  const [isEditing, setIsEditing] = useState(false);
 
   if (!show || !season || show.status !== 'marketing') {
     return (
@@ -64,6 +66,7 @@ export default function MarketingScreen() {
 
   function handleSetAirDate() {
     setAirDate(show!.id, targetWeek, targetYear);
+    setIsEditing(false);
   }
 
   function handleBuyChannel(channelID: string) {
@@ -113,7 +116,7 @@ export default function MarketingScreen() {
 
         {/* Air Date */}
         <Text style={s.sectionLabel}>AIR DATE</Text>
-        {airDateSet ? (
+        {airDateSet && !isEditing ? (
           <View style={s.airDateSet}>
             <View style={{ flex: 1 }}>
               <Text style={s.airDateValue}>
@@ -123,7 +126,7 @@ export default function MarketingScreen() {
             </View>
             <TouchableOpacity
               style={s.changeBtn}
-              onPress={() => setAirDate(show.id, targetWeek, targetYear)}
+              onPress={() => setIsEditing(true)}
             >
               <Text style={s.changeBtnText}>Change</Text>
             </TouchableOpacity>
@@ -131,7 +134,9 @@ export default function MarketingScreen() {
         ) : (
           <View style={s.airDateCard}>
             <Text style={s.airDateHint}>
-              Pick how many weeks from now to air. More time = more marketing runway.
+              {isEditing
+                ? 'Choose a new premiere date.'
+                : 'Pick how many weeks from now to air. More time = more marketing runway.'}
             </Text>
             <View style={s.stepperRow}>
               <TouchableOpacity
@@ -154,9 +159,16 @@ export default function MarketingScreen() {
             <Text style={s.targetDate}>
               Premieres: Week {targetWeek}, Year {targetYear}
             </Text>
-            <TouchableOpacity style={s.setAirBtn} onPress={handleSetAirDate}>
-              <Text style={s.setAirBtnText}>Set Premiere Date</Text>
-            </TouchableOpacity>
+            <View style={s.airDateActions}>
+              {isEditing && (
+                <TouchableOpacity style={s.cancelBtn} onPress={() => setIsEditing(false)}>
+                  <Text style={s.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={[s.setAirBtn, isEditing && { flex: 1 }]} onPress={handleSetAirDate}>
+                <Text style={s.setAirBtnText}>{isEditing ? 'Confirm Date' : 'Set Premiere Date'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -293,7 +305,10 @@ const s = StyleSheet.create({
   stepValue:       { color: C.text, fontSize: 36, fontWeight: '700', lineHeight: 42 },
   stepUnit:        { color: C.muted, fontSize: 12 },
   targetDate:      { color: C.accent, fontSize: 14, textAlign: 'center', marginBottom: 16 },
-  setAirBtn:       { backgroundColor: C.accent, borderRadius: 10, padding: 14, alignItems: 'center' },
+  airDateActions:  { flexDirection: 'row', gap: 10 },
+  cancelBtn:       { borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  cancelBtnText:   { color: C.muted, fontSize: 15 },
+  setAirBtn:       { backgroundColor: C.accent, borderRadius: 10, padding: 14, alignItems: 'center', flex: 1 },
   setAirBtnText:   { color: '#fff', fontSize: 15, fontWeight: '600' },
 
   channelCard:     { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 10 },
