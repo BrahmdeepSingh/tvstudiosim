@@ -60,7 +60,7 @@ interface GameStore extends GameState {
   passPitch: (pitchID: string) => void;
 
   // Renewal / cancellation
-  renewShow: (showID: string, newEpisodeCount: number) => void;
+  renewShow: (showID: string, newEpisodeCount: number, newLeadSlots?: number, newSupportingSlots?: number) => void;
   cancelShow: (showID: string) => void;
 
   // Streaming
@@ -213,6 +213,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       directorID: null,
       showrunnerID: '',
       qualityScore: 50,
+      suggestedDirectorID: null,
+      suggestedLeadActorIDs: [],
+      suggestedSupportingActorIDs: [],
     };
 
     const show: Show = {
@@ -511,7 +514,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       supportingActorIDs: [],
       directorID: null,
       showrunnerID: pitch.showrunnerID,
-      qualityScore: pitch.hiddenQualityScore, // use hidden score as quality floor
+      qualityScore: pitch.hiddenQualityScore,
+      suggestedDirectorID: null,
+      suggestedLeadActorIDs: [],
+      suggestedSupportingActorIDs: [],
     };
 
     const show: Show = {
@@ -566,7 +572,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Renewal ───────────────────────────────────────────────────────────────
 
-  renewShow: (showID, newEpisodeCount) => {
+  renewShow: (showID, newEpisodeCount, newLeadSlots, newSupportingSlots) => {
     const state = get();
     const show = state.shows.find(s => s.id === showID);
     if (!show || show.status !== 'renewal-pending') return;
@@ -574,6 +580,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const prevSeason = show.seasons[show.currentSeasonIndex];
     const newSeasonNumber = prevSeason.seasonNumber + 1;
     const newSeasonID = nanoid();
+    const resolvedLeadSlots = newLeadSlots ?? prevSeason.leadActorSlots;
+    const resolvedSupportingSlots = newSupportingSlots ?? prevSeason.supportingActorSlots;
 
     const episodes: Episode[] = Array.from({ length: newEpisodeCount }, (_, i) => ({
       id: nanoid(),
@@ -615,13 +623,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       streamingOfferExpiresYear: null,
       renewalDecisionMade: false,
       renewed: false,
-      leadActorSlots: prevSeason.leadActorSlots,
-      supportingActorSlots: prevSeason.supportingActorSlots,
+      leadActorSlots: resolvedLeadSlots,
+      supportingActorSlots: resolvedSupportingSlots,
       leadActorIDs: [],
       supportingActorIDs: [],
       directorID: null,
       showrunnerID: prevSeason.showrunnerID,
       qualityScore: 50,
+      suggestedDirectorID: prevSeason.directorID,
+      suggestedLeadActorIDs: [...prevSeason.leadActorIDs],
+      suggestedSupportingActorIDs: [...prevSeason.supportingActorIDs],
     };
 
     // Free up talent from previous season now that filming is long done

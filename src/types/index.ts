@@ -168,6 +168,11 @@ export interface Season {
   directorID: string | null;
   showrunnerID: string;
   qualityScore: number; // 0–100, calculated at end of filming
+
+  // Renewal suggestions — carry forward from the previous season
+  suggestedDirectorID: string | null;
+  suggestedLeadActorIDs: string[];
+  suggestedSupportingActorIDs: string[];
 }
 
 // ─── Show ─────────────────────────────────────────────────────────────────────

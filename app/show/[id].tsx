@@ -56,7 +56,7 @@ function HeatmapDot({ ep, empty }: { ep?: Episode; empty?: boolean }) {
 export default function ShowDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { shows, talent, network, renewShow, cancelShow, acceptStreamingOffer } = useGameStore();
+  const { shows, talent, network, cancelShow, acceptStreamingOffer } = useGameStore();
 
   const show = shows.find(s => s.id === id);
   if (!show) {
@@ -246,9 +246,9 @@ export default function ShowDetailScreen() {
             <View style={sd.renewalBtns}>
               <TouchableOpacity
                 style={sd.renewBtn}
-                onPress={() => { renewShow(show.id, season.episodeCount); router.back(); }}
+                onPress={() => router.push(`/renew?showID=${show.id}`)}
               >
-                <Text style={sd.renewBtnText}>Renew Season {season.seasonNumber + 1}</Text>
+                <Text style={sd.renewBtnText}>Renew Season {season.seasonNumber + 1} →</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={sd.cancelBtn}
