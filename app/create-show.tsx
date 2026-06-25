@@ -38,12 +38,14 @@ export default function CreateShowScreen() {
   const [genre, setGenre] = useState<Genre | null>(null);
   const [tone, setTone] = useState<Tone | null>(null);
   const [episodes, setEpisodes] = useState(10);
+  const [leadSlots, setLeadSlots] = useState(2);
+  const [supportingSlots, setSupportingSlots] = useState(3);
 
   const canProceed = title.trim().length > 0 && genre !== null && tone !== null;
 
   function handleCreate() {
     if (!canProceed || !genre || !tone) return;
-    const showID = createShow(title.trim(), genre, tone, episodes);
+    const showID = createShow(title.trim(), genre, tone, episodes, leadSlots, supportingSlots);
     router.replace(`/hire-talent?showID=${showID}&role=showrunner`);
   }
 
@@ -135,6 +137,59 @@ export default function CreateShowScreen() {
             </Text>
           </View>
 
+          {/* Cast slots */}
+          <Text style={s.label}>CAST SLOTS</Text>
+          <View style={s.castSlotsRow}>
+            <View style={s.castSlotBlock}>
+              <Text style={s.castSlotTitle}>Lead Actors</Text>
+              <View style={s.episodeRow}>
+                <TouchableOpacity
+                  style={[s.episodeBtn, leadSlots <= 1 && s.episodeBtnDisabled]}
+                  onPress={() => setLeadSlots(n => Math.max(1, n - 1))}
+                >
+                  <Text style={s.episodeBtnText}>−</Text>
+                </TouchableOpacity>
+                <View style={s.episodeDisplay}>
+                  <Text style={s.episodeCount}>{leadSlots}</Text>
+                </View>
+                <TouchableOpacity
+                  style={[s.episodeBtn, leadSlots >= 6 && s.episodeBtnDisabled]}
+                  onPress={() => setLeadSlots(n => Math.min(6, n + 1))}
+                >
+                  <Text style={s.episodeBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={s.castSlotDivider} />
+
+            <View style={s.castSlotBlock}>
+              <Text style={s.castSlotTitle}>Supporting</Text>
+              <View style={s.episodeRow}>
+                <TouchableOpacity
+                  style={[s.episodeBtn, supportingSlots <= 1 && s.episodeBtnDisabled]}
+                  onPress={() => setSupportingSlots(n => Math.max(1, n - 1))}
+                >
+                  <Text style={s.episodeBtnText}>−</Text>
+                </TouchableOpacity>
+                <View style={s.episodeDisplay}>
+                  <Text style={s.episodeCount}>{supportingSlots}</Text>
+                </View>
+                <TouchableOpacity
+                  style={[s.episodeBtn, supportingSlots >= 8 && s.episodeBtnDisabled]}
+                  onPress={() => setSupportingSlots(n => Math.min(8, n + 1))}
+                >
+                  <Text style={s.episodeBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+          <View style={s.hint}>
+            <Text style={s.hintText}>
+              Filming begins automatically once all cast slots are filled and a director is hired. More cast = higher production cost.
+            </Text>
+          </View>
+
           <View style={{ height: 32 }} />
         </ScrollView>
 
@@ -194,6 +249,11 @@ const s = StyleSheet.create({
 
   hint:              { backgroundColor: C.card, borderRadius: 8, padding: 12, marginTop: 16, borderWidth: 1, borderColor: C.border },
   hintText:          { color: C.muted, fontSize: 13, lineHeight: 19 },
+
+  castSlotsRow:      { flexDirection: 'row', gap: 12 },
+  castSlotBlock:     { flex: 1 },
+  castSlotTitle:     { color: C.text, fontSize: 14, fontWeight: '500', textAlign: 'center', marginBottom: 8 },
+  castSlotDivider:   { width: 1, backgroundColor: C.border },
 
   footer:            { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
   cashNote:          { color: C.muted, fontSize: 13, textAlign: 'center' },

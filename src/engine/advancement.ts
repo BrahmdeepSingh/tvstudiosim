@@ -15,7 +15,7 @@ import { advanceCompetitors } from './competitors';
 import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
 import { generateStreamingOffer } from './streaming';
 import { generatePitch } from './pitches';
-import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews } from './news';
+import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews } from './news';
 import { nanoid } from '../utils/nanoid';
 import { randomChance } from '../utils/random';
 
@@ -45,6 +45,13 @@ export function advanceWeek(state: GameState): GameState {
       default:         return show;
     }
   });
+
+  // Detect filming→marketing transitions and generate wrap news
+  for (let i = 0; i < state.shows.length; i++) {
+    if (state.shows[i].status === 'filming' && shows[i].status === 'marketing') {
+      newNewsItems.push(makeFilmingWrapNews(shows[i].title, { week: newWeek, year: newYear }));
+    }
+  }
 
   // ─── Ad revenue: accumulate cash from episodes that aired this week ────────
   let revenueThisWeek = 0;
@@ -243,7 +250,10 @@ function tickWriting(show: Show, season: Season): Show {
 }
 
 function tickFilming(show: Show, season: Season, state: GameState): Show {
-  if (!season.directorID || season.castIDs.length === 0) return show; // waiting on player
+  const castFull =
+    season.leadActorIDs.length >= season.leadActorSlots &&
+    season.supportingActorIDs.length >= season.supportingActorSlots;
+  if (!season.directorID || !castFull) return show; // waiting on player
 
   const completed = season.filmingWeeksCompleted + 1;
   let updatedSeason = { ...season, filmingWeeksCompleted: completed };
@@ -251,7 +261,8 @@ function tickFilming(show: Show, season: Season, state: GameState): Show {
   if (completed >= FILMING_WEEKS) {
     const showrunner = state.talent.find(t => t.id === season.showrunnerID);
     const director = state.talent.find(t => t.id === season.directorID!);
-    const cast = season.castIDs
+    const allActorIDs = [...season.leadActorIDs, ...season.supportingActorIDs];
+    const cast = allActorIDs
       .map(id => state.talent.find(t => t.id === id))
       .filter((t): t is NonNullable<typeof t> => t !== undefined);
 
@@ -260,8 +271,6 @@ function tickFilming(show: Show, season: Season, state: GameState): Show {
       updatedSeason = { ...updatedSeason, qualityScore };
     }
 
-    // Unlock talent from this season's booking once filming is done
-    // (handled in store when show transitions to marketing)
     return updateShow(show, updatedSeason, 'marketing');
   }
 

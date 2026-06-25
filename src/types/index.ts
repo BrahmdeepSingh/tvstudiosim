@@ -140,7 +140,10 @@ export interface Season {
   renewalDecisionMade: boolean;
   renewed: boolean;
 
-  castIDs: string[]; // actor talent IDs
+  leadActorSlots: number;       // decided at show creation
+  supportingActorSlots: number; // decided at show creation
+  leadActorIDs: string[];       // filled during casting
+  supportingActorIDs: string[]; // filled during casting
   directorID: string | null;
   showrunnerID: string;
   qualityScore: number; // 0–100, calculated at end of filming

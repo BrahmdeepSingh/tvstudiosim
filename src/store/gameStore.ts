@@ -40,12 +40,12 @@ interface GameStore extends GameState {
   advanceWeek: () => void;
 
   // In-house show creation
-  createShow: (title: string, genre: Genre, tone: Tone, episodeCount: number) => string;
+  createShow: (title: string, genre: Genre, tone: Tone, episodeCount: number, leadActorSlots: number, supportingActorSlots: number) => string;
 
   // Talent hiring (returns true if successful)
   hireShowrunner: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number) => boolean;
   hireDirector: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number) => boolean;
-  hireActor: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number) => boolean;
+  hireActor: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number, actorType: 'lead' | 'supporting') => boolean;
 
   // Talent negotiation: returns whether talent accepts the offer
   evaluateOffer: (talentID: string, offeredFee: number, networkPrestige: number) => boolean;
@@ -161,7 +161,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Show Creation ─────────────────────────────────────────────────────────
 
-  createShow: (title, genre, tone, episodeCount) => {
+  createShow: (title, genre, tone, episodeCount, leadActorSlots, supportingActorSlots) => {
     const showID = nanoid();
     const seasonID = nanoid();
 
@@ -205,7 +205,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       streamingOfferExpiresYear: null,
       renewalDecisionMade: false,
       renewed: false,
-      castIDs: [],
+      leadActorSlots,
+      supportingActorSlots,
+      leadActorIDs: [],
+      supportingActorIDs: [],
       directorID: null,
       showrunnerID: '',
       qualityScore: 50,
@@ -340,7 +343,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true;
   },
 
-  hireActor: (showID, talentID, flatFee, revenueSharePercent) => {
+  hireActor: (showID, talentID, flatFee, revenueSharePercent, actorType) => {
     const state = get();
     if (state.network.cashOnHand < flatFee) return false;
 
@@ -364,7 +367,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const updatedSeason: Season = {
       ...season,
-      castIDs: [...season.castIDs, talentID],
+      leadActorIDs: actorType === 'lead' ? [...season.leadActorIDs, talentID] : season.leadActorIDs,
+      supportingActorIDs: actorType === 'supporting' ? [...season.supportingActorIDs, talentID] : season.supportingActorIDs,
       productionCost: season.productionCost + flatFee,
     };
 
@@ -500,7 +504,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       streamingOfferExpiresYear: null,
       renewalDecisionMade: false,
       renewed: false,
-      castIDs: [],
+      leadActorSlots: 2,
+      supportingActorSlots: 2,
+      leadActorIDs: [],
+      supportingActorIDs: [],
       directorID: null,
       showrunnerID: pitch.showrunnerID,
       qualityScore: pitch.hiddenQualityScore, // use hidden score as quality floor
@@ -607,14 +614,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
       streamingOfferExpiresYear: null,
       renewalDecisionMade: false,
       renewed: false,
-      castIDs: [],
+      leadActorSlots: prevSeason.leadActorSlots,
+      supportingActorSlots: prevSeason.supportingActorSlots,
+      leadActorIDs: [],
+      supportingActorIDs: [],
       directorID: null,
-      showrunnerID: prevSeason.showrunnerID, // carry over showrunner until re-hired
+      showrunnerID: prevSeason.showrunnerID,
       qualityScore: 50,
     };
 
     // Free up talent from previous season now that filming is long done
-    const prevCast = [...prevSeason.castIDs, prevSeason.directorID].filter(Boolean) as string[];
+    const prevCast = [
+      ...prevSeason.leadActorIDs,
+      ...prevSeason.supportingActorIDs,
+      prevSeason.directorID,
+    ].filter(Boolean) as string[];
 
     set(s => ({
       shows: s.shows.map(sh =>
@@ -647,7 +661,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const bookedTalent = [
       season.showrunnerID,
       season.directorID,
-      ...season.castIDs,
+      ...season.leadActorIDs,
+      ...season.supportingActorIDs,
     ].filter(Boolean) as string[];
 
     set(s => ({

@@ -110,6 +110,24 @@ export function makeEmmyNominationsNews(
   };
 }
 
+export function makeFilmingWrapNews(showTitle: string, ctx: Ctx): NewsItem {
+  const lines = [
+    `Principal photography has officially wrapped on "${showTitle}". The production is now entering post-production ahead of its marketing push.`,
+    `"${showTitle}" has finished filming. Sources on set say the production went smoothly, with the crew delivering the final shot ahead of schedule.`,
+    `Cameras are down on "${showTitle}" after a successful shoot. The network is preparing its marketing campaign as the show heads toward broadcast.`,
+  ];
+  const body = lines[Math.floor(Math.random() * lines.length)];
+  return {
+    id: nanoid(),
+    week: ctx.week,
+    year: ctx.year,
+    type: 'industry',
+    read: false,
+    headline: `"${showTitle}" wraps principal photography`,
+    body,
+  };
+}
+
 export function makeEmmyCeremonyNews(playerWins: number, ctx: Ctx): NewsItem {
   return {
     id: nanoid(),

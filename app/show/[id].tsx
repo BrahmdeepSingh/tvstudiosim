@@ -68,7 +68,8 @@ export default function ShowDetailScreen() {
   const season = show.seasons[show.currentSeasonIndex];
   const showrunner = talent.find(t => t.id === season.showrunnerID);
   const director = season.directorID ? talent.find(t => t.id === season.directorID) : null;
-  const cast = season.castIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as typeof talent;
+  const leadActors = season.leadActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as typeof talent;
+  const supportingActors = season.supportingActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as typeof talent;
 
   const statusColor = STATUS_COLORS[show.status] ?? C.muted;
   const statusLabel = show.status.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -80,8 +81,9 @@ export default function ShowDetailScreen() {
   const netProfit = season.totalAdRevenue - season.productionCost - season.marketingSpend;
 
   const needsDirector = show.status === 'filming' && !season.directorID;
-  const needsCast     = show.status === 'filming' && season.castIDs.length === 0;
-  const canStartFilming = show.status === 'filming' && !season.directorID;
+  const leadsNeeded = season.leadActorSlots - season.leadActorIDs.length;
+  const supportingNeeded = season.supportingActorSlots - season.supportingActorIDs.length;
+  const needsCast = show.status === 'filming' && (leadsNeeded > 0 || supportingNeeded > 0);
 
   return (
     <SafeAreaView style={sd.container}>
@@ -120,12 +122,24 @@ export default function ShowDetailScreen() {
                 <Text style={sd.alertBtnText}>+ Hire Director</Text>
               </TouchableOpacity>
             )}
-            {needsCast && (
+            {leadsNeeded > 0 && (
               <TouchableOpacity
                 style={sd.alertBtn}
-                onPress={() => router.push(`/hire-talent?showID=${show.id}&role=actor`)}
+                onPress={() => router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=lead`)}
               >
-                <Text style={sd.alertBtnText}>+ Add Cast Members</Text>
+                <Text style={sd.alertBtnText}>
+                  + Hire Lead Actor ({season.leadActorIDs.length}/{season.leadActorSlots})
+                </Text>
+              </TouchableOpacity>
+            )}
+            {supportingNeeded > 0 && (
+              <TouchableOpacity
+                style={sd.alertBtn}
+                onPress={() => router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=supporting`)}
+              >
+                <Text style={sd.alertBtnText}>
+                  + Hire Supporting Actor ({season.supportingActorIDs.length}/{season.supportingActorSlots})
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -149,7 +163,7 @@ export default function ShowDetailScreen() {
                 current={season.filmingWeeksCompleted}
                 total={season.filmingWeeksTotal}
                 color={C.purple}
-                blocked={!season.directorID || season.castIDs.length === 0}
+                blocked={needsDirector || needsCast}
               />
             )}
             {show.status === 'marketing' && (
@@ -270,14 +284,31 @@ export default function ShowDetailScreen() {
 
         {/* Cast */}
         <View style={sd.section}>
-          <Text style={sd.sectionLabel}>CAST ({cast.length})</Text>
-          {cast.map(actor => <CrewRow key={actor.id} label="Actor" talent={actor} />)}
-          {show.status === 'filming' && (
+          <Text style={sd.sectionLabel}>
+            LEAD CAST ({season.leadActorIDs.length}/{season.leadActorSlots})
+          </Text>
+          {leadActors.map(actor => <CrewRow key={actor.id} label="Lead Actor" talent={actor} />)}
+          {show.status === 'filming' && leadsNeeded > 0 && (
             <TouchableOpacity
               style={sd.hireCrewBtn}
-              onPress={() => router.push(`/hire-talent?showID=${show.id}&role=actor`)}
+              onPress={() => router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=lead`)}
             >
-              <Text style={sd.hireCrewText}>+ Add Cast Member</Text>
+              <Text style={sd.hireCrewText}>+ Hire Lead Actor ({leadsNeeded} slot{leadsNeeded > 1 ? 's' : ''} open)</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={sd.section}>
+          <Text style={sd.sectionLabel}>
+            SUPPORTING CAST ({season.supportingActorIDs.length}/{season.supportingActorSlots})
+          </Text>
+          {supportingActors.map(actor => <CrewRow key={actor.id} label="Supporting" talent={actor} />)}
+          {show.status === 'filming' && supportingNeeded > 0 && (
+            <TouchableOpacity
+              style={sd.hireCrewBtn}
+              onPress={() => router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=supporting`)}
+            >
+              <Text style={sd.hireCrewText}>+ Hire Supporting ({supportingNeeded} slot{supportingNeeded > 1 ? 's' : ''} open)</Text>
             </TouchableOpacity>
           )}
         </View>

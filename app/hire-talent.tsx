@@ -117,12 +117,14 @@ function OfferModal({
   talent,
   showID,
   role,
+  actorType,
   onSuccess,
   onClose,
 }: {
   talent: Talent;
   showID: string;
   role: TalentRole;
+  actorType: 'lead' | 'supporting';
   onSuccess: () => void;
   onClose: () => void;
 }) {
@@ -143,7 +145,7 @@ function OfferModal({
       let success = false;
       if (role === 'showrunner') success = hireShowrunner(showID, talent.id, offered, 0);
       else if (role === 'director') success = hireDirector(showID, talent.id, offered, 0);
-      else success = hireActor(showID, talent.id, offered, 0);
+      else success = hireActor(showID, talent.id, offered, 0, actorType);
 
       if (success) {
         setStatus('accepted');
@@ -236,9 +238,11 @@ function OfferModal({
 
 export default function HireTalentScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ showID: string; role: TalentRole; returnTo?: string }>();
+  const params = useLocalSearchParams<{ showID: string; role: TalentRole; actorType?: string }>();
   const showID = params.showID ?? '';
   const role: TalentRole = (params.role as TalentRole) ?? 'showrunner';
+  const actorType: 'lead' | 'supporting' =
+    params.actorType === 'supporting' ? 'supporting' : 'lead';
 
   const { talent, network, shows } = useGameStore();
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
@@ -256,27 +260,40 @@ export default function HireTalentScreen() {
     ).sort((a, b) => b.popularity - a.popularity);
   }, [talent, role, network.prestige, searchQuery]);
 
+  // For actors: current count and max for the active slot type
+  const filledLeads = season?.leadActorIDs.length ?? 0;
+  const filledSupporting = season?.supportingActorIDs.length ?? 0;
+  const leadSlots = season?.leadActorSlots ?? 0;
+  const supportingSlots = season?.supportingActorSlots ?? 0;
+  const filledCount = actorType === 'lead' ? filledLeads : filledSupporting;
+  const totalSlots = actorType === 'lead' ? leadSlots : supportingSlots;
+  const slotsRemaining = totalSlots - filledCount;
+
   function handleSuccess() {
     setSelectedTalent(null);
-    // After hiring showrunner: go back to dashboard
-    // After hiring director/actor: back to show detail
+    // After last slot for this type is filled, go back; otherwise stay
+    const newFilled = filledCount + 1;
     if (role === 'showrunner') {
       router.replace('/(tabs)/');
-    } else {
+    } else if (role === 'actor' && newFilled >= totalSlots) {
       router.back();
+    } else {
+      setSelectedTalent(null); // stay to hire more
     }
   }
 
   const roleTitle = {
     showrunner: 'Hire Showrunner',
     director:   'Hire Director',
-    actor:      'Add to Cast',
+    actor:      actorType === 'lead' ? 'Hire Lead Actor' : 'Hire Supporting Actor',
   }[role];
 
   const roleDesc = {
     showrunner: 'The showrunner runs your writers room and sets the creative direction.',
     director:   'The director shapes the look and feel of the production.',
-    actor:      'Cast members determine on-screen quality and audience appeal. Same chemistry color boosts quality.',
+    actor:      actorType === 'lead'
+      ? 'Lead actors drive the Emmy race and audience investment. Chemistry color matters most here.'
+      : 'Supporting actors round out your cast. Same chemistry color as leads boosts quality.',
   }[role];
 
   return (
@@ -294,6 +311,12 @@ export default function HireTalentScreen() {
           <Text style={s.showBannerText}>
             {show.title} · <Text style={{ color: C.muted }}>{show.genre}</Text>
           </Text>
+          {role === 'actor' && season && (
+            <Text style={s.slotCount}>
+              {actorType === 'lead' ? 'Lead' : 'Supporting'}: {filledCount}/{totalSlots} filled
+              {slotsRemaining > 0 ? ` · ${slotsRemaining} slot${slotsRemaining > 1 ? 's' : ''} remaining` : ' · All filled'}
+            </Text>
+          )}
         </View>
       )}
 
@@ -331,14 +354,14 @@ export default function HireTalentScreen() {
         />
       )}
 
-      {/* Done button for actors (can add multiple) */}
-      {role === 'actor' && season && season.castIDs.length > 0 && (
+      {/* Done button for actors */}
+      {role === 'actor' && season && filledCount > 0 && (
         <View style={s.footer}>
           <Text style={s.castCount}>
-            Cast: {season.castIDs.length} actor{season.castIDs.length > 1 ? 's' : ''} signed
+            {actorType === 'lead' ? 'Lead' : 'Supporting'}: {filledCount}/{totalSlots} hired
           </Text>
           <TouchableOpacity style={s.doneBtn} onPress={() => router.back()}>
-            <Text style={s.doneBtnText}>Done Adding Cast →</Text>
+            <Text style={s.doneBtnText}>Done →</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -350,6 +373,7 @@ export default function HireTalentScreen() {
             talent={selectedTalent}
             showID={showID}
             role={role}
+            actorType={actorType}
             onSuccess={handleSuccess}
             onClose={() => setSelectedTalent(null)}
           />
@@ -368,6 +392,7 @@ const s = StyleSheet.create({
 
   showBanner:    { backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border, paddingHorizontal: 16, paddingVertical: 10 },
   showBannerText:{ color: C.text, fontSize: 14, fontWeight: '500' },
+  slotCount:     { color: C.accent, fontSize: 12, marginTop: 4 },
 
   descRow:       { paddingHorizontal: 16, paddingVertical: 12 },
   descText:      { color: C.muted, fontSize: 13, lineHeight: 19 },

@@ -113,7 +113,7 @@ function getCandidatesForCategory(
       candidates.push({ showID: show.id, seasonID: season.id, talentID: season.showrunnerID, score: base });
     } else if (['best-drama-actor', 'best-drama-actress'].includes(category)) {
       if (['drama', 'sci-fi', 'procedural', 'limited-series'].includes(show.genre)) {
-        for (const actorID of season.castIDs.slice(0, 2)) {
+        for (const actorID of season.leadActorIDs.slice(0, 2)) {
           const actor = talent.find(t => t.id === actorID);
           if (actor) {
             candidates.push({
@@ -127,7 +127,7 @@ function getCandidatesForCategory(
       }
     } else if (['best-comedy-actor', 'best-comedy-actress'].includes(category)) {
       if (show.genre === 'comedy') {
-        for (const actorID of season.castIDs.slice(0, 2)) {
+        for (const actorID of season.leadActorIDs.slice(0, 2)) {
           const actor = talent.find(t => t.id === actorID);
           if (actor) {
             candidates.push({
