@@ -174,10 +174,24 @@ export default function ShowDetailScreen() {
                   total={Math.max(season.marketingWeeksTotal, 1)}
                   color="#5b8dee"
                 />
-                {season.airDateWeek && (
-                  <Text style={sd.airDateText}>
-                    Air date: Week {season.airDateWeek}, Year {season.airDateYear}
-                  </Text>
+                {season.airDateWeek ? (
+                  <View style={sd.airDateRow}>
+                    <Text style={sd.airDateText}>
+                      Premieres Week {season.airDateWeek}, Year {season.airDateYear}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => router.push(`/marketing?showID=${show.id}`)}
+                    >
+                      <Text style={sd.marketingLink}>Edit →</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={sd.marketingBtn}
+                    onPress={() => router.push(`/marketing?showID=${show.id}`)}
+                  >
+                    <Text style={sd.marketingBtnText}>Set Premiere Date & Buy Ads →</Text>
+                  </TouchableOpacity>
                 )}
               </>
             )}
@@ -407,7 +421,11 @@ const sd = StyleSheet.create({
   progressWeeks:   { color: C.muted, fontSize: 13 },
   progressTrack:   { height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
   progressFill:    { height: '100%', borderRadius: 3 },
-  airDateText:     { color: C.muted, fontSize: 13, marginTop: 6 },
+  airDateRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+  airDateText:     { color: C.muted, fontSize: 13 },
+  marketingLink:   { color: C.accent, fontSize: 13 },
+  marketingBtn:    { marginTop: 10, backgroundColor: C.accent + '22', borderWidth: 1, borderColor: C.accent, borderRadius: 8, padding: 12, alignItems: 'center' },
+  marketingBtnText:{ color: C.accent, fontSize: 14, fontWeight: '500' },
 
   heatmap:         { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 },
   dot:             { width: 38, height: 38, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
