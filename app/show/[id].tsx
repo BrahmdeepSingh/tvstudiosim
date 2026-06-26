@@ -80,7 +80,8 @@ export default function ShowDetailScreen() {
     .filter(e => e.rating !== null)
     .reduce((acc, e, _, arr) => acc + (e.rating ?? 0) / arr.length, 0);
 
-  const netProfit = season.totalAdRevenue - season.productionCost - season.marketingSpend;
+  const streamingRevenue = season.streamingOfferAccepted ? season.streamingOfferAmount : 0;
+  const netProfit = season.totalAdRevenue + streamingRevenue - season.productionCost - season.marketingSpend;
 
   const needsDirector = show.status === 'filming' && !season.directorID;
   const leadsNeeded = season.leadActorSlots - season.leadActorIDs.length;
@@ -221,17 +222,33 @@ export default function ShowDetailScreen() {
           </View>
         )}
 
-        {/* Streaming offer */}
+        {/* Streaming offer — pending */}
         {season.streamingOfferReceived && !season.streamingOfferAccepted && (
           <View style={sd.streamingCard}>
-            <Text style={sd.streamingTitle}>{season.streamingOfferSource} wants streaming rights</Text>
+            <Text style={sd.streamingTitle}>
+              {season.streamingOfferSource} wants S{season.seasonNumber} streaming rights
+            </Text>
             <Text style={sd.streamingAmount}>{fmt(season.streamingOfferAmount)}</Text>
             <Text style={sd.streamingExpiry}>
+              {season.streamingDealDurationYears > 0 ? `${season.streamingDealDurationYears}-year exclusive · ` : ''}
               Expires Week {season.streamingOfferExpiresWeek}, Year {season.streamingOfferExpiresYear}
             </Text>
             <TouchableOpacity style={sd.streamingAcceptBtn} onPress={() => acceptStreamingOffer(show.id)}>
               <Text style={sd.streamingAcceptText}>Accept Deal</Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Streaming deal — accepted */}
+        {season.streamingOfferAccepted && (
+          <View style={sd.streamingAcceptedCard}>
+            <Text style={sd.streamingAcceptedTitle}>
+              {season.streamingOfferSource} streaming deal active
+            </Text>
+            <Text style={sd.streamingAcceptedMeta}>
+              {fmt(season.streamingOfferAmount)}
+              {season.streamingDealDurationYears > 0 ? ` · ${season.streamingDealDurationYears}-year exclusive` : ''}
+            </Text>
           </View>
         )}
 
@@ -275,6 +292,12 @@ export default function ShowDetailScreen() {
             <Text style={sd.finLabel}>Ad revenue</Text>
             <Text style={[sd.finValue, { color: C.green }]}>{fmt(season.totalAdRevenue)}</Text>
           </View>
+          {streamingRevenue > 0 && (
+            <View style={sd.finRow}>
+              <Text style={sd.finLabel}>Streaming deal</Text>
+              <Text style={[sd.finValue, { color: C.green }]}>{fmt(streamingRevenue)}</Text>
+            </View>
+          )}
           <View style={[sd.finRow, sd.finTotal]}>
             <Text style={[sd.finLabel, { color: C.text }]}>Net</Text>
             <Text style={[sd.finValue, { color: netProfit >= 0 ? C.green : C.red }]}>
@@ -343,6 +366,51 @@ export default function ShowDetailScreen() {
                 <Text style={sd.epRevenue}>{fmt(ep.adRevenue ?? 0)}</Text>
               </View>
             ))}
+          </View>
+        )}
+
+        {/* Season history */}
+        {show.seasons.length > 1 && (
+          <View style={sd.section}>
+            <Text style={sd.sectionLabel}>SEASON HISTORY</Text>
+            {show.seasons.slice(0, show.currentSeasonIndex).reverse().map(s => {
+              const aired = s.episodes.filter(e => e.rating !== null);
+              const avg = aired.length > 0
+                ? aired.reduce((sum, e) => sum + (e.rating ?? 0), 0) / aired.length
+                : 0;
+              const sNet = s.totalAdRevenue + (s.streamingOfferAccepted ? s.streamingOfferAmount : 0)
+                - s.productionCost - s.marketingSpend;
+              return (
+                <View key={s.id} style={sd.historyCard}>
+                  <View style={sd.historyHeader}>
+                    <Text style={sd.historySeasonLabel}>Season {s.seasonNumber}</Text>
+                    <Text style={sd.historyEpisodes}>{s.episodeCount} eps</Text>
+                  </View>
+                  <View style={sd.historyStats}>
+                    <View style={sd.historyStat}>
+                      <Text style={sd.historyStatValue}>{avg > 0 ? avg.toFixed(1) : '—'}</Text>
+                      <Text style={sd.historyStatLabel}>Avg rating</Text>
+                    </View>
+                    <View style={sd.historyStat}>
+                      <Text style={sd.historyStatValue}>{fmtViewers(s.totalViewers)}</Text>
+                      <Text style={sd.historyStatLabel}>Viewers</Text>
+                    </View>
+                    <View style={sd.historyStat}>
+                      <Text style={[sd.historyStatValue, { color: sNet >= 0 ? C.green : C.red }]}>
+                        {sNet >= 0 ? '+' : ''}{fmt(sNet)}
+                      </Text>
+                      <Text style={sd.historyStatLabel}>Net</Text>
+                    </View>
+                  </View>
+                  {s.streamingOfferAccepted && (
+                    <Text style={sd.historyStreaming}>
+                      {s.streamingOfferSource} · {fmt(s.streamingOfferAmount)}
+                      {s.streamingDealDurationYears > 0 ? ` · ${s.streamingDealDurationYears}-yr` : ''}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -473,4 +541,18 @@ const sd = StyleSheet.create({
   epRating:        { fontSize: 13, fontWeight: '600' },
   epViewers:       { flex: 1, color: C.muted, fontSize: 13 },
   epRevenue:       { color: C.text, fontSize: 13 },
+
+  streamingAcceptedCard: { backgroundColor: '#1e3a2f', borderWidth: 1, borderColor: C.green + '66', borderRadius: 10, padding: 14, marginBottom: 16 },
+  streamingAcceptedTitle: { color: C.green, fontSize: 13, fontWeight: '600', marginBottom: 3 },
+  streamingAcceptedMeta:  { color: C.text, fontSize: 15, fontWeight: '600' },
+
+  historyCard:       { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 10 },
+  historyHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  historySeasonLabel:{ color: C.text, fontSize: 14, fontWeight: '600' },
+  historyEpisodes:   { color: C.muted, fontSize: 13 },
+  historyStats:      { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 8 },
+  historyStat:       { alignItems: 'center' },
+  historyStatValue:  { color: C.text, fontSize: 15, fontWeight: '600' },
+  historyStatLabel:  { color: C.muted, fontSize: 11, marginTop: 2 },
+  historyStreaming:   { color: C.green, fontSize: 12, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 8, marginTop: 4 },
 });

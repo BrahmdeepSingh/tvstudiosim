@@ -157,6 +157,7 @@ export interface Season {
   streamingOfferAccepted: boolean;
   streamingOfferExpiresWeek: number | null;
   streamingOfferExpiresYear: number | null;
+  streamingDealDurationYears: number; // 0 until offer received; 1–3 once offer arrives
 
   renewalDecisionMade: boolean;
   renewed: boolean;

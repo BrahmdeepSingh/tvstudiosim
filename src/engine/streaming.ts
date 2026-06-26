@@ -13,6 +13,7 @@ export interface StreamingOffer {
   amount: number;
   expiresWeek: number;
   expiresYear: number;
+  durationYears: number; // 1–3
 }
 
 export function generateStreamingOffer(
@@ -43,5 +44,7 @@ export function generateStreamingOffer(
   const expiresWeek = rawExpiry > WEEKS_PER_YEAR ? rawExpiry - WEEKS_PER_YEAR : rawExpiry;
   const expiresYear = rawExpiry > WEEKS_PER_YEAR ? currentYear + 1 : currentYear;
 
-  return { platformName: platform.name, amount, expiresWeek, expiresYear };
+  const durationYears = avgRating >= 8 ? 3 : avgRating >= 6.5 ? 2 : 1;
+
+  return { platformName: platform.name, amount, expiresWeek, expiresYear, durationYears };
 }

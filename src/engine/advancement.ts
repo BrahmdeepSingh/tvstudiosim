@@ -107,6 +107,7 @@ export function advanceWeek(state: GameState): GameState {
       streamingOfferSource: offer.platformName,
       streamingOfferExpiresWeek: offer.expiresWeek,
       streamingOfferExpiresYear: offer.expiresYear,
+      streamingDealDurationYears: offer.durationYears,
     };
     const updatedSeasons = [...show.seasons];
     updatedSeasons[show.currentSeasonIndex] = updatedSeason;
@@ -118,8 +119,8 @@ export function advanceWeek(state: GameState): GameState {
       year: newYear,
       read: false,
       refID: show.id,
-      title: `${offer.platformName} offering $${formatM(offer.amount)} for "${show.title}"`,
-      preview: `Expires week ${offer.expiresWeek}, Year ${offer.expiresYear}`,
+      title: `${offer.platformName} offering $${formatM(offer.amount)} for S${season.seasonNumber} of "${show.title}"`,
+      preview: `${offer.durationYears}-yr deal · Expires Week ${offer.expiresWeek}, Year ${offer.expiresYear}`,
     });
 
     return { ...show, seasons: updatedSeasons };
