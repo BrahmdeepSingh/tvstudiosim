@@ -84,6 +84,7 @@ export interface Talent {
   chemistryColor: ChemistryColor;
   available: boolean;
   bookedForSeasonID: string | null; // locked but filming not started yet
+  bookedByCompetitorShowID: string | null; // booked by a competitor show
   awards: Award[];
   careerShowIDs: string[];
   prestigeRequired: number; // min network prestige to see this talent
@@ -223,6 +224,7 @@ export interface CompetitorShow {
   seasonNumber: number;
   episodesAired: number;
   totalEpisodes: number;
+  bookedTalentIDs: string[];
 }
 
 export interface CompetitorStudio {

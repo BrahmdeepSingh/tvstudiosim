@@ -60,7 +60,7 @@ function StatBar({ label, value }: { label: string; value: number }) {
 }
 
 function TalentModal({ talent, onClose }: { talent: Talent; onClose: () => void }) {
-  const { shows, talentDeals, awards } = useGameStore();
+  const { shows, talentDeals, awards, competitors } = useGameStore();
   const chemColor = CHEM_COLORS[talent.chemistryColor];
 
   // Find current show assignment
@@ -68,6 +68,14 @@ function TalentModal({ talent, onClose }: { talent: Talent; onClose: () => void 
     d => d.talentID === talent.id && !talent.available
   );
   const currentShow = currentDeal ? shows.find(s => s.id === currentDeal.showID) : null;
+
+  // Find competitor booking
+  const competitorShow = talent.bookedByCompetitorShowID
+    ? competitors.flatMap(c => c.activeShows).find(s => s.id === talent.bookedByCompetitorShowID)
+    : null;
+  const competitorStudio = competitorShow
+    ? competitors.find(c => c.id === competitorShow.studioID)
+    : null;
 
   // Career shows
   const careerShows = shows.filter(s => talent.careerShowIDs.includes(s.id));
@@ -107,9 +115,11 @@ function TalentModal({ talent, onClose }: { talent: Talent; onClose: () => void 
             <Text style={[m.availText, { color: talent.available ? C.green : C.amber }]}>
               {talent.available
                 ? 'Available for hire'
-                : currentShow
-                  ? `On: ${currentShow.title}`
-                  : 'Currently booked'}
+                : competitorStudio
+                  ? `Filming for ${competitorStudio.name}`
+                  : currentShow
+                    ? `On: ${currentShow.title}`
+                    : 'Currently booked'}
             </Text>
           </View>
 

@@ -108,6 +108,7 @@ function makeTalent(
     chemistryColor: randomItem(CHEMISTRY_COLORS),
     available: true,
     bookedForSeasonID: null,
+    bookedByCompetitorShowID: null,
     awards: [],
     careerShowIDs: [],
     prestigeRequired: prestigeRequiredForTier(tier),

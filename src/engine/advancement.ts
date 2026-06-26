@@ -159,8 +159,9 @@ export function advanceWeek(state: GameState): GameState {
   }
 
   // ─── Advance competitors ───────────────────────────────────────────────────
-  const { updatedCompetitors, newsItems: competitorNews } =
-    advanceCompetitors(state.competitors, newWeek, newYear);
+  const { updatedCompetitors, newsItems: competitorNews, updatedTalent: talentAfterCompetitors } =
+    advanceCompetitors(state.competitors, talent, newWeek, newYear);
+  talent = talentAfterCompetitors;
   newNewsItems.push(...competitorNews);
 
   // ─── Industry news (occasional) ───────────────────────────────────────────
@@ -170,7 +171,7 @@ export function advanceWeek(state: GameState): GameState {
 
   // ─── Emmy nomination week ──────────────────────────────────────────────────
   if (newWeek === EMMY_NOMINATION_WEEK) {
-    const nominations = calculateEmmyNominations(updatedShows, talent, newYear);
+    const nominations = calculateEmmyNominations(updatedShows, talent, updatedCompetitors, newYear);
     awards = [...awards, ...nominations];
 
     const playerNoms = nominations.filter(n =>

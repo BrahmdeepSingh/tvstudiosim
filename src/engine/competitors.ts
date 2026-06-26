@@ -1,4 +1,4 @@
-import { CompetitorStudio, CompetitorShow, NewsItem, Genre } from '../types';
+import { CompetitorStudio, CompetitorShow, NewsItem, Genre, Talent } from '../types';
 import {
   COMPETITOR_NAMES,
   COMPETITOR_CANCEL_THRESHOLD,
@@ -52,21 +52,25 @@ export function generateCompetitorShow(studioID: string): CompetitorShow {
     seasonNumber: 1,
     episodesAired: 0,
     totalEpisodes: randomBetween(8, 12),
+    bookedTalentIDs: [],
   };
 }
 
 interface CompetitorAdvanceResult {
   updatedCompetitors: CompetitorStudio[];
   newsItems: NewsItem[];
+  updatedTalent: Talent[];
 }
 
 export function advanceCompetitors(
   competitors: CompetitorStudio[],
+  talent: Talent[],
   week: number,
   year: number,
 ): CompetitorAdvanceResult {
   const newsItems: NewsItem[] = [];
   const ctx = { week, year };
+  let mutableTalent = [...talent];
 
   const updatedCompetitors = competitors.map(studio => {
     const updatedShows: CompetitorShow[] = [];
@@ -89,7 +93,8 @@ export function advanceCompetitors(
 
       // Mid-season cancellation
       if (newEpisodesAired >= 3 && newRating < COMPETITOR_CANCEL_THRESHOLD) {
-        updatedShows.push({ ...show, status: 'cancelled', currentRating: newRating });
+        mutableTalent = releaseTalent(mutableTalent, show.id);
+        updatedShows.push({ ...show, status: 'cancelled', currentRating: newRating, bookedTalentIDs: [] });
         newsItems.push(makeCompetitorCancelledNews(studio, show, ctx));
         continue;
       }
@@ -97,6 +102,7 @@ export function advanceCompetitors(
       // Season complete
       if (newEpisodesAired >= show.totalEpisodes) {
         if (newRating >= 5.5 && show.seasonNumber < 5) {
+          // Renewal — talent stays booked to the renewed show
           const renewedShow: CompetitorShow = {
             ...show,
             episodesAired: 0,
@@ -107,7 +113,8 @@ export function advanceCompetitors(
           updatedShows.push(renewedShow);
           newsItems.push(makeCompetitorRenewedNews(studio, show, ctx));
         } else {
-          updatedShows.push({ ...show, status: 'completed', episodesAired: newEpisodesAired });
+          mutableTalent = releaseTalent(mutableTalent, show.id);
+          updatedShows.push({ ...show, status: 'completed', episodesAired: newEpisodesAired, bookedTalentIDs: [] });
         }
         continue;
       }
@@ -124,12 +131,44 @@ export function advanceCompetitors(
     const airingCount = updatedShows.filter(s => s.status === 'airing').length;
     if (airingCount < MAX_COMPETITOR_ACTIVE_SHOWS && randomChance(COMPETITOR_GREENLIGHT_CHANCE)) {
       const newShow = generateCompetitorShow(studio.id);
-      updatedShows.push(newShow);
+      const { updatedTalent, bookedIDs } = bookTalentForShow(mutableTalent, newShow.id);
+      mutableTalent = updatedTalent;
+      updatedShows.push({ ...newShow, bookedTalentIDs: bookedIDs });
       newsItems.push(makeCompetitorGreenlitNews(studio, newShow, ctx));
     }
 
     return { ...studio, activeShows: updatedShows };
   });
 
-  return { updatedCompetitors, newsItems };
+  return { updatedCompetitors, newsItems, updatedTalent: mutableTalent };
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function releaseTalent(talent: Talent[], competitorShowID: string): Talent[] {
+  return talent.map(t =>
+    t.bookedByCompetitorShowID === competitorShowID
+      ? { ...t, available: true, bookedByCompetitorShowID: null }
+      : t,
+  );
+}
+
+function bookTalentForShow(
+  talent: Talent[],
+  competitorShowID: string,
+): { updatedTalent: Talent[]; bookedIDs: string[] } {
+  // Book 2 available actors (not already booked anywhere)
+  const available = talent.filter(t => t.available && t.role === 'actor');
+  const count = Math.min(2, available.length);
+  const shuffled = [...available].sort(() => Math.random() - 0.5);
+  const toBook = shuffled.slice(0, count);
+  const bookedIDs = toBook.map(t => t.id);
+
+  const updatedTalent = talent.map(t =>
+    bookedIDs.includes(t.id)
+      ? { ...t, available: false, bookedByCompetitorShowID: competitorShowID }
+      : t,
+  );
+
+  return { updatedTalent, bookedIDs };
 }
