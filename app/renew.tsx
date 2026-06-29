@@ -29,9 +29,9 @@ function autoResignFee(t: Talent): number {
   return Math.round((range[0] + range[1]) / 2 / 50_000) * 50_000;
 }
 
-function isReturnable(t: Talent, seasonID: string): boolean {
-  // Talent is returnable if still booked to this season (not snatched away)
-  return !t.available && t.bookedForSeasonID === seasonID;
+function isReturnable(t: Talent): boolean {
+  // Talent is free to re-sign if available (freed when filming wrapped) or still held by this show
+  return t.available;
 }
 
 function TalentReturnCard({
@@ -199,7 +199,7 @@ export default function RenewScreen() {
     router.replace(`/show/${showID}`);
   }
 
-  const directorReturnable = returningDirector ? isReturnable(returningDirector, prevSeason.id) : false;
+  const directorReturnable = returningDirector ? isReturnable(returningDirector) : false;
 
   return (
     <SafeAreaView style={s.container}>
@@ -303,7 +303,7 @@ export default function RenewScreen() {
                 talent={t}
                 role="Lead Actor"
                 selected={resignLeadIDs.includes(t.id)}
-                returnable={isReturnable(t, prevSeason.id)}
+                returnable={isReturnable(t)}
                 canSelect={resignLeadIDs.length < leadSlots}
                 onToggle={() => toggleLeadResign(t.id)}
               />
@@ -337,7 +337,7 @@ export default function RenewScreen() {
                 talent={t}
                 role="Supporting"
                 selected={resignSupportingIDs.includes(t.id)}
-                returnable={isReturnable(t, prevSeason.id)}
+                returnable={isReturnable(t)}
                 canSelect={resignSupportingIDs.length < supportingSlots}
                 onToggle={() => toggleSupportingResign(t.id)}
               />
