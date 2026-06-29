@@ -16,7 +16,7 @@ import { tryGenerateStreamingOffer, scheduleNextOfferCheck } from './streaming';
 import { generatePitch } from './pitches';
 import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews } from './news';
 import { nanoid } from '../utils/nanoid';
-import { randomChance } from '../utils/random';
+import { randomChance, randomBetween } from '../utils/random';
 
 export function advanceWeek(state: GameState): GameState {
   const { currentWeek, currentYear } = state.network;
@@ -94,10 +94,9 @@ export function advanceWeek(state: GameState): GameState {
     careerEarnings: network.careerEarnings + revenueThisWeek,
   };
 
-  // ─── Streaming: expire offers, run scheduled checks, generate first offers ──
-  const updatedShows = shows.map((show, i) => {
+  // ─── Streaming: expire offers, run scheduled checks, generate offers ─────────
+  const updatedShows = shows.map(show => {
     let s = show;
-    const prev = state.shows[i];
 
     // Expire pending offer → schedule re-check in 4–16 weeks
     if (s.pendingStreamingOffer) {
@@ -111,31 +110,33 @@ export function advanceWeek(state: GameState): GameState {
       }
     }
 
-    // Detect just-entered renewal-pending (season finished)
-    const justFinished = prev.status !== 'renewal-pending' && s.status === 'renewal-pending';
+    // Count completed seasons — if more than we last checked, a new season is ready
+    const completedCount = s.seasons.filter(se => se.episodesAired >= se.episodeCount).length;
+    const newSeasonReady = completedCount > s.streamingCheckedAtSeasonCount;
 
-    // Run scheduled check
+    // Check if a scheduled check is now due
     const checkDue =
       s.streamingOfferCheckWeek !== null &&
       s.streamingOfferCheckYear !== null &&
       newYear === s.streamingOfferCheckYear &&
       newWeek >= s.streamingOfferCheckWeek;
 
-    if ((justFinished || checkDue) && !s.pendingStreamingOffer) {
+    if ((newSeasonReady || checkDue) && !s.pendingStreamingOffer) {
       if (checkDue) {
         s = { ...s, streamingOfferCheckWeek: null, streamingOfferCheckYear: null };
       }
 
-      // Check for blocking exclusive deal
+      // Mark this season count as evaluated (prevents re-running same check every week)
+      s = { ...s, streamingCheckedAtSeasonCount: completedCount };
+
       const activeExclusive = s.streamingDeals.find(
         d => d.dealType === 'exclusive' && d.expiresYear >= newYear,
       );
 
       if (activeExclusive) {
-        // Schedule check for after the deal expires
-        const checkYear = activeExclusive.expiresYear + 1;
-        const checkWeek = randomChance(0.5) ? 1 : 4;
-        s = { ...s, streamingOfferCheckWeek: checkWeek, streamingOfferCheckYear: checkYear };
+        // Blocked — schedule check for the year after the deal expires
+        const checkWeek = randomBetween(1, 8);
+        s = { ...s, streamingOfferCheckWeek: checkWeek, streamingOfferCheckYear: activeExclusive.expiresYear + 1 };
       } else {
         const offer = tryGenerateStreamingOffer(s, newWeek, newYear);
         if (offer) {

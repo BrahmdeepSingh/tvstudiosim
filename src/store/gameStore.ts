@@ -226,6 +226,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pendingStreamingOffer: null,
       streamingOfferCheckWeek: null,
       streamingOfferCheckYear: null,
+      streamingCheckedAtSeasonCount: 0,
       cancelledClean: true,
     };
 
@@ -529,6 +530,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pendingStreamingOffer: null,
       streamingOfferCheckWeek: null,
       streamingOfferCheckYear: null,
+      streamingCheckedAtSeasonCount: 0,
       cancelledClean: true,
     };
 
@@ -816,6 +818,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pendingStreamingOffer: null,
       streamingOfferCheckWeek: null,
       streamingOfferCheckYear: null,
+      streamingCheckedAtSeasonCount: 0,
       cancelledClean: true,
       ...sh,
       seasons: (sh.seasons ?? []).map((se: any) => {

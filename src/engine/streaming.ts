@@ -29,8 +29,15 @@ export function tryGenerateStreamingOffer(
   const allEpisodes = completedSeasons.flatMap(s => s.episodes.filter(e => e.rating !== null));
   if (allEpisodes.length === 0) return null;
 
+  // Eligibility: use the latest season's avg rating so an improving show qualifies
+  const lastSeasonEps = completedSeasons[completedSeasons.length - 1].episodes.filter(e => e.rating !== null);
+  const latestAvgRating = lastSeasonEps.length > 0
+    ? lastSeasonEps.reduce((sum, e) => sum + (e.rating ?? 0), 0) / lastSeasonEps.length
+    : 0;
+  if (latestAvgRating < STREAMING_OFFER_MIN_RATING) return null;
+
+  // Use all-seasons average for the quality modifier (payout value)
   const avgRating = allEpisodes.reduce((sum, e) => sum + (e.rating ?? 0), 0) / allEpisodes.length;
-  if (avgRating < STREAMING_OFFER_MIN_RATING) return null;
 
   const totalEpisodes = completedSeasons.reduce((sum, s) => sum + s.episodeCount, 0);
   const seasonsToInclude = completedSeasons.map(s => s.seasonNumber);

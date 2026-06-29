@@ -187,6 +187,7 @@ export interface Show {
   pendingStreamingOffer: StreamingOffer | null;
   streamingOfferCheckWeek: number | null;
   streamingOfferCheckYear: number | null;
+  streamingCheckedAtSeasonCount: number; // how many completed seasons were present at last offer attempt
   cancelledClean: boolean;
 }
 

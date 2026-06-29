@@ -34,7 +34,7 @@ export const COMPETITOR_NAMES = [
 
 // ─── Streaming ────────────────────────────────────────────────────────────────
 
-export const STREAMING_OFFER_MIN_RATING = 6.5;
+export const STREAMING_OFFER_MIN_RATING = 5.5;
 export const STREAMING_OFFER_EXPIRY_WEEKS = 4;
 
 export const STREAMING_PLATFORMS = [
