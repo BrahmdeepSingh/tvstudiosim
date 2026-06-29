@@ -107,6 +107,14 @@ export default function RenewScreen() {
   const show = shows.find(s => s.id === showID);
   const prevSeason = show?.seasons[show.currentSeasonIndex];
 
+  // All hooks must come before any conditional return (React rules of hooks)
+  const [episodeCount, setEpisodeCount] = useState(prevSeason?.episodeCount ?? 10);
+  const [leadSlots, setLeadSlots] = useState(prevSeason?.leadActorSlots ?? 2);
+  const [supportingSlots, setSupportingSlots] = useState(prevSeason?.supportingActorSlots ?? 2);
+  const [resignDirector, setResignDirector] = useState(false);
+  const [resignLeadIDs, setResignLeadIDs] = useState<string[]>([]);
+  const [resignSupportingIDs, setResignSupportingIDs] = useState<string[]>([]);
+
   if (!show || !prevSeason || show.status !== 'renewal-pending') {
     return (
       <SafeAreaView style={s.container}>
@@ -123,14 +131,6 @@ export default function RenewScreen() {
   const returningDirector   = prevSeason.directorID ? talent.find(t => t.id === prevSeason.directorID) ?? null : null;
   const returningLeads      = prevSeason.leadActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
   const returningSupporting = prevSeason.supportingActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
-
-  // Local state
-  const [episodeCount, setEpisodeCount] = useState(prevSeason.episodeCount);
-  const [leadSlots, setLeadSlots] = useState(prevSeason.leadActorSlots);
-  const [supportingSlots, setSupportingSlots] = useState(prevSeason.supportingActorSlots);
-  const [resignDirector, setResignDirector] = useState(false);
-  const [resignLeadIDs, setResignLeadIDs] = useState<string[]>([]);
-  const [resignSupportingIDs, setResignSupportingIDs] = useState<string[]>([]);
 
   function toggleLeadResign(id: string) {
     setResignLeadIDs(prev => {
