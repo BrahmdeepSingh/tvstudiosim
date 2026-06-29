@@ -1,7 +1,6 @@
 import { GameState, Show, Season, Episode, ShowStatus, InboxItem } from '../types';
 import {
   WRITING_WEEKS,
-  FILMING_WEEKS,
   WEEKS_PER_YEAR,
   EMMY_NOMINATION_WEEK,
   EMMY_CEREMONY_WEEK,
@@ -46,10 +45,22 @@ export function advanceWeek(state: GameState): GameState {
     }
   });
 
-  // Detect filming→marketing transitions and generate wrap news
+  // Detect filming→marketing transitions: generate wrap news and free cast/director
   for (let i = 0; i < state.shows.length; i++) {
     if (state.shows[i].status === 'filming' && shows[i].status === 'marketing') {
       newNewsItems.push(makeFilmingWrapNews(shows[i].title, { week: newWeek, year: newYear }));
+
+      // Filming is done — cast and director are free to take other work
+      const wrappedSeason = shows[i].seasons[shows[i].currentSeasonIndex];
+      const freedIDs = new Set([
+        ...wrappedSeason.leadActorIDs,
+        ...wrappedSeason.supportingActorIDs,
+        wrappedSeason.directorID,
+      ].filter(Boolean) as string[]);
+
+      talent = talent.map(t =>
+        freedIDs.has(t.id) ? { ...t, available: true, bookedForSeasonID: null } : t
+      );
     }
   }
 
@@ -282,7 +293,7 @@ function tickFilming(show: Show, season: Season, state: GameState): Show {
   const completed = season.filmingWeeksCompleted + 1;
   let updatedSeason = { ...season, filmingWeeksCompleted: completed };
 
-  if (completed >= FILMING_WEEKS) {
+  if (completed >= season.filmingWeeksTotal) {
     const director = state.talent.find(t => t.id === season.directorID!);
     const allActorIDs = [...season.leadActorIDs, ...season.supportingActorIDs];
     const cast = allActorIDs

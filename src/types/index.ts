@@ -135,7 +135,7 @@ export interface Season {
 
   writingWeeksTotal: number; // always 3
   writingWeeksCompleted: number;
-  filmingWeeksTotal: number; // always 4
+  filmingWeeksTotal: number; // equals episodeCount
   filmingWeeksCompleted: number;
   marketingWeeksTotal: number; // weeks between wrap and chosen air date
   marketingWeeksCompleted: number;
