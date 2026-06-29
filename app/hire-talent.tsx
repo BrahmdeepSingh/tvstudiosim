@@ -139,7 +139,7 @@ function OfferModal({
 
   function handleOffer() {
     if (!validOffer) return;
-    const accepted = evaluateOffer(talent.id, offered, network.prestige);
+    const accepted = evaluateOffer(talent.id, offered, network.prestige, actorType);
 
     if (accepted) {
       let success = false;
@@ -159,7 +159,6 @@ function OfferModal({
   }
 
   const secondary = getSecondaryStats(talent);
-  const hint = feeHint(role, talent.popularity);
 
   return (
     <View style={s.modalOverlay}>
@@ -196,7 +195,7 @@ function OfferModal({
           <>
             <Text style={s.offerLabel}>MAKE AN OFFER (millions)</Text>
             {lastRejected && (
-              <Text style={s.rejectedHint}>Rejected. Try a higher offer. Typical range: {hint}</Text>
+              <Text style={s.rejectedHint}>Not interested. Try a higher offer.</Text>
             )}
             <View style={s.offerRow}>
               <Text style={s.dollarSign}>$</Text>

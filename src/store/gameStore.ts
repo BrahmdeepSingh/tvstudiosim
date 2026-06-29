@@ -24,6 +24,7 @@ import {
   STARTING_YEAR,
   WRITING_WEEKS,
   TALENT_FEES,
+  SUPPORTING_ACTOR_FEES,
   MARKETING_CHANNELS,
   WEEKS_PER_YEAR,
 } from '../constants/game';
@@ -48,7 +49,7 @@ interface GameStore extends GameState {
   hireActor: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number, actorType: 'lead' | 'supporting') => boolean;
 
   // Talent negotiation: returns whether talent accepts the offer
-  evaluateOffer: (talentID: string, offeredFee: number, networkPrestige: number) => boolean;
+  evaluateOffer: (talentID: string, offeredFee: number, networkPrestige: number, actorType?: 'lead' | 'supporting') => boolean;
 
   // Marketing
   setAirDate: (showID: string, week: number, year: number) => void;
@@ -236,7 +237,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Talent Negotiation ─────────────────────────────────────────────────────
 
-  evaluateOffer: (talentID, offeredFee, networkPrestige) => {
+  evaluateOffer: (talentID, offeredFee, networkPrestige, actorType = 'lead') => {
     const state = get();
     const talent = state.talent.find(t => t.id === talentID);
     if (!talent) return false;
@@ -246,7 +247,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Determine talent's expected minimum based on popularity
     const tierIndex = popularity < 40 ? 'low' : popularity < 70 ? 'mid' : 'high';
-    const feeRange = TALENT_FEES[role][tierIndex];
+    const feeRange = (role === 'actor' && actorType === 'supporting')
+      ? SUPPORTING_ACTOR_FEES[tierIndex]
+      : TALENT_FEES[role][tierIndex];
     const minAcceptable = feeRange[0] * 0.85; // will accept down to 85% of range floor
     const askingPrice = feeRange[0] + (feeRange[1] - feeRange[0]) * (popularity / 100);
 
