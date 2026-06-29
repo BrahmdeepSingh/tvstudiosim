@@ -238,15 +238,18 @@ function OfferModal({
 
 export default function HireTalentScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ showID: string; role: TalentRole; actorType?: string }>();
+  const params = useLocalSearchParams<{ showID: string; role: TalentRole; actorType?: string; talentID?: string }>();
   const showID = params.showID ?? '';
   const role: TalentRole = (params.role as TalentRole) ?? 'showrunner';
   const actorType: 'lead' | 'supporting' =
     params.actorType === 'supporting' ? 'supporting' : 'lead';
 
   const { talent, network, shows } = useGameStore();
-  const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Pre-select talent if navigated here from talent modal (initial mount only)
+  const preselected = params.talentID ? talent.find(t => t.id === params.talentID) ?? null : null;
+  const [selectedTalent, setSelectedTalent] = useState<Talent | null>(preselected);
 
   const show = shows.find(s => s.id === showID);
   const season = show?.seasons[show.currentSeasonIndex];
@@ -255,10 +258,9 @@ export default function HireTalentScreen() {
     return talent.filter(t =>
       t.role === role &&
       t.available &&
-      t.prestigeRequired <= network.prestige &&
       (searchQuery === '' || t.name.toLowerCase().includes(searchQuery.toLowerCase()))
     ).sort((a, b) => b.popularity - a.popularity);
-  }, [talent, role, network.prestige, searchQuery]);
+  }, [talent, role, searchQuery]);
 
   // For actors: current count and max for the active slot type
   const filledLeads = season?.leadActorIDs.length ?? 0;
@@ -337,11 +339,6 @@ export default function HireTalentScreen() {
       {available.length === 0 ? (
         <View style={s.emptyState}>
           <Text style={s.emptyText}>No available {role}s match your search.</Text>
-          {network.prestige < 21 && (
-            <Text style={s.emptyHint}>
-              Raise your prestige above 20 to unlock mid-tier talent.
-            </Text>
-          )}
         </View>
       ) : (
         <FlatList

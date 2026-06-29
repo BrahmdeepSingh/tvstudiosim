@@ -138,7 +138,6 @@ export function generateInitialTalentPool(): Talent[] {
   return pool;
 }
 
-// Returns talent visible to player given current prestige
-export function getAvailableTalent(talent: Talent[], prestige: number): Talent[] {
-  return talent.filter(t => t.prestigeRequired <= prestige && t.available);
+export function getAvailableTalent(talent: Talent[]): Talent[] {
+  return talent.filter(t => t.available);
 }

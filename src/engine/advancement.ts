@@ -139,7 +139,7 @@ export function advanceWeek(state: GameState): GameState {
   const pitchesThisYear = pitches.filter(p => p.submittedYear === newYear).length;
   if (pitchesThisYear < MAX_PITCHES_PER_YEAR && randomChance(PITCH_GENERATE_CHANCE)) {
     const showrunners = talent.filter(
-      t => t.role === 'showrunner' && t.available && t.prestigeRequired <= network.prestige,
+      t => t.role === 'showrunner' && t.available,
     );
     const pitch = generatePitch(showrunners, newWeek, newYear);
     if (pitch) {

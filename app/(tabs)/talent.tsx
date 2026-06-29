@@ -2,6 +2,7 @@ import {
   View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, SafeAreaView, Modal, ScrollView,
 } from 'react-native';
 import { useState, useMemo } from 'react';
+import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
 import { Talent, TalentRole } from '../../src/types';
 import { EMMY_CATEGORY_LABELS } from '../../src/constants/game';
@@ -61,6 +62,7 @@ function StatBar({ label, value }: { label: string; value: number }) {
 
 function TalentModal({ talent, onClose }: { talent: Talent; onClose: () => void }) {
   const { shows, talentDeals, awards, competitors } = useGameStore();
+  const router = useRouter();
   const chemColor = CHEM_COLORS[talent.chemistryColor];
 
   // Find current show assignment
@@ -79,6 +81,33 @@ function TalentModal({ talent, onClose }: { talent: Talent; onClose: () => void 
 
   // Career shows
   const careerShows = shows.filter(s => talent.careerShowIDs.includes(s.id));
+
+  // Shows where this talent could be hired right now
+  const eligibleShows = useMemo(() => {
+    if (!talent.available) return [];
+    if (talent.role === 'showrunner') {
+      return shows.filter(s =>
+        s.status === 'writing' &&
+        (s.seasons[s.currentSeasonIndex]?.showrunnerID ?? '') === ''
+      );
+    }
+    if (talent.role === 'director') {
+      return shows.filter(s =>
+        s.status === 'filming' &&
+        s.seasons[s.currentSeasonIndex]?.directorID === null
+      );
+    }
+    // actor
+    return shows.filter(s => {
+      if (s.status !== 'filming') return false;
+      const season = s.seasons[s.currentSeasonIndex];
+      if (!season) return false;
+      return (
+        season.leadActorIDs.length < season.leadActorSlots ||
+        season.supportingActorIDs.length < season.supportingActorSlots
+      );
+    });
+  }, [talent, shows]);
 
   // Awards
   const talentAwards = awards.filter(a => a.talentID === talent.id && a.won);
@@ -167,6 +196,74 @@ function TalentModal({ talent, onClose }: { talent: Talent; onClose: () => void 
             </>
           )}
 
+          {/* Hire for show */}
+          {talent.available && (
+            <>
+              <Text style={m.sectionLabel}>HIRE FOR SHOW</Text>
+              {eligibleShows.length === 0 ? (
+                <Text style={m.noShowsText}>
+                  No shows currently have an open {talent.role} slot.
+                </Text>
+              ) : (
+                eligibleShows.map(show => {
+                  const season = show.seasons[show.currentSeasonIndex];
+                  if (talent.role === 'actor') {
+                    const leadOpen = (season?.leadActorIDs.length ?? 0) < (season?.leadActorSlots ?? 0);
+                    const suppOpen = (season?.supportingActorIDs.length ?? 0) < (season?.supportingActorSlots ?? 0);
+                    return (
+                      <View key={show.id} style={m.hireRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={m.hireShowTitle}>{show.title}</Text>
+                          <Text style={m.hireShowMeta}>{show.genre}</Text>
+                        </View>
+                        <View style={m.hireSlots}>
+                          {leadOpen && (
+                            <TouchableOpacity
+                              style={m.hireSlotBtn}
+                              onPress={() => {
+                                onClose();
+                                router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=lead&talentID=${talent.id}`);
+                              }}
+                            >
+                              <Text style={m.hireSlotText}>Lead</Text>
+                            </TouchableOpacity>
+                          )}
+                          {suppOpen && (
+                            <TouchableOpacity
+                              style={m.hireSlotBtn}
+                              onPress={() => {
+                                onClose();
+                                router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=supporting&talentID=${talent.id}`);
+                              }}
+                            >
+                              <Text style={m.hireSlotText}>Supporting</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  }
+                  return (
+                    <TouchableOpacity
+                      key={show.id}
+                      style={m.hireRow}
+                      onPress={() => {
+                        onClose();
+                        router.push(`/hire-talent?showID=${show.id}&role=${talent.role}&talentID=${talent.id}`);
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={m.hireShowTitle}>{show.title}</Text>
+                        <Text style={m.hireShowMeta}>{show.genre}</Text>
+                      </View>
+                      <Text style={m.hireArrow}>Hire →</Text>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </>
+          )}
+
           <View style={{ height: 24 }} />
         </ScrollView>
       </View>
@@ -204,7 +301,7 @@ function TalentCard({ talent, onPress }: { talent: Talent; onPress: () => void }
 }
 
 export default function TalentScreen() {
-  const { talent, network } = useGameStore();
+  const { talent } = useGameStore();
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [availFilter, setAvailFilter] = useState<AvailFilter>('all');
   const [search, setSearch] = useState('');
@@ -212,26 +309,22 @@ export default function TalentScreen() {
 
   const visible = useMemo(() => {
     return talent.filter(t => {
-      if (t.prestigeRequired > network.prestige) return false;
       if (roleFilter !== 'all' && t.role !== roleFilter) return false;
       if (availFilter === 'available' && !t.available) return false;
       if (availFilter === 'booked' && t.available) return false;
       if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     }).sort((a, b) => b.popularity - a.popularity);
-  }, [talent, network.prestige, roleFilter, availFilter, search]);
+  }, [talent, roleFilter, availFilter, search]);
 
   const counts = useMemo(() => {
-    const byRole = talent.filter(t =>
-      t.prestigeRequired <= network.prestige &&
-      (roleFilter === 'all' || t.role === roleFilter)
-    );
+    const byRole = talent.filter(t => roleFilter === 'all' || t.role === roleFilter);
     return {
       all:       byRole.length,
       available: byRole.filter(t => t.available).length,
       booked:    byRole.filter(t => !t.available).length,
     };
-  }, [talent, network.prestige, roleFilter]);
+  }, [talent, roleFilter]);
 
   return (
     <SafeAreaView style={s.container}>
@@ -289,11 +382,6 @@ export default function TalentScreen() {
       {visible.length === 0 ? (
         <View style={s.empty}>
           <Text style={s.emptyText}>No talent match your filters.</Text>
-          {network.prestige < 21 && (
-            <Text style={s.emptyHint}>
-              Reach prestige 21 to unlock mid-tier talent.
-            </Text>
-          )}
         </View>
       ) : (
         <FlatList
@@ -351,6 +439,15 @@ const m = StyleSheet.create({
   showRow:       { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border },
   showTitle:     { color: C.text, fontSize: 13, fontWeight: '500' },
   showMeta:      { color: C.muted, fontSize: 12, marginTop: 2 },
+
+  noShowsText:   { color: C.muted, fontSize: 13, fontStyle: 'italic', marginBottom: 8 },
+  hireRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
+  hireShowTitle: { color: C.text, fontSize: 14, fontWeight: '500' },
+  hireShowMeta:  { color: C.muted, fontSize: 12, marginTop: 2 },
+  hireSlots:     { flexDirection: 'row', gap: 6 },
+  hireSlotBtn:   { backgroundColor: C.accent + '22', borderWidth: 1, borderColor: C.accent, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  hireSlotText:  { color: C.accent, fontSize: 12, fontWeight: '600' },
+  hireArrow:     { color: C.accent, fontSize: 13, fontWeight: '600' },
 });
 
 // ─── List styles ──────────────────────────────────────────────────────────────
