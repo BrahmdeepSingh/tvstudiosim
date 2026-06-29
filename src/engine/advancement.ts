@@ -8,7 +8,7 @@ import {
   MAX_PITCHES_PER_YEAR,
   PITCH_GENERATE_CHANCE,
 } from '../constants/game';
-import { calculateQualityScore } from './quality';
+import { calculateScriptScore, calculateQualityScore } from './quality';
 import { calculateEpisodeRating } from './ratings';
 import { generateSocialReactions } from './social';
 import { advanceCompetitors } from './competitors';
@@ -38,7 +38,7 @@ export function advanceWeek(state: GameState): GameState {
     if (!season) return show;
 
     switch (show.status) {
-      case 'writing':  return tickWriting(show, season);
+      case 'writing':  return tickWriting(show, season, state);
       case 'filming':  return tickFilming(show, season, state);
       case 'marketing': return tickMarketing(show, season, newWeek, newYear);
       case 'airing':   return tickAiring(show, season, newWeek, newYear);
@@ -258,11 +258,19 @@ export function advanceWeek(state: GameState): GameState {
 
 // ─── Stage tick functions ──────────────────────────────────────────────────────
 
-function tickWriting(show: Show, season: Season): Show {
+function tickWriting(show: Show, season: Season, state: GameState): Show {
   const completed = season.writingWeeksCompleted + 1;
-  const updatedSeason = { ...season, writingWeeksCompleted: completed };
-  const status: ShowStatus = completed >= WRITING_WEEKS ? 'filming' : 'writing';
-  return updateShow(show, updatedSeason, status);
+  let updatedSeason = { ...season, writingWeeksCompleted: completed };
+
+  if (completed >= WRITING_WEEKS) {
+    const showrunner = state.talent.find(t => t.id === season.showrunnerID);
+    if (showrunner) {
+      updatedSeason = { ...updatedSeason, scriptScore: calculateScriptScore(showrunner) };
+    }
+    return updateShow(show, updatedSeason, 'filming');
+  }
+
+  return updateShow(show, updatedSeason, 'writing');
 }
 
 function tickFilming(show: Show, season: Season, state: GameState): Show {
@@ -275,15 +283,14 @@ function tickFilming(show: Show, season: Season, state: GameState): Show {
   let updatedSeason = { ...season, filmingWeeksCompleted: completed };
 
   if (completed >= FILMING_WEEKS) {
-    const showrunner = state.talent.find(t => t.id === season.showrunnerID);
     const director = state.talent.find(t => t.id === season.directorID!);
     const allActorIDs = [...season.leadActorIDs, ...season.supportingActorIDs];
     const cast = allActorIDs
       .map(id => state.talent.find(t => t.id === id))
       .filter((t): t is NonNullable<typeof t> => t !== undefined);
 
-    if (showrunner && director) {
-      const qualityScore = calculateQualityScore(showrunner, director, cast);
+    if (director) {
+      const qualityScore = calculateQualityScore(director, cast);
       updatedSeason = { ...updatedSeason, qualityScore };
     }
 

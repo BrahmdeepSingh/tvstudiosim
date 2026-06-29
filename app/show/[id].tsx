@@ -201,6 +201,37 @@ export default function ShowDetailScreen() {
           </View>
         )}
 
+        {/* Creative Scores */}
+        {(season.scriptScore > 0 || season.qualityScore !== 50) && !['writing'].includes(show.status) && (
+          <View style={sd.section}>
+            <Text style={sd.sectionLabel}>CREATIVE SCORES</Text>
+            <View style={sd.scoresRow}>
+              {season.scriptScore > 0 && (
+                <ScoreCard
+                  label="Script"
+                  score={season.scriptScore}
+                  sublabel="Writing"
+                />
+              )}
+              {!['filming'].includes(show.status) && season.qualityScore !== 50 && (
+                <ScoreCard
+                  label="Production"
+                  score={season.qualityScore}
+                  sublabel="Filming"
+                />
+              )}
+              {season.scriptScore > 0 && !['filming'].includes(show.status) && season.qualityScore !== 50 && (
+                <ScoreCard
+                  label="Combined"
+                  score={Math.round(season.scriptScore * 0.45 + season.qualityScore * 0.55)}
+                  sublabel="Overall"
+                  highlight
+                />
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Heatmap */}
         {(show.status === 'airing' || show.status === 'renewal-pending') && (
           <View style={sd.section}>
@@ -448,6 +479,19 @@ function StatChip({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ScoreCard({ label, score, sublabel, highlight }: {
+  label: string; score: number; sublabel: string; highlight?: boolean;
+}) {
+  const color = score >= 75 ? C.green : score >= 50 ? C.amber : C.red;
+  return (
+    <View style={[sd.scoreCard, highlight && { borderColor: color, backgroundColor: color + '18' }]}>
+      <Text style={[sd.scoreValue, { color }]}>{score}</Text>
+      <Text style={sd.scoreLabel}>{label}</Text>
+      <Text style={sd.scoreSublabel}>{sublabel}</Text>
+    </View>
+  );
+}
+
 function CrewRow({ label, talent }: { label: string; talent: NonNullable<ReturnType<typeof Array.prototype.find>> }) {
   const t = talent as any;
   const chemColor = CHEM_COLORS[t.chemistryColor as keyof typeof CHEM_COLORS];
@@ -555,4 +599,10 @@ const sd = StyleSheet.create({
   historyStatValue:  { color: C.text, fontSize: 15, fontWeight: '600' },
   historyStatLabel:  { color: C.muted, fontSize: 11, marginTop: 2 },
   historyStreaming:   { color: C.green, fontSize: 12, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 8, marginTop: 4 },
+
+  scoresRow:         { flexDirection: 'row', gap: 10 },
+  scoreCard:         { flex: 1, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 14, alignItems: 'center' },
+  scoreValue:        { fontSize: 28, fontWeight: '700', marginBottom: 2 },
+  scoreLabel:        { color: C.text, fontSize: 13, fontWeight: '600' },
+  scoreSublabel:     { color: C.muted, fontSize: 11, marginTop: 2 },
 });

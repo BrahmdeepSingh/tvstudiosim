@@ -1,12 +1,20 @@
 import { Talent } from '../types';
 import { clamp, randomFloat } from '../utils/random';
 
+export function calculateScriptScore(showrunner: Talent): number {
+  if (showrunner.stats.role !== 'showrunner') return 50;
+  const raw =
+    showrunner.stats.writing     * 0.50 +
+    showrunner.stats.creativity  * 0.30 +
+    showrunner.stats.consistency * 0.20;
+  const variance = randomFloat(-6, 6);
+  return clamp(Math.round(raw + variance), 0, 100);
+}
+
 export function calculateQualityScore(
-  showrunner: Talent,
   director: Talent,
   cast: Talent[],
 ): number {
-  if (showrunner.stats.role !== 'showrunner') return 50;
   if (director.stats.role !== 'director') return 50;
 
   const actors = cast.filter(t => t.stats.role === 'actor');
@@ -20,12 +28,10 @@ export function calculateQualityScore(
   const chemistryBonus = calculateChemistryBonus(actors);
 
   const raw =
-    showrunner.stats.writing    * 0.30 +
-    showrunner.stats.creativity * 0.15 +
-    director.stats.direction    * 0.20 +
-    director.stats.vision       * 0.10 +
-    avgActing                   * 0.15 +
-    chemistryBonus              * 0.10;
+    director.stats.direction * 0.35 +
+    director.stats.vision    * 0.20 +
+    avgActing                * 0.25 +
+    chemistryBonus           * 0.20;
 
   const variance = randomFloat(-8, 8);
   return clamp(Math.round(raw + variance), 0, 100);
@@ -47,6 +53,5 @@ function calculateChemistryBonus(actors: Talent[]): number {
   }
 
   const matchRatio = totalPairs > 0 ? matchCount / totalPairs : 0;
-  // Same color = up to 100 (max boost), no matches = 50 (neutral)
   return 50 + matchRatio * 50;
 }

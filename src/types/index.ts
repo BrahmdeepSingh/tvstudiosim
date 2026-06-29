@@ -169,6 +169,7 @@ export interface Season {
   supportingActorIDs: string[]; // filled during casting
   directorID: string | null;
   showrunnerID: string;
+  scriptScore: number;  // 0–100, calculated when writing wraps
   qualityScore: number; // 0–100, calculated at end of filming
 
   // Renewal suggestions — carry forward from the previous season
