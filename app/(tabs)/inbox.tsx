@@ -110,9 +110,9 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
 function StreamingOfferDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) {
   const { shows, acceptStreamingOffer, declineStreamingOffer, markInboxRead } = useGameStore();
   const show = shows.find(s => s.id === item.refID);
-  const season = show?.seasons[show.currentSeasonIndex];
+  const offer = show?.pendingStreamingOffer;
 
-  if (!show || !season?.streamingOfferReceived) {
+  if (!show || !offer) {
     return (
       <View style={d.emptyNote}>
         <Text style={d.emptyNoteText}>This offer is no longer available.</Text>
@@ -120,10 +120,13 @@ function StreamingOfferDetail({ item, onDone }: { item: InboxItem; onDone: () =>
     );
   }
 
-  const alreadyActed = season.streamingOfferAccepted || !season.streamingOfferReceived;
+  const seasonsLabel =
+    offer.seasonsToInclude.length === 1
+      ? `Season ${offer.seasonsToInclude[0]}`
+      : `Seasons ${offer.seasonsToInclude.join(', ')}`;
 
-  function handleAccept() {
-    acceptStreamingOffer(show!.id);
+  function handleAccept(dealType: 'exclusive' | 'non-exclusive') {
+    acceptStreamingOffer(show!.id, dealType);
     markInboxRead(item.id);
     onDone();
   }
@@ -136,39 +139,35 @@ function StreamingOfferDetail({ item, onDone }: { item: InboxItem; onDone: () =>
 
   return (
     <View>
-      <Text style={d.streamingAmount}>{fmt(season.streamingOfferAmount)}</Text>
-      <Text style={d.streamingFrom}>{season.streamingOfferSource} wants streaming rights to</Text>
+      <Text style={d.streamingFrom}>{offer.platformName} wants streaming rights to</Text>
       <Text style={d.streamingShow}>"{show.title}"</Text>
 
       <View style={d.infoBlock}>
-        <Row label="Show"     value={show.title} />
-        <Row label="Season"   value={`Season ${season.seasonNumber}`} />
-        <Row label="Platform" value={season.streamingOfferSource} />
-        <Row label="Offer"    value={fmt(season.streamingOfferAmount)} />
-        <Row label="Expires"  value={`Week ${season.streamingOfferExpiresWeek}, Year ${season.streamingOfferExpiresYear}`} />
+        <Row label="Seasons"       value={seasonsLabel} />
+        <Row label="Platform"      value={offer.platformName} />
+        <Row label="Deal length"   value={`${offer.durationYears} year${offer.durationYears > 1 ? 's' : ''}`} />
+        <Row label="Non-exclusive" value={fmt(offer.nonExclusiveAmount)} />
+        <Row label="Exclusive"     value={`${fmt(offer.exclusiveAmount)} (+40%)`} />
+        <Row label="Expires"       value={`Week ${offer.expiresWeek}, Year ${offer.expiresYear}`} />
       </View>
 
       <View style={d.noteCard}>
         <Text style={d.noteText}>
-          Accepting adds the payout to your cash immediately. Declining this offer means the show won't receive another from this platform for this season.
+          Non-exclusive lets other platforms bid too. Exclusive pays 40% more but blocks rivals for the deal's duration.
         </Text>
       </View>
 
-      {!alreadyActed && (
-        <View style={d.actionRow}>
-          <TouchableOpacity style={d.passBtn} onPress={handleDecline}>
-            <Text style={d.passBtnText}>Decline</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[d.primaryBtn, { backgroundColor: C.green }]} onPress={handleAccept}>
-            <Text style={d.primaryBtnText}>Accept Deal</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      {season.streamingOfferAccepted && (
-        <View style={[d.expiredNote, { borderColor: C.green + '66' }]}>
-          <Text style={[d.expiredText, { color: C.green }]}>✓ Deal accepted</Text>
-        </View>
-      )}
+      <View style={d.actionRow}>
+        <TouchableOpacity style={d.passBtn} onPress={handleDecline}>
+          <Text style={d.passBtnText}>Decline</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={d.primaryBtn} onPress={() => handleAccept('non-exclusive')}>
+          <Text style={d.primaryBtnText}>Non-Excl</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[d.primaryBtn, { backgroundColor: C.green }]} onPress={() => handleAccept('exclusive')}>
+          <Text style={d.primaryBtnText}>Exclusive</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

@@ -152,13 +152,7 @@ export interface Season {
   marketingSpend: number; // sum of purchased channel costs
   marketingChannelIDs: string[];
 
-  streamingOfferReceived: boolean;
-  streamingOfferAmount: number;
-  streamingOfferSource: string;
-  streamingOfferAccepted: boolean;
-  streamingOfferExpiresWeek: number | null;
-  streamingOfferExpiresYear: number | null;
-  streamingDealDurationYears: number; // 0 until offer received; 1–3 once offer arrives
+  streamingRevenue: number; // attributed from any streaming deal covering this season
 
   renewalDecisionMade: boolean;
   renewed: boolean;
@@ -189,6 +183,11 @@ export interface Show {
   status: ShowStatus;
   seasons: Season[];
   currentSeasonIndex: number;
+  streamingDeals: StreamingDeal[];
+  pendingStreamingOffer: StreamingOffer | null;
+  streamingOfferCheckWeek: number | null;
+  streamingOfferCheckYear: number | null;
+  cancelledClean: boolean;
 }
 
 // ─── Pitch ───────────────────────────────────────────────────────────────────
@@ -235,6 +234,33 @@ export interface CompetitorStudio {
   activeShows: CompetitorShow[];
   emmysWon: number;
   totalShowsProduced: number;
+}
+
+// ─── Streaming ───────────────────────────────────────────────────────────────
+
+export type StreamingDealType = 'exclusive' | 'non-exclusive';
+
+export interface StreamingDeal {
+  id: string;
+  platformName: string;
+  amount: number;
+  dealType: StreamingDealType;
+  seasonsIncluded: number[]; // season numbers
+  acceptedWeek: number;
+  acceptedYear: number;
+  durationYears: number;
+  expiresYear: number;
+}
+
+export interface StreamingOffer {
+  id: string;
+  platformName: string;
+  nonExclusiveAmount: number;
+  exclusiveAmount: number;
+  seasonsToInclude: number[];
+  expiresWeek: number;
+  expiresYear: number;
+  durationYears: number; // how long the deal would last if accepted
 }
 
 // ─── Awards ──────────────────────────────────────────────────────────────────

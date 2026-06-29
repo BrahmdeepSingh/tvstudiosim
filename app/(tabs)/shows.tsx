@@ -46,7 +46,7 @@ function getShowStats(show: Show) {
   let totalEpisodesAired = 0;
 
   for (const season of show.seasons) {
-    totalRevenue += season.totalAdRevenue + (season.streamingOfferAccepted ? season.streamingOfferAmount : 0);
+    totalRevenue += season.totalAdRevenue + season.streamingRevenue;
     totalViewers += season.totalViewers;
     for (const ep of season.episodes) {
       if (ep.rating !== null) {

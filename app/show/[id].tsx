@@ -56,7 +56,7 @@ function HeatmapDot({ ep, empty }: { ep?: Episode; empty?: boolean }) {
 export default function ShowDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { shows, talent, network, cancelShow, acceptStreamingOffer } = useGameStore();
+  const { shows, talent, network, cancelShow, acceptStreamingOffer, declineStreamingOffer } = useGameStore();
 
   const show = shows.find(s => s.id === id);
   if (!show) {
@@ -80,7 +80,7 @@ export default function ShowDetailScreen() {
     .filter(e => e.rating !== null)
     .reduce((acc, e, _, arr) => acc + (e.rating ?? 0) / arr.length, 0);
 
-  const streamingRevenue = season.streamingOfferAccepted ? season.streamingOfferAmount : 0;
+  const streamingRevenue = season.streamingRevenue;
   const netProfit = season.totalAdRevenue + streamingRevenue - season.productionCost - season.marketingSpend;
 
   const needsDirector = show.status === 'filming' && !season.directorID;
@@ -254,32 +254,59 @@ export default function ShowDetailScreen() {
         )}
 
         {/* Streaming offer — pending */}
-        {season.streamingOfferReceived && !season.streamingOfferAccepted && (
+        {show.pendingStreamingOffer && (
           <View style={sd.streamingCard}>
             <Text style={sd.streamingTitle}>
-              {season.streamingOfferSource} wants S{season.seasonNumber} streaming rights
+              {show.pendingStreamingOffer.platformName} wants streaming rights
             </Text>
-            <Text style={sd.streamingAmount}>{fmt(season.streamingOfferAmount)}</Text>
+            <Text style={sd.streamingSubtitle}>
+              {show.pendingStreamingOffer.seasonsToInclude.length === 1
+                ? `Season ${show.pendingStreamingOffer.seasonsToInclude[0]}`
+                : `${show.pendingStreamingOffer.seasonsToInclude.length} seasons`}
+              {' · '}{show.pendingStreamingOffer.durationYears}-year deal
+            </Text>
+            <View style={sd.streamingAmounts}>
+              <View style={sd.streamingAmountOption}>
+                <Text style={sd.streamingAmountLabel}>Non-Exclusive</Text>
+                <Text style={sd.streamingAmount}>{fmt(show.pendingStreamingOffer.nonExclusiveAmount)}</Text>
+              </View>
+              <View style={sd.streamingAmountDivider} />
+              <View style={sd.streamingAmountOption}>
+                <Text style={sd.streamingAmountLabel}>Exclusive (+40%)</Text>
+                <Text style={[sd.streamingAmount, { color: C.green }]}>{fmt(show.pendingStreamingOffer.exclusiveAmount)}</Text>
+              </View>
+            </View>
             <Text style={sd.streamingExpiry}>
-              {season.streamingDealDurationYears > 0 ? `${season.streamingDealDurationYears}-year exclusive · ` : ''}
-              Expires Week {season.streamingOfferExpiresWeek}, Year {season.streamingOfferExpiresYear}
+              Expires Week {show.pendingStreamingOffer.expiresWeek}, Year {show.pendingStreamingOffer.expiresYear}
             </Text>
-            <TouchableOpacity style={sd.streamingAcceptBtn} onPress={() => acceptStreamingOffer(show.id)}>
-              <Text style={sd.streamingAcceptText}>Accept Deal</Text>
-            </TouchableOpacity>
+            <View style={sd.streamingBtns}>
+              <TouchableOpacity style={sd.streamingDeclineBtn} onPress={() => declineStreamingOffer(show.id)}>
+                <Text style={sd.streamingDeclineText}>Decline</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={sd.streamingAcceptBtn} onPress={() => acceptStreamingOffer(show.id, 'non-exclusive')}>
+                <Text style={sd.streamingAcceptText}>Non-Excl</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[sd.streamingAcceptBtn, { backgroundColor: C.green }]} onPress={() => acceptStreamingOffer(show.id, 'exclusive')}>
+                <Text style={sd.streamingAcceptText}>Exclusive</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
-        {/* Streaming deal — accepted */}
-        {season.streamingOfferAccepted && (
-          <View style={sd.streamingAcceptedCard}>
-            <Text style={sd.streamingAcceptedTitle}>
-              {season.streamingOfferSource} streaming deal active
-            </Text>
-            <Text style={sd.streamingAcceptedMeta}>
-              {fmt(season.streamingOfferAmount)}
-              {season.streamingDealDurationYears > 0 ? ` · ${season.streamingDealDurationYears}-year exclusive` : ''}
-            </Text>
+        {/* Active streaming deals */}
+        {show.streamingDeals.length > 0 && (
+          <View style={sd.section}>
+            <Text style={sd.sectionLabel}>STREAMING DEALS</Text>
+            {show.streamingDeals.map(deal => (
+              <View key={deal.id} style={sd.streamingAcceptedCard}>
+                <Text style={sd.streamingAcceptedTitle}>
+                  {deal.platformName} · {deal.dealType === 'exclusive' ? 'Exclusive' : 'Non-Exclusive'}
+                </Text>
+                <Text style={sd.streamingAcceptedMeta}>
+                  {fmt(deal.amount)} · S{deal.seasonsIncluded.join(', S')} · Expires Yr {deal.expiresYear}
+                </Text>
+              </View>
+            ))}
           </View>
         )}
 
@@ -409,8 +436,7 @@ export default function ShowDetailScreen() {
               const avg = aired.length > 0
                 ? aired.reduce((sum, e) => sum + (e.rating ?? 0), 0) / aired.length
                 : 0;
-              const sNet = s.totalAdRevenue + (s.streamingOfferAccepted ? s.streamingOfferAmount : 0)
-                - s.productionCost - s.marketingSpend;
+              const sNet = s.totalAdRevenue + s.streamingRevenue - s.productionCost - s.marketingSpend;
               return (
                 <View key={s.id} style={sd.historyCard}>
                   <View style={sd.historyHeader}>
@@ -433,10 +459,9 @@ export default function ShowDetailScreen() {
                       <Text style={sd.historyStatLabel}>Net</Text>
                     </View>
                   </View>
-                  {s.streamingOfferAccepted && (
+                  {s.streamingRevenue > 0 && (
                     <Text style={sd.historyStreaming}>
-                      {s.streamingOfferSource} · {fmt(s.streamingOfferAmount)}
-                      {s.streamingDealDurationYears > 0 ? ` · ${s.streamingDealDurationYears}-yr` : ''}
+                      Streaming: {fmt(s.streamingRevenue)}
                     </Text>
                   )}
                 </View>
@@ -550,12 +575,20 @@ const sd = StyleSheet.create({
   statChipValue:   { color: C.text, fontSize: 17, fontWeight: '600' },
   statChipLabel:   { color: C.muted, fontSize: 11, marginTop: 2 },
 
-  streamingCard:   { backgroundColor: '#1e3a2f', borderWidth: 1, borderColor: C.green, borderRadius: 10, padding: 16, marginBottom: 16, alignItems: 'center' },
-  streamingTitle:  { color: C.green, fontSize: 14, marginBottom: 4 },
-  streamingAmount: { color: C.text, fontSize: 28, fontWeight: '700', marginBottom: 4 },
-  streamingExpiry: { color: C.muted, fontSize: 12, marginBottom: 14 },
-  streamingAcceptBtn: { backgroundColor: C.green, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 12 },
-  streamingAcceptText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  streamingCard:        { backgroundColor: '#1e3a2f', borderWidth: 1, borderColor: C.green, borderRadius: 10, padding: 16, marginBottom: 16 },
+  streamingTitle:       { color: C.green, fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  streamingSubtitle:    { color: C.muted, fontSize: 12, marginBottom: 12 },
+  streamingAmounts:     { flexDirection: 'row', marginBottom: 10 },
+  streamingAmountOption:{ flex: 1, alignItems: 'center' },
+  streamingAmountLabel: { color: C.muted, fontSize: 11, marginBottom: 3 },
+  streamingAmount:      { color: C.text, fontSize: 20, fontWeight: '700' },
+  streamingAmountDivider:{ width: 1, backgroundColor: C.border, marginHorizontal: 8 },
+  streamingExpiry:      { color: C.muted, fontSize: 12, marginBottom: 12 },
+  streamingBtns:        { flexDirection: 'row', gap: 8 },
+  streamingDeclineBtn:  { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 8, padding: 10, alignItems: 'center' },
+  streamingDeclineText: { color: C.muted, fontSize: 13, fontWeight: '500' },
+  streamingAcceptBtn:   { flex: 2, backgroundColor: C.accent, borderRadius: 8, padding: 10, alignItems: 'center' },
+  streamingAcceptText:  { color: '#fff', fontSize: 13, fontWeight: '600' },
 
   renewalCard:     { backgroundColor: C.card, borderWidth: 1, borderColor: C.accent, borderRadius: 10, padding: 16, marginBottom: 16 },
   renewalTitle:    { color: C.text, fontSize: 17, fontWeight: '600', marginBottom: 10 },

@@ -12,7 +12,7 @@ import { calculateEpisodeRating } from './ratings';
 import { generateSocialReactions } from './social';
 import { advanceCompetitors } from './competitors';
 import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
-import { generateStreamingOffer } from './streaming';
+import { tryGenerateStreamingOffer, scheduleNextOfferCheck } from './streaming';
 import { generatePitch } from './pitches';
 import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews } from './news';
 import { nanoid } from '../utils/nanoid';
@@ -94,47 +94,71 @@ export function advanceWeek(state: GameState): GameState {
     careerEarnings: network.careerEarnings + revenueThisWeek,
   };
 
-  // ─── Check for completed seasons → streaming offers ───────────────────────
-  const updatedShows = shows.map(show => {
-    if (show.status !== 'renewal-pending') return show;
-    const season = show.seasons[show.currentSeasonIndex];
-    if (!season || season.streamingOfferReceived) return show;
+  // ─── Streaming: expire offers, run scheduled checks, generate first offers ──
+  const updatedShows = shows.map((show, i) => {
+    let s = show;
+    const prev = state.shows[i];
 
-    const offer = generateStreamingOffer(
-      show,
-      season,
-      network.prestige,
-      network.emmysWon,
-      newWeek,
-      newYear,
-    );
+    // Expire pending offer → schedule re-check in 4–16 weeks
+    if (s.pendingStreamingOffer) {
+      const o = s.pendingStreamingOffer;
+      const expired =
+        newYear > o.expiresYear ||
+        (newYear === o.expiresYear && newWeek > o.expiresWeek);
+      if (expired) {
+        const { checkWeek, checkYear } = scheduleNextOfferCheck(newWeek, newYear, 4, 16);
+        s = { ...s, pendingStreamingOffer: null, streamingOfferCheckWeek: checkWeek, streamingOfferCheckYear: checkYear };
+      }
+    }
 
-    if (!offer) return show;
+    // Detect just-entered renewal-pending (season finished)
+    const justFinished = prev.status !== 'renewal-pending' && s.status === 'renewal-pending';
 
-    const updatedSeason: Season = {
-      ...season,
-      streamingOfferReceived: true,
-      streamingOfferAmount: offer.amount,
-      streamingOfferSource: offer.platformName,
-      streamingOfferExpiresWeek: offer.expiresWeek,
-      streamingOfferExpiresYear: offer.expiresYear,
-      streamingDealDurationYears: offer.durationYears,
-    };
-    const updatedSeasons = [...show.seasons];
-    updatedSeasons[show.currentSeasonIndex] = updatedSeason;
+    // Run scheduled check
+    const checkDue =
+      s.streamingOfferCheckWeek !== null &&
+      s.streamingOfferCheckYear !== null &&
+      newYear === s.streamingOfferCheckYear &&
+      newWeek >= s.streamingOfferCheckWeek;
 
-    newInboxItems.push({
-      id: nanoid(),
-      type: 'streaming-offer',
-      week: newWeek,
-      year: newYear,
-      read: false,
-      refID: show.id,
-      title: `${offer.platformName} offering $${formatM(offer.amount)} for S${season.seasonNumber} of "${show.title}"`,
-      preview: `${offer.durationYears}-yr deal · Expires Week ${offer.expiresWeek}, Year ${offer.expiresYear}`,
-    });
+    if ((justFinished || checkDue) && !s.pendingStreamingOffer) {
+      if (checkDue) {
+        s = { ...s, streamingOfferCheckWeek: null, streamingOfferCheckYear: null };
+      }
 
-    return { ...show, seasons: updatedSeasons };
+      // Check for blocking exclusive deal
+      const activeExclusive = s.streamingDeals.find(
+        d => d.dealType === 'exclusive' && d.expiresYear >= newYear,
+      );
+
+      if (activeExclusive) {
+        // Schedule check for after the deal expires
+        const checkYear = activeExclusive.expiresYear + 1;
+        const checkWeek = randomChance(0.5) ? 1 : 4;
+        s = { ...s, streamingOfferCheckWeek: checkWeek, streamingOfferCheckYear: checkYear };
+      } else {
+        const offer = tryGenerateStreamingOffer(s, newWeek, newYear);
+        if (offer) {
+          s = { ...s, pendingStreamingOffer: offer };
+          const seasonsLabel =
+            offer.seasonsToInclude.length === 1
+              ? `S${offer.seasonsToInclude[0]}`
+              : `${offer.seasonsToInclude.length} seasons`;
+          newInboxItems.push({
+            id: nanoid(),
+            type: 'streaming-offer',
+            week: newWeek,
+            year: newYear,
+            read: false,
+            refID: show.id,
+            title: `${offer.platformName} wants streaming rights to "${show.title}"`,
+            preview: `${seasonsLabel} · Up to $${formatM(offer.exclusiveAmount)} (excl) · Expires Wk ${offer.expiresWeek}, Yr ${offer.expiresYear}`,
+          });
+        }
+      }
+    }
+
+    return s;
   });
 
   // ─── Expire old pitches ────────────────────────────────────────────────────

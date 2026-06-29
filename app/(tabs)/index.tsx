@@ -90,10 +90,10 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
             ))}
           </View>
 
-          {season.streamingOfferReceived && !season.streamingOfferAccepted && (
+          {show.pendingStreamingOffer && (
             <View style={styles.streamingBanner}>
               <Text style={styles.streamingText}>
-                {season.streamingOfferSource} offering {fmt(season.streamingOfferAmount)} for streaming rights
+                {show.pendingStreamingOffer.platformName} wants streaming rights · up to {fmt(show.pendingStreamingOffer.exclusiveAmount)}
               </Text>
             </View>
           )}
