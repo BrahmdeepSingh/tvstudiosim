@@ -741,6 +741,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       acceptedWeek: state.network.currentWeek,
       acceptedYear: state.network.currentYear,
       durationYears: offer.durationYears,
+      expiresWeek: state.network.currentWeek,
       expiresYear: state.network.currentYear + offer.durationYears,
     };
 

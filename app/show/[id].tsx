@@ -297,16 +297,33 @@ export default function ShowDetailScreen() {
         {show.streamingDeals.length > 0 && (
           <View style={sd.section}>
             <Text style={sd.sectionLabel}>STREAMING DEALS</Text>
-            {show.streamingDeals.map(deal => (
-              <View key={deal.id} style={sd.streamingAcceptedCard}>
-                <Text style={sd.streamingAcceptedTitle}>
-                  {deal.platformName} · {deal.dealType === 'exclusive' ? 'Exclusive' : 'Non-Exclusive'}
-                </Text>
-                <Text style={sd.streamingAcceptedMeta}>
-                  {fmt(deal.amount)} · S{deal.seasonsIncluded.join(', S')} · Expires Yr {deal.expiresYear}
-                </Text>
-              </View>
-            ))}
+            {show.streamingDeals.map(deal => {
+              const expired =
+                deal.expiresYear < network.currentYear ||
+                (deal.expiresYear === network.currentYear && deal.expiresWeek <= network.currentWeek);
+              return (
+                <View key={deal.id} style={sd.streamingAcceptedCard}>
+                  <View style={sd.streamingAcceptedHeader}>
+                    <Text style={sd.streamingAcceptedTitle}>
+                      {deal.platformName} · {deal.dealType === 'exclusive' ? 'Exclusive' : 'Non-Exclusive'}
+                    </Text>
+                    {expired ? (
+                      <Text style={sd.dealExpiredBadge}>Expired</Text>
+                    ) : (
+                      <Text style={sd.dealActiveBadge}>Active</Text>
+                    )}
+                  </View>
+                  <Text style={sd.streamingAcceptedMeta}>
+                    {fmt(deal.amount)} · S{deal.seasonsIncluded.join(', S')}
+                  </Text>
+                  <Text style={[sd.dealExpiry, { color: expired ? C.red : C.green }]}>
+                    {expired
+                      ? `Expired Wk ${deal.expiresWeek}, Yr ${deal.expiresYear}`
+                      : `Expires Wk ${deal.expiresWeek}, Yr ${deal.expiresYear}`}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -624,9 +641,13 @@ const sd = StyleSheet.create({
   epViewers:       { flex: 1, color: C.muted, fontSize: 13 },
   epRevenue:       { color: C.text, fontSize: 13 },
 
-  streamingAcceptedCard: { backgroundColor: '#1e3a2f', borderWidth: 1, borderColor: C.green + '66', borderRadius: 10, padding: 14, marginBottom: 16 },
-  streamingAcceptedTitle: { color: C.green, fontSize: 13, fontWeight: '600', marginBottom: 3 },
-  streamingAcceptedMeta:  { color: C.text, fontSize: 15, fontWeight: '600' },
+  streamingAcceptedCard:   { backgroundColor: '#1e3a2f', borderWidth: 1, borderColor: C.green + '66', borderRadius: 10, padding: 14, marginBottom: 10 },
+  streamingAcceptedHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 },
+  streamingAcceptedTitle:  { color: C.green, fontSize: 13, fontWeight: '600' },
+  streamingAcceptedMeta:   { color: C.text, fontSize: 15, fontWeight: '600', marginBottom: 4 },
+  dealExpiredBadge:        { color: C.red, fontSize: 11, fontWeight: '700', backgroundColor: C.red + '22', borderWidth: 1, borderColor: C.red + '55', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  dealActiveBadge:         { color: C.green, fontSize: 11, fontWeight: '700', backgroundColor: C.green + '22', borderWidth: 1, borderColor: C.green + '55', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  dealExpiry:              { fontSize: 12, marginTop: 2 },
 
   historyCard:       { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 10 },
   historyHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },

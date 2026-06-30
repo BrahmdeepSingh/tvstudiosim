@@ -271,6 +271,7 @@ export interface StreamingDeal {
   acceptedWeek: number;
   acceptedYear: number;
   durationYears: number;
+  expiresWeek: number;
   expiresYear: number;
 }
 
