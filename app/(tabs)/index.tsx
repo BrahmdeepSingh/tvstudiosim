@@ -159,6 +159,33 @@ export default function Dashboard() {
   const router = useRouter();
   const { network, shows, inboxItems, newsItems, advanceWeek, initialized, initializeGame } = useGameStore();
 
+  // All hooks must be declared before any early return
+  const [fadedIds, setFadedIds] = useState<Set<string>>(new Set());
+  const fadeAnims = useRef<Record<string, Animated.Value>>({});
+  const expiringRef = useRef<Set<string>>(new Set());
+
+  function itemAgeWeeks(item: { week: number; year: number }) {
+    return (network.currentYear - item.year) * WEEKS_PER_YEAR + (network.currentWeek - item.week);
+  }
+
+  useEffect(() => {
+    if (!initialized) return;
+    const newExpiring = inboxItems.filter(
+      i => !i.read && itemAgeWeeks(i) >= 2 && !expiringRef.current.has(i.id) && !fadedIds.has(i.id)
+    );
+    newExpiring.forEach(item => {
+      expiringRef.current.add(item.id);
+      fadeAnims.current[item.id] = new Animated.Value(1);
+      Animated.timing(fadeAnims.current[item.id], {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }).start(() => {
+        setFadedIds(prev => new Set([...prev, item.id]));
+      });
+    });
+  }, [network.currentWeek, network.currentYear, initialized]);
+
   if (!initialized) {
     return (
       <SafeAreaView style={styles.container}>
@@ -180,35 +207,9 @@ export default function Dashboard() {
   );
   const latestNews = newsItems[newsItems.length - 1];
 
-  // Inbox preview with fade-out for items that hit 2 weeks old
-  const [fadedIds, setFadedIds] = useState<Set<string>>(new Set());
-  const fadeAnims = useRef<Record<string, Animated.Value>>({});
-  const expiringRef = useRef<Set<string>>(new Set());
-
-  function itemAgeWeeks(item: { week: number; year: number }) {
-    return (network.currentYear - item.year) * WEEKS_PER_YEAR + (network.currentWeek - item.week);
-  }
-
   const unreadInbox = inboxItems
     .filter(i => !i.read && !fadedIds.has(i.id) && (itemAgeWeeks(i) < 2 || expiringRef.current.has(i.id)))
     .slice(0, 3);
-
-  useEffect(() => {
-    const newExpiring = inboxItems.filter(
-      i => !i.read && itemAgeWeeks(i) >= 2 && !expiringRef.current.has(i.id) && !fadedIds.has(i.id)
-    );
-    newExpiring.forEach(item => {
-      expiringRef.current.add(item.id);
-      fadeAnims.current[item.id] = new Animated.Value(1);
-      Animated.timing(fadeAnims.current[item.id], {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }).start(() => {
-        setFadedIds(prev => new Set([...prev, item.id]));
-      });
-    });
-  }, [network.currentWeek, network.currentYear]);
 
   return (
     <SafeAreaView style={styles.container}>
