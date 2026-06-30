@@ -69,6 +69,7 @@ interface GameStore extends GameState {
 
   // Inbox
   markInboxRead: (itemID: string) => void;
+  dismissOldInboxItems: () => void;
 
   // Persistence
   saveGame: () => Promise<void>;
@@ -802,6 +803,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       inboxItems: s.inboxItems.map(item =>
         item.id === itemID ? { ...item, read: true } : item,
       ),
+    }));
+  },
+
+  dismissOldInboxItems: () => {
+    const { network } = get();
+    set(s => ({
+      inboxItems: s.inboxItems.filter(item => {
+        const ageWeeks = (network.currentYear - item.year) * 52 + (network.currentWeek - item.week);
+        return ageWeeks < 2;
+      }),
     }));
   },
 

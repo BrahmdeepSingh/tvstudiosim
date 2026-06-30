@@ -177,7 +177,13 @@ export default function Dashboard() {
     ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(s.status)
   );
   const latestNews = newsItems[newsItems.length - 1];
-  const unreadInbox = inboxItems.filter(i => !i.read).slice(0, 3);
+  const unreadInbox = inboxItems
+    .filter(i => {
+      if (i.read) return false;
+      const ageWeeks = (network.currentYear - i.year) * 52 + (network.currentWeek - i.week);
+      return ageWeeks < 2;
+    })
+    .slice(0, 3);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -267,16 +273,19 @@ export default function Dashboard() {
               </TouchableOpacity>
             </View>
             {unreadInbox.map(item => (
-              <View key={item.id} style={styles.inboxItem}>
+              <TouchableOpacity
+                key={item.id}
+                style={styles.inboxItem}
+                onPress={() => router.push({ pathname: '/(tabs)/inbox', params: { itemID: item.id } })}
+                activeOpacity={0.8}
+              >
                 <View style={styles.inboxDot} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.inboxTitle}>{item.title}</Text>
                   <Text style={styles.inboxPreview}>{item.preview}</Text>
                 </View>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/inbox')}>
-                  <Text style={styles.inboxAction}>Review →</Text>
-                </TouchableOpacity>
-              </View>
+                <Text style={styles.inboxAction}>Review →</Text>
+              </TouchableOpacity>
             ))}
           </>
         )}
