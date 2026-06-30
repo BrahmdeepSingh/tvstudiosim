@@ -1,7 +1,7 @@
 import { Talent, TalentStats, ChemistryColor, TalentRole, Genre, EmmyCategory, LegacyCredit, LegacyAward } from '../types';
 import { nanoid } from '../utils/nanoid';
-import { randomBetween, randomItem, randomFloat, clamp } from '../utils/random';
-import { STARTING_YEAR } from '../constants/game';
+import { randomBetween, randomItem, clamp } from '../utils/random';
+import { STARTING_YEAR, TALENT_FEES } from '../constants/game';
 
 const CHEMISTRY_COLORS: ChemistryColor[] = ['green', 'blue', 'red'];
 
@@ -93,12 +93,6 @@ function categoryForLegacyCredit(role: TalentRole, genre: Genre): EmmyCategory |
   return randomItem(ACTING_CATEGORIES_DRAMA);
 }
 
-const EARNINGS_BASE_PER_YEAR: Record<'low' | 'mid' | 'high', number> = {
-  low: 40_000,
-  mid: 120_000,
-  high: 350_000,
-};
-
 function generateLegacyCareer(
   role: TalentRole,
   tier: 'low' | 'mid' | 'high',
@@ -136,8 +130,9 @@ function generateLegacyCareer(
 
   legacyCredits.sort((a, b) => a.year - b.year);
 
-  const perYear = EARNINGS_BASE_PER_YEAR[tier] + popularity * 2_000;
-  const priorCareerEarnings = Math.round(yearsActive * perYear * randomFloat(0.7, 1.3));
+  // Each past credit paid at least the going minimum rate for this role/tier.
+  const minFeeForTier = TALENT_FEES[role][tier][0];
+  const priorCareerEarnings = numCredits * minFeeForTier;
 
   return { legacyCredits, legacyAwards, priorCareerEarnings };
 }
