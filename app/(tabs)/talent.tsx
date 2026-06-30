@@ -1,11 +1,10 @@
 import {
-  View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, SafeAreaView, Modal, ScrollView,
+  View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, SafeAreaView,
 } from 'react-native';
 import { useState, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
 import { Talent, TalentRole } from '../../src/types';
-import { EMMY_CATEGORY_LABELS } from '../../src/constants/game';
 
 const C = {
   bg: '#0f0f17', card: '#16161f', border: '#1e1e2e',
@@ -49,229 +48,6 @@ function getTopStat(t: Talent): number {
   return stats[0].value;
 }
 
-function StatBar({ label, value }: { label: string; value: number }) {
-  return (
-    <View style={m.statRow}>
-      <Text style={m.statLabel}>{label}</Text>
-      <View style={m.statTrack}>
-        <View style={[m.statFill, { width: `${value}%` }]} />
-      </View>
-      <Text style={m.statValue}>{value}</Text>
-    </View>
-  );
-}
-
-function TalentModal({ talent, onClose }: { talent: Talent; onClose: () => void }) {
-  const { shows, talentDeals, awards, competitors } = useGameStore();
-  const router = useRouter();
-  const chemColor = CHEM_COLORS[talent.chemistryColor];
-
-  // Find current show assignment
-  const currentDeal = talentDeals.find(
-    d => d.talentID === talent.id && !talent.available
-  );
-  const currentShow = currentDeal ? shows.find(s => s.id === currentDeal.showID) : null;
-
-  // Find competitor booking
-  const competitorShow = talent.bookedByCompetitorShowID
-    ? competitors.flatMap(c => c.activeShows).find(s => s.id === talent.bookedByCompetitorShowID)
-    : null;
-  const competitorStudio = competitorShow
-    ? competitors.find(c => c.id === competitorShow.studioID)
-    : null;
-
-  // Career shows
-  const careerShows = shows.filter(s => talent.careerShowIDs.includes(s.id));
-
-  // Shows where this talent could be hired right now
-  const eligibleShows = useMemo(() => {
-    if (!talent.available) return [];
-    if (talent.role === 'showrunner') {
-      return shows.filter(s =>
-        s.status === 'writing' &&
-        (s.seasons[s.currentSeasonIndex]?.showrunnerID ?? '') === ''
-      );
-    }
-    if (talent.role === 'director') {
-      return shows.filter(s =>
-        s.status === 'filming' &&
-        s.seasons[s.currentSeasonIndex]?.directorID === null
-      );
-    }
-    // actor
-    return shows.filter(s => {
-      if (s.status !== 'filming') return false;
-      const season = s.seasons[s.currentSeasonIndex];
-      if (!season) return false;
-      return (
-        season.leadActorIDs.length < season.leadActorSlots ||
-        season.supportingActorIDs.length < season.supportingActorSlots
-      );
-    });
-  }, [talent, shows]);
-
-  // Awards
-  const talentAwards = awards.filter(a => a.talentID === talent.id && a.won);
-
-  const stats = getPrimaryStats(talent);
-
-  return (
-    <View style={m.overlay}>
-      <View style={m.card}>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <View style={m.header}>
-            <View style={[m.chemBadge, { backgroundColor: chemColor + '22', borderColor: chemColor }]}>
-              <View style={[m.chemDot, { backgroundColor: chemColor }]} />
-              <Text style={[m.chemText, { color: chemColor }]}>
-                {talent.chemistryColor.charAt(0).toUpperCase() + talent.chemistryColor.slice(1)}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={m.closeBtn}>
-              <Text style={m.closeText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={m.name}>{talent.name}</Text>
-          <Text style={m.roleMeta}>
-            {talent.role.charAt(0).toUpperCase() + talent.role.slice(1)}
-            {' · '}{popularityLabel(talent.popularity)}
-            {' · Age '}{talent.age}
-          </Text>
-
-          {/* Availability */}
-          <View style={[m.availRow, { borderColor: talent.available ? C.green + '55' : C.amber + '55' }]}>
-            <View style={[m.availDot, { backgroundColor: talent.available ? C.green : C.amber }]} />
-            <Text style={[m.availText, { color: talent.available ? C.green : C.amber }]}>
-              {talent.available
-                ? 'Available for hire'
-                : competitorStudio
-                  ? `Filming for ${competitorStudio.name}`
-                  : currentShow
-                    ? `On: ${currentShow.title}`
-                    : 'Currently booked'}
-            </Text>
-          </View>
-
-          {/* Stats */}
-          <Text style={m.sectionLabel}>STATS</Text>
-          <View style={m.statsBlock}>
-            {stats.map(st => <StatBar key={st.label} label={st.label} value={st.value} />)}
-            <View style={[m.statRow, { marginTop: 4 }]}>
-              <Text style={m.statLabel}>Popularity</Text>
-              <View style={m.statTrack}>
-                <View style={[m.statFill, { width: `${talent.popularity}%`, backgroundColor: C.accent }]} />
-              </View>
-              <Text style={m.statValue}>{talent.popularity}</Text>
-            </View>
-          </View>
-
-          {/* Emmy wins */}
-          {talentAwards.length > 0 && (
-            <>
-              <Text style={m.sectionLabel}>EMMY WINS</Text>
-              {talentAwards.map(a => (
-                <View key={a.id} style={m.awardRow}>
-                  <Text style={m.awardStar}>★</Text>
-                  <View>
-                    <Text style={m.awardCategory}>{EMMY_CATEGORY_LABELS[a.category] ?? a.category}</Text>
-                    <Text style={m.awardYear}>Year {a.year}</Text>
-                  </View>
-                </View>
-              ))}
-            </>
-          )}
-
-          {/* Career shows */}
-          {careerShows.length > 0 && (
-            <>
-              <Text style={m.sectionLabel}>CAREER SHOWS</Text>
-              {careerShows.map(show => (
-                <View key={show.id} style={m.showRow}>
-                  <Text style={m.showTitle}>{show.title}</Text>
-                  <Text style={m.showMeta}>
-                    {show.genre} · {show.seasons.length} season{show.seasons.length > 1 ? 's' : ''}
-                  </Text>
-                </View>
-              ))}
-            </>
-          )}
-
-          {/* Hire for show */}
-          {talent.available && (
-            <>
-              <Text style={m.sectionLabel}>HIRE FOR SHOW</Text>
-              {eligibleShows.length === 0 ? (
-                <Text style={m.noShowsText}>
-                  No shows currently have an open {talent.role} slot.
-                </Text>
-              ) : (
-                eligibleShows.map(show => {
-                  const season = show.seasons[show.currentSeasonIndex];
-                  if (talent.role === 'actor') {
-                    const leadOpen = (season?.leadActorIDs.length ?? 0) < (season?.leadActorSlots ?? 0);
-                    const suppOpen = (season?.supportingActorIDs.length ?? 0) < (season?.supportingActorSlots ?? 0);
-                    return (
-                      <View key={show.id} style={m.hireRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={m.hireShowTitle}>{show.title}</Text>
-                          <Text style={m.hireShowMeta}>{show.genre}</Text>
-                        </View>
-                        <View style={m.hireSlots}>
-                          {leadOpen && (
-                            <TouchableOpacity
-                              style={m.hireSlotBtn}
-                              onPress={() => {
-                                onClose();
-                                router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=lead&talentID=${talent.id}`);
-                              }}
-                            >
-                              <Text style={m.hireSlotText}>Lead</Text>
-                            </TouchableOpacity>
-                          )}
-                          {suppOpen && (
-                            <TouchableOpacity
-                              style={m.hireSlotBtn}
-                              onPress={() => {
-                                onClose();
-                                router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=supporting&talentID=${talent.id}`);
-                              }}
-                            >
-                              <Text style={m.hireSlotText}>Supporting</Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      </View>
-                    );
-                  }
-                  return (
-                    <TouchableOpacity
-                      key={show.id}
-                      style={m.hireRow}
-                      onPress={() => {
-                        onClose();
-                        router.push(`/hire-talent?showID=${show.id}&role=${talent.role}&talentID=${talent.id}`);
-                      }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={m.hireShowTitle}>{show.title}</Text>
-                        <Text style={m.hireShowMeta}>{show.genre}</Text>
-                      </View>
-                      <Text style={m.hireArrow}>Hire →</Text>
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </>
-          )}
-
-          <View style={{ height: 24 }} />
-        </ScrollView>
-      </View>
-    </View>
-  );
-}
-
 function TalentCard({ talent, onPress }: { talent: Talent; onPress: () => void }) {
   const chemColor = CHEM_COLORS[talent.chemistryColor];
   const topStat = getTopStat(talent);
@@ -303,11 +79,11 @@ function TalentCard({ talent, onPress }: { talent: Talent; onPress: () => void }
 
 export default function TalentScreen() {
   const { talent } = useGameStore();
+  const router = useRouter();
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [availFilter, setAvailFilter] = useState<AvailFilter>('all');
   const [chemFilter, setChemFilter] = useState<ChemFilter>('all');
   const [search, setSearch] = useState('');
-  const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
 
   const visible = useMemo(() => {
     return talent.filter(t => {
@@ -416,66 +192,13 @@ export default function TalentScreen() {
           keyExtractor={t => t.id}
           contentContainerStyle={s.list}
           renderItem={({ item }) => (
-            <TalentCard talent={item} onPress={() => setSelectedTalent(item)} />
+            <TalentCard talent={item} onPress={() => router.push(`/talent/${item.id}`)} />
           )}
         />
-      )}
-
-      {selectedTalent && (
-        <Modal transparent animationType="slide">
-          <TalentModal talent={selectedTalent} onClose={() => setSelectedTalent(null)} />
-        </Modal>
       )}
     </SafeAreaView>
   );
 }
-
-// ─── Modal styles ──────────────────────────────────────────────────────────────
-
-const m = StyleSheet.create({
-  overlay:       { flex: 1, backgroundColor: '#000000bb', justifyContent: 'flex-end' },
-  card:          { backgroundColor: '#1a1a26', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderTopColor: C.border, padding: 24, maxHeight: '85%' },
-
-  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  chemBadge:     { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  chemDot:       { width: 8, height: 8, borderRadius: 4 },
-  chemText:      { fontSize: 12, fontWeight: '600' },
-  closeBtn:      { padding: 4 },
-  closeText:     { color: C.muted, fontSize: 18 },
-
-  name:          { color: C.text, fontSize: 24, fontWeight: '700', marginBottom: 4 },
-  roleMeta:      { color: C.muted, fontSize: 14, marginBottom: 14 },
-
-  availRow:      { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 20 },
-  availDot:      { width: 8, height: 8, borderRadius: 4 },
-  availText:     { fontSize: 13, fontWeight: '500' },
-
-  sectionLabel:  { color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 10 },
-  statsBlock:    { gap: 8, marginBottom: 20 },
-  statRow:       { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  statLabel:     { color: C.muted, fontSize: 13, width: 80 },
-  statTrack:     { flex: 1, height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
-  statFill:      { height: '100%', backgroundColor: C.accent, borderRadius: 3 },
-  statValue:     { color: C.text, fontSize: 13, width: 28, textAlign: 'right' },
-
-  awardRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border },
-  awardStar:     { color: C.amber, fontSize: 18 },
-  awardCategory: { color: C.text, fontSize: 13, fontWeight: '500' },
-  awardYear:     { color: C.muted, fontSize: 12, marginTop: 2 },
-
-  showRow:       { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border },
-  showTitle:     { color: C.text, fontSize: 13, fontWeight: '500' },
-  showMeta:      { color: C.muted, fontSize: 12, marginTop: 2 },
-
-  noShowsText:   { color: C.muted, fontSize: 13, fontStyle: 'italic', marginBottom: 8 },
-  hireRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
-  hireShowTitle: { color: C.text, fontSize: 14, fontWeight: '500' },
-  hireShowMeta:  { color: C.muted, fontSize: 12, marginTop: 2 },
-  hireSlots:     { flexDirection: 'row', gap: 6 },
-  hireSlotBtn:   { backgroundColor: C.accent + '22', borderWidth: 1, borderColor: C.accent, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  hireSlotText:  { color: C.accent, fontSize: 12, fontWeight: '600' },
-  hireArrow:     { color: C.accent, fontSize: 13, fontWeight: '600' },
-});
 
 // ─── List styles ──────────────────────────────────────────────────────────────
 

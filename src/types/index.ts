@@ -88,6 +88,9 @@ export interface Talent {
   awards: Award[];
   careerShowIDs: string[];
   prestigeRequired: number; // min network prestige to see this talent
+  birthplace: string;
+  debutYear: number; // game-clock year they broke into the industry (can predate year 1)
+  quirk: string; // flavor line shown on the talent's profile
 }
 
 // ─── Talent Deal ─────────────────────────────────────────────────────────────
