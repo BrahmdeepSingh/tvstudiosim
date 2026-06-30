@@ -1,11 +1,11 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
 import { InboxItem } from '../../src/types';
-import { EMMY_CATEGORY_LABELS, WEEKS_PER_YEAR } from '../../src/constants/game';
+import { EMMY_CATEGORY_LABELS } from '../../src/constants/game';
 
 const C = {
   bg: '#0f0f17', card: '#16161f', border: '#1e1e2e',
@@ -265,16 +265,10 @@ function Row({ label, value }: { label: string; value: string }) {
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function InboxScreen() {
-  const { inboxItems, network, markInboxRead, dismissOldInboxItems } = useGameStore();
+  const { inboxItems, markInboxRead } = useGameStore();
   const [selected, setSelected] = useState<InboxItem | null>(null);
   const { itemID } = useLocalSearchParams<{ itemID?: string }>();
   const autoOpenedRef = useRef(false);
-  const fadeAnims = useRef<Record<string, Animated.Value>>({});
-  const animatedIdsRef = useRef<Set<string>>(new Set());
-
-  function ageWeeks(item: InboxItem): number {
-    return (network.currentYear - item.year) * WEEKS_PER_YEAR + (network.currentWeek - item.week);
-  }
 
   // Sort: unread first, then by most recent
   const sorted = [...inboxItems].sort((a, b) => {
@@ -283,32 +277,7 @@ export default function InboxScreen() {
     return b.week - a.week;
   });
 
-  const freshItems = sorted.filter(item => ageWeeks(item) < 2);
-  const expiringItems = sorted.filter(item => ageWeeks(item) >= 2);
-  const unreadCount = freshItems.filter(i => !i.read).length;
-
-  // Fade out expiring items then remove them
-  useEffect(() => {
-    const newExpiring = expiringItems.filter(item => !animatedIdsRef.current.has(item.id));
-    if (newExpiring.length === 0) return;
-
-    newExpiring.forEach(item => {
-      animatedIdsRef.current.add(item.id);
-      fadeAnims.current[item.id] = new Animated.Value(1);
-    });
-
-    const animations = newExpiring.map(item =>
-      Animated.timing(fadeAnims.current[item.id], {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      })
-    );
-
-    Animated.stagger(80, animations).start(({ finished }) => {
-      if (finished) dismissOldInboxItems();
-    });
-  }, [expiringItems.length]);
+  const unreadCount = inboxItems.filter(i => !i.read).length;
 
   // Auto-open item when deep-linked from dashboard
   useEffect(() => {
@@ -381,45 +350,6 @@ export default function InboxScreen() {
 
   // ── List view ──────────────────────────────────────────────────────────────
 
-  function renderItem(item: InboxItem, expiring?: boolean) {
-    const meta = TYPE_META[item.type] ?? { label: 'MSG', color: C.muted };
-    const card = (
-      <TouchableOpacity
-        style={[s.itemCard, item.read && s.itemCardRead]}
-        onPress={() => openItem(item)}
-        activeOpacity={0.8}
-      >
-        <View style={s.itemLeft}>
-          {!item.read && <View style={s.unreadDot} />}
-          {item.read && <View style={s.readDot} />}
-          <View style={{ flex: 1 }}>
-            <View style={s.itemTopRow}>
-              <View style={[s.typeBadgeSmall, { backgroundColor: meta.color + '22', borderColor: meta.color }]}>
-                <Text style={[s.typeBadgeSmallText, { color: meta.color }]}>{meta.label}</Text>
-              </View>
-              <Text style={s.itemWeek}>Wk {item.week} · Yr {item.year}</Text>
-            </View>
-            <Text style={[s.itemTitle, item.read && s.itemTitleRead]}>
-              {item.title}
-            </Text>
-            <Text style={s.itemPreview} numberOfLines={1}>{item.preview}</Text>
-          </View>
-        </View>
-        <Text style={s.itemChevron}>›</Text>
-      </TouchableOpacity>
-    );
-
-    if (expiring && fadeAnims.current[item.id]) {
-      return (
-        <Animated.View key={item.id} style={{ opacity: fadeAnims.current[item.id] }}>
-          {card}
-        </Animated.View>
-      );
-    }
-
-    return <View key={item.id}>{card}</View>;
-  }
-
   return (
     <SafeAreaView style={s.container}>
       <View style={s.header}>
@@ -431,15 +361,42 @@ export default function InboxScreen() {
         )}
       </View>
 
-      {freshItems.length === 0 && expiringItems.length === 0 ? (
+      {sorted.length === 0 ? (
         <View style={s.empty}>
           <Text style={s.emptyText}>No messages yet.</Text>
           <Text style={s.emptyHint}>Pitches, streaming offers, and Emmy news will appear here.</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 12, gap: 8 }}>
-          {freshItems.map(item => renderItem(item, false))}
-          {expiringItems.map(item => renderItem(item, true))}
+          {sorted.map(item => {
+            const meta = TYPE_META[item.type] ?? { label: 'MSG', color: C.muted };
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[s.itemCard, item.read && s.itemCardRead]}
+                onPress={() => openItem(item)}
+                activeOpacity={0.8}
+              >
+                <View style={s.itemLeft}>
+                  {!item.read && <View style={s.unreadDot} />}
+                  {item.read && <View style={s.readDot} />}
+                  <View style={{ flex: 1 }}>
+                    <View style={s.itemTopRow}>
+                      <View style={[s.typeBadgeSmall, { backgroundColor: meta.color + '22', borderColor: meta.color }]}>
+                        <Text style={[s.typeBadgeSmallText, { color: meta.color }]}>{meta.label}</Text>
+                      </View>
+                      <Text style={s.itemWeek}>Wk {item.week} · Yr {item.year}</Text>
+                    </View>
+                    <Text style={[s.itemTitle, item.read && s.itemTitleRead]}>
+                      {item.title}
+                    </Text>
+                    <Text style={s.itemPreview} numberOfLines={1}>{item.preview}</Text>
+                  </View>
+                </View>
+                <Text style={s.itemChevron}>›</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       )}
     </SafeAreaView>

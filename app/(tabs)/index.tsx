@@ -1,7 +1,9 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated } from 'react-native';
 import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { Show, Season } from '../../src/types';
+import { WEEKS_PER_YEAR } from '../../src/constants/game';
 
 const C = {
   bg:       '#0f0f17',
@@ -177,13 +179,36 @@ export default function Dashboard() {
     ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(s.status)
   );
   const latestNews = newsItems[newsItems.length - 1];
+
+  // Inbox preview with fade-out for items that hit 2 weeks old
+  const [fadedIds, setFadedIds] = useState<Set<string>>(new Set());
+  const fadeAnims = useRef<Record<string, Animated.Value>>({});
+  const expiringRef = useRef<Set<string>>(new Set());
+
+  function itemAgeWeeks(item: { week: number; year: number }) {
+    return (network.currentYear - item.year) * WEEKS_PER_YEAR + (network.currentWeek - item.week);
+  }
+
   const unreadInbox = inboxItems
-    .filter(i => {
-      if (i.read) return false;
-      const ageWeeks = (network.currentYear - i.year) * 52 + (network.currentWeek - i.week);
-      return ageWeeks < 2;
-    })
+    .filter(i => !i.read && !fadedIds.has(i.id) && (itemAgeWeeks(i) < 2 || expiringRef.current.has(i.id)))
     .slice(0, 3);
+
+  useEffect(() => {
+    const newExpiring = inboxItems.filter(
+      i => !i.read && itemAgeWeeks(i) >= 2 && !expiringRef.current.has(i.id) && !fadedIds.has(i.id)
+    );
+    newExpiring.forEach(item => {
+      expiringRef.current.add(item.id);
+      fadeAnims.current[item.id] = new Animated.Value(1);
+      Animated.timing(fadeAnims.current[item.id], {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }).start(() => {
+        setFadedIds(prev => new Set([...prev, item.id]));
+      });
+    });
+  }, [network.currentWeek, network.currentYear]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -272,21 +297,26 @@ export default function Dashboard() {
                 <Text style={styles.seeAll}>View all →</Text>
               </TouchableOpacity>
             </View>
-            {unreadInbox.map(item => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.inboxItem}
-                onPress={() => router.push({ pathname: '/(tabs)/inbox', params: { itemID: item.id } })}
-                activeOpacity={0.8}
-              >
-                <View style={styles.inboxDot} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inboxTitle}>{item.title}</Text>
-                  <Text style={styles.inboxPreview}>{item.preview}</Text>
-                </View>
-                <Text style={styles.inboxAction}>Review →</Text>
-              </TouchableOpacity>
-            ))}
+            {unreadInbox.map(item => {
+              const anim = fadeAnims.current[item.id];
+              const inner = (
+                <TouchableOpacity
+                  style={styles.inboxItem}
+                  onPress={() => router.push({ pathname: '/(tabs)/inbox', params: { itemID: item.id } })}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.inboxDot} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inboxTitle}>{item.title}</Text>
+                    <Text style={styles.inboxPreview}>{item.preview}</Text>
+                  </View>
+                  <Text style={styles.inboxAction}>Review →</Text>
+                </TouchableOpacity>
+              );
+              return anim
+                ? <Animated.View key={item.id} style={{ opacity: anim }}>{inner}</Animated.View>
+                : <View key={item.id}>{inner}</View>;
+            })}
           </>
         )}
 
