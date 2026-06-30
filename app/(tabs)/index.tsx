@@ -157,7 +157,7 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { network, shows, inboxItems, newsItems, advanceWeek, initialized, initializeGame } = useGameStore();
+  const { network, shows, inboxItems, newsItems, pitches, advanceWeek, initialized, initializeGame } = useGameStore();
 
   // All hooks must be declared before any early return
   const [fadedIds, setFadedIds] = useState<Set<string>>(new Set());
@@ -210,6 +210,66 @@ export default function Dashboard() {
   const unreadInbox = inboxItems
     .filter(i => !i.read && !fadedIds.has(i.id) && (itemAgeWeeks(i) < 2 || expiringRef.current.has(i.id)))
     .slice(0, 3);
+
+  // ── Task list ──────────────────────────────────────────────────────────────
+  type TaskItem = { id: string; label: string; sub: string; urgency: 'red' | 'amber' | 'purple'; route: string | { pathname: string; params: Record<string, string> } };
+  const tasks: TaskItem[] = [];
+
+  for (const show of activeShows) {
+    const season = show.seasons[show.currentSeasonIndex];
+    if (!season) continue;
+
+    if (show.status === 'renewal-pending') {
+      tasks.push({ id: `renew-${show.id}`, label: 'Renew or cancel', sub: show.title, urgency: 'red', route: `/renew?showID=${show.id}` });
+    }
+
+    if (show.status === 'filming') {
+      if (!season.directorID) {
+        tasks.push({ id: `director-${show.id}`, label: 'Hire director', sub: show.title, urgency: 'amber', route: `/hire-talent?showID=${show.id}&role=director` });
+      }
+      if (season.leadActorIDs.length < season.leadActorSlots) {
+        const filled = season.leadActorIDs.length;
+        const total = season.leadActorSlots;
+        tasks.push({ id: `lead-${show.id}`, label: `Hire lead actor${total - filled > 1 ? 's' : ''} (${filled}/${total})`, sub: show.title, urgency: 'amber', route: `/hire-talent?showID=${show.id}&role=actor&actorType=lead` });
+      }
+      if (season.supportingActorIDs.length < season.supportingActorSlots) {
+        const filled = season.supportingActorIDs.length;
+        const total = season.supportingActorSlots;
+        tasks.push({ id: `supporting-${show.id}`, label: `Hire supporting cast (${filled}/${total})`, sub: show.title, urgency: 'purple', route: `/hire-talent?showID=${show.id}&role=actor&actorType=supporting` });
+      }
+    }
+
+    if (show.status === 'marketing' && season.airDateWeek === null) {
+      tasks.push({ id: `airdate-${show.id}`, label: 'Schedule air date', sub: show.title, urgency: 'amber', route: `/show/${show.id}` });
+    }
+  }
+
+  // Expiring pitches (unread, ≤2 weeks left)
+  for (const pitch of pitches) {
+    if (pitch.passed || pitch.greenlitByPlayer) continue;
+    const weeksLeft = (pitch.expiresYear - network.currentYear) * WEEKS_PER_YEAR + (pitch.expiresWeek - network.currentWeek);
+    if (weeksLeft <= 2 && weeksLeft >= 0) {
+      const inboxItem = inboxItems.find(i => i.type === 'pitch' && i.refID === pitch.id);
+      if (inboxItem) {
+        tasks.push({ id: `pitch-${pitch.id}`, label: `Pitch expiring in ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''}`, sub: pitch.title, urgency: weeksLeft <= 1 ? 'red' : 'amber', route: { pathname: '/(tabs)/inbox', params: { itemID: inboxItem.id } } });
+      }
+    }
+  }
+
+  // Expiring streaming offers (≤1 week left)
+  for (const show of shows) {
+    if (!show.pendingStreamingOffer) continue;
+    const offer = show.pendingStreamingOffer;
+    const inboxItem = inboxItems.find(i => i.type === 'streaming-offer' && i.refID === show.id);
+    const weeksLeft = (offer.expiresYear - network.currentYear) * WEEKS_PER_YEAR + (offer.expiresWeek - network.currentWeek);
+    if (weeksLeft <= 1 && weeksLeft >= 0 && inboxItem) {
+      tasks.push({ id: `stream-${show.id}`, label: `Streaming offer expires soon`, sub: show.title, urgency: 'red', route: { pathname: '/(tabs)/inbox', params: { itemID: inboxItem.id } } });
+    }
+  }
+
+  // Sort: red first, then amber, then purple
+  const urgencyOrder = { red: 0, amber: 1, purple: 2 };
+  tasks.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -287,6 +347,36 @@ export default function Dashboard() {
               onPress={() => router.push(`/show/${show.id}`)}
             />
           ))
+        )}
+
+        {/* Tasks */}
+        {tasks.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>TASKS</Text>
+              <View style={styles.taskCountBadge}>
+                <Text style={styles.taskCountText}>{tasks.length}</Text>
+              </View>
+            </View>
+            {tasks.map(task => {
+              const accentColor = task.urgency === 'red' ? C.red : task.urgency === 'amber' ? C.amber : C.accent;
+              return (
+                <TouchableOpacity
+                  key={task.id}
+                  style={styles.taskRow}
+                  onPress={() => router.push(task.route as any)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.taskAccent, { backgroundColor: accentColor }]} />
+                  <View style={styles.taskBody}>
+                    <Text style={styles.taskLabel}>{task.label}</Text>
+                    <Text style={styles.taskSub}>{task.sub}</Text>
+                  </View>
+                  <Text style={styles.taskChevron}>›</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </>
         )}
 
         {/* Inbox preview */}
@@ -395,6 +485,15 @@ const styles = StyleSheet.create({
 
   emptyState:      { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: 'center', marginBottom: 16 },
   emptyText:       { color: C.muted, fontSize: 14, textAlign: 'center', lineHeight: 20 },
+
+  taskCountBadge:  { backgroundColor: C.red + '33', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  taskCountText:   { color: C.red, fontSize: 12, fontWeight: '700' },
+  taskRow:         { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, marginBottom: 8, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
+  taskAccent:      { width: 4, alignSelf: 'stretch' },
+  taskBody:        { flex: 1, paddingVertical: 12, paddingHorizontal: 12 },
+  taskLabel:       { color: C.text, fontSize: 14, fontWeight: '600' },
+  taskSub:         { color: C.muted, fontSize: 12, marginTop: 2 },
+  taskChevron:     { color: C.muted, fontSize: 22, paddingRight: 12 },
 
   inboxItem:       { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12 },
   inboxDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
