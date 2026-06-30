@@ -17,6 +17,7 @@ const CHEM_COLORS = { green: '#4caf82', blue: '#5b8dee', red: '#e85d5d' };
 
 type RoleFilter = 'all' | TalentRole;
 type AvailFilter = 'all' | 'available' | 'booked';
+type ChemFilter = 'all' | 'green' | 'blue' | 'red';
 
 function popularityLabel(p: number): string {
   if (p < 30) return 'Unknown';
@@ -304,6 +305,7 @@ export default function TalentScreen() {
   const { talent } = useGameStore();
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [availFilter, setAvailFilter] = useState<AvailFilter>('all');
+  const [chemFilter, setChemFilter] = useState<ChemFilter>('all');
   const [search, setSearch] = useState('');
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
 
@@ -312,10 +314,11 @@ export default function TalentScreen() {
       if (roleFilter !== 'all' && t.role !== roleFilter) return false;
       if (availFilter === 'available' && !t.available) return false;
       if (availFilter === 'booked' && t.available) return false;
+      if (chemFilter !== 'all' && t.chemistryColor !== chemFilter) return false;
       if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     }).sort((a, b) => b.popularity - a.popularity);
-  }, [talent, roleFilter, availFilter, search]);
+  }, [talent, roleFilter, availFilter, chemFilter, search]);
 
   const counts = useMemo(() => {
     const byRole = talent.filter(t => roleFilter === 'all' || t.role === roleFilter);
@@ -374,6 +377,30 @@ export default function TalentScreen() {
           >
             <Text style={[s.availText, availFilter === val && s.availTextActive]}>
               {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Chemistry filter */}
+      <View style={s.availRow}>
+        {(['all', 'green', 'blue', 'red'] as ChemFilter[]).map(c => (
+          <TouchableOpacity
+            key={c}
+            style={[
+              s.chemTab,
+              chemFilter === c && c !== 'all' && { borderColor: CHEM_COLORS[c], backgroundColor: CHEM_COLORS[c] + '18' },
+              chemFilter === c && c === 'all' && s.availTabActive,
+            ]}
+            onPress={() => setChemFilter(c)}
+          >
+            {c !== 'all' && <View style={[s.chemTabDot, { backgroundColor: CHEM_COLORS[c] }]} />}
+            <Text style={[
+              s.availText,
+              chemFilter === c && c !== 'all' && { color: CHEM_COLORS[c], fontWeight: '600' },
+              chemFilter === c && c === 'all' && s.availTextActive,
+            ]}>
+              {c === 'all' ? 'Any Chemistry' : c.charAt(0).toUpperCase() + c.slice(1)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -473,6 +500,9 @@ const s = StyleSheet.create({
   availTabActive:  { borderColor: C.green, backgroundColor: C.green + '18' },
   availText:       { color: C.muted, fontSize: 12 },
   availTextActive: { color: C.green, fontWeight: '600' },
+
+  chemTab:         { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
+  chemTabDot:      { width: 8, height: 8, borderRadius: 4 },
 
   list:            { padding: 12, gap: 8 },
 
