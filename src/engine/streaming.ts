@@ -51,7 +51,10 @@ export function tryGenerateStreamingOffer(
 
   const cancelPenalty = show.status === 'cancelled' && !show.cancelledClean ? 0.3 : 1.0;
 
-  const platform = randomItem([...STREAMING_PLATFORMS]);
+  const usedPlatformNames = new Set(show.streamingDeals.map(d => d.platformName));
+  const availablePlatforms = [...STREAMING_PLATFORMS].filter(p => !usedPlatformNames.has(p.name));
+  if (availablePlatforms.length === 0) return null;
+  const platform = randomItem(availablePlatforms);
   const baseValue = totalEpisodes * BASE_PER_EPISODE_VALUE * qualityMod * bundleMod * freshnessMod * cancelPenalty * platform.rateMultiplier;
 
   const nonExclusiveAmount = Math.round(baseValue / 100_000) * 100_000;

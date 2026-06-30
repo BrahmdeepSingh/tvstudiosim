@@ -438,10 +438,15 @@ export default function ShowDetailScreen() {
                 : 0;
               const sNet = s.totalAdRevenue + s.streamingRevenue - s.productionCost - s.marketingSpend;
               return (
-                <View key={s.id} style={sd.historyCard}>
+                <TouchableOpacity
+                  key={s.id}
+                  style={sd.historyCard}
+                  activeOpacity={0.75}
+                  onPress={() => router.push(`/season-detail?showID=${show.id}&seasonNumber=${s.seasonNumber}`)}
+                >
                   <View style={sd.historyHeader}>
                     <Text style={sd.historySeasonLabel}>Season {s.seasonNumber}</Text>
-                    <Text style={sd.historyEpisodes}>{s.episodeCount} eps</Text>
+                    <Text style={sd.historyChevron}>›</Text>
                   </View>
                   <View style={sd.historyStats}>
                     <View style={sd.historyStat}>
@@ -464,7 +469,7 @@ export default function ShowDetailScreen() {
                       Streaming: {fmt(s.streamingRevenue)}
                     </Text>
                   )}
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -627,6 +632,7 @@ const sd = StyleSheet.create({
   historyHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   historySeasonLabel:{ color: C.text, fontSize: 14, fontWeight: '600' },
   historyEpisodes:   { color: C.muted, fontSize: 13 },
+  historyChevron:    { color: C.muted, fontSize: 20 },
   historyStats:      { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 8 },
   historyStat:       { alignItems: 'center' },
   historyStatValue:  { color: C.text, fontSize: 15, fontWeight: '600' },
