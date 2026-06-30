@@ -91,6 +91,24 @@ export interface Talent {
   birthplace: string;
   debutYear: number; // game-clock year they broke into the industry (can predate year 1)
   quirk: string; // flavor line shown on the talent's profile
+
+  // Pre-game backstory, generated once at creation and frozen — represents
+  // their career before the player's network existed.
+  legacyCredits: LegacyCredit[];
+  legacyAwards: LegacyAward[];
+  priorCareerEarnings: number;
+}
+
+export interface LegacyCredit {
+  title: string;
+  genre: Genre;
+  year: number;
+}
+
+export interface LegacyAward {
+  category: EmmyCategory;
+  year: number;
+  won: boolean;
 }
 
 // ─── Talent Deal ─────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
-import { Talent, TalentStats, ChemistryColor, TalentRole } from '../types';
+import { Talent, TalentStats, ChemistryColor, TalentRole, Genre, EmmyCategory, LegacyCredit, LegacyAward } from '../types';
 import { nanoid } from '../utils/nanoid';
-import { randomBetween, randomItem } from '../utils/random';
+import { randomBetween, randomItem, randomFloat, clamp } from '../utils/random';
 import { STARTING_YEAR } from '../constants/game';
 
 const CHEMISTRY_COLORS: ChemistryColor[] = ['green', 'blue', 'red'];
@@ -61,6 +61,85 @@ function randomBirthplace(): string {
 
 function randomQuirk(): string {
   return randomItem(QUIRKS);
+}
+
+// ─── Legacy career generation (pre-game backstory) ───────────────────────────
+
+const LEGACY_GENRES: Genre[] = ['drama', 'comedy', 'sci-fi', 'procedural', 'reality', 'limited-series'];
+
+const LEGACY_TITLE_ADJECTIVES = [
+  'Borrowed', 'Crooked', 'Hollow', 'Silent', 'Northern', 'Last', 'Quiet',
+  'Restless', 'Burning', 'Forgotten', 'Open', 'Bitter', 'Common', 'Wild',
+];
+
+const LEGACY_TITLE_NOUNS = [
+  'Harbor', 'Static', 'Ledger', 'Frontier', 'Verdict', 'Echo', 'Crossing',
+  'Signal', 'Ward', 'Reckoning', 'Hour', 'Pattern', 'Address', 'Current',
+];
+
+function randomLegacyTitle(): string {
+  return `${randomItem(LEGACY_TITLE_ADJECTIVES)} ${randomItem(LEGACY_TITLE_NOUNS)}`;
+}
+
+const ACTING_CATEGORIES_DRAMA: EmmyCategory[] = ['best-drama-actor', 'best-drama-actress'];
+const ACTING_CATEGORIES_COMEDY: EmmyCategory[] = ['best-comedy-actor', 'best-comedy-actress'];
+
+function categoryForLegacyCredit(role: TalentRole, genre: Genre): EmmyCategory | null {
+  if (role === 'showrunner') return 'best-writing';
+  if (role === 'director') return 'best-director';
+  // actor — reality has no acting Emmy category in this game's model
+  if (genre === 'reality') return null;
+  if (genre === 'comedy') return randomItem(ACTING_CATEGORIES_COMEDY);
+  return randomItem(ACTING_CATEGORIES_DRAMA);
+}
+
+const EARNINGS_BASE_PER_YEAR: Record<'low' | 'mid' | 'high', number> = {
+  low: 40_000,
+  mid: 120_000,
+  high: 350_000,
+};
+
+function generateLegacyCareer(
+  role: TalentRole,
+  tier: 'low' | 'mid' | 'high',
+  popularity: number,
+  yearsActive: number,
+  debutYear: number,
+): { legacyCredits: LegacyCredit[]; legacyAwards: LegacyAward[]; priorCareerEarnings: number } {
+  if (yearsActive <= 0) {
+    return { legacyCredits: [], legacyAwards: [], priorCareerEarnings: 0 };
+  }
+
+  const maxCredits = Math.min(8, Math.ceil(yearsActive / 1.2));
+  const numCredits = randomBetween(yearsActive >= 2 ? 1 : 0, Math.max(1, maxCredits));
+
+  const legacyCredits: LegacyCredit[] = [];
+  const legacyAwards: LegacyAward[] = [];
+
+  const nominationChance = clamp(0.12 + popularity / 250, 0, 0.55);
+  const winChanceGivenNom = clamp(0.25 + popularity / 400, 0, 0.6);
+
+  for (let i = 0; i < numCredits; i++) {
+    const genre = randomItem(LEGACY_GENRES);
+    const year = debutYear === STARTING_YEAR - 1
+      ? debutYear
+      : randomBetween(debutYear, STARTING_YEAR - 1);
+
+    legacyCredits.push({ title: randomLegacyTitle(), genre, year });
+
+    const category = categoryForLegacyCredit(role, genre);
+    if (category && Math.random() < nominationChance) {
+      const won = Math.random() < winChanceGivenNom;
+      legacyAwards.push({ category, year, won });
+    }
+  }
+
+  legacyCredits.sort((a, b) => a.year - b.year);
+
+  const perYear = EARNINGS_BASE_PER_YEAR[tier] + popularity * 2_000;
+  const priorCareerEarnings = Math.round(yearsActive * perYear * randomFloat(0.7, 1.3));
+
+  return { legacyCredits, legacyAwards, priorCareerEarnings };
 }
 
 // ─── Stat generation by tier ──────────────────────────────────────────────────
@@ -136,15 +215,22 @@ function makeTalent(
       ? makeDirectorStats(tier)
       : makeActorStats(tier);
 
-  const age = randomBetween(28, 58);
-  const yearsActive = randomBetween(1, Math.max(1, age - 24));
+  // Actors skew younger (room for true newcomers); showrunners/directors
+  // are rarely fresh out of school.
+  const age = role === 'actor' ? randomBetween(20, 60) : randomBetween(26, 64);
+  const yearsActive = randomBetween(0, Math.max(0, age - 20));
+  const debutYear = STARTING_YEAR - yearsActive;
+  const popularity = popularityForTier(tier);
+
+  const { legacyCredits, legacyAwards, priorCareerEarnings } =
+    generateLegacyCareer(role, tier, popularity, yearsActive, debutYear);
 
   return {
     id: nanoid(),
     name: randomName(),
     role,
     age,
-    popularity: popularityForTier(tier),
+    popularity,
     stats,
     chemistryColor: randomItem(CHEMISTRY_COLORS),
     available: true,
@@ -154,8 +240,11 @@ function makeTalent(
     careerShowIDs: [],
     prestigeRequired: prestigeRequiredForTier(tier),
     birthplace: randomBirthplace(),
-    debutYear: STARTING_YEAR - yearsActive,
+    debutYear,
     quirk: randomQuirk(),
+    legacyCredits,
+    legacyAwards,
+    priorCareerEarnings,
   };
 }
 
@@ -187,5 +276,5 @@ export function getAvailableTalent(talent: Talent[]): Talent[] {
 }
 
 export function getYearsActive(talent: Talent, currentYear: number): number {
-  return Math.max(1, currentYear - talent.debutYear);
+  return Math.max(0, currentYear - talent.debutYear);
 }

@@ -93,7 +93,7 @@ export default function TalentDetailScreen() {
   const chemColor = CHEM_COLORS[person.chemistryColor];
   const yearsActive = getYearsActive(person, network.currentYear);
 
-  const careerEarnings = talentDeals
+  const careerEarnings = person.priorCareerEarnings + talentDeals
     .filter(d => d.talentID === person.id)
     .reduce((sum, d) => sum + d.flatFee, 0);
 
@@ -101,7 +101,10 @@ export default function TalentDetailScreen() {
     .filter(a => a.talentID === person.id)
     .sort((a, b) => b.year - a.year);
 
+  const legacyAwards = [...person.legacyAwards].sort((a, b) => b.year - a.year);
+
   const careerShows = shows.filter(sh => person.careerShowIDs.includes(sh.id));
+  const legacyCredits = person.legacyCredits;
 
   const currentDeal = talentDeals.find(d => d.talentID === person.id && !person.available);
   const currentShow = currentDeal ? shows.find(sh => sh.id === currentDeal.showID) : null;
@@ -155,7 +158,9 @@ export default function TalentDetailScreen() {
           {' · '}{popularityLabel(person.popularity)}
         </Text>
         <Text style={s.subMeta}>
-          Born: {person.birthplace}  ·  Active: {yearsActive} yr{yearsActive !== 1 ? 's' : ''}
+          Born: {person.birthplace}  ·  {yearsActive === 0
+            ? 'Rookie — debuting this year'
+            : `Active: ${yearsActive} yr${yearsActive !== 1 ? 's' : ''}`}
         </Text>
         <Text style={s.quirk}>"{person.quirk}"</Text>
 
@@ -186,12 +191,12 @@ export default function TalentDetailScreen() {
 
         {/* Trophy case */}
         <Text style={s.sectionLabel}>TROPHY CASE</Text>
-        {personAwards.length === 0 ? (
+        {personAwards.length === 0 && legacyAwards.length === 0 ? (
           <Text style={s.emptyText}>No hardware yet. Still early in the career.</Text>
         ) : (
           <View style={s.card}>
             {personAwards.map((a, i) => (
-              <View key={a.id} style={[s.awardRow, i === personAwards.length - 1 && { borderBottomWidth: 0 }]}>
+              <View key={a.id} style={[s.awardRow, (i === personAwards.length - 1 && legacyAwards.length === 0) && { borderBottomWidth: 0 }]}>
                 <Text style={[s.awardIcon, { color: a.won ? C.gold : C.muted }]}>{a.won ? '🏆' : '🎗'}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={s.cardLabel}>
@@ -203,14 +208,39 @@ export default function TalentDetailScreen() {
                 </View>
               </View>
             ))}
+            {legacyAwards.map((a, i) => (
+              <View key={`legacy-${i}`} style={[s.awardRow, i === legacyAwards.length - 1 && { borderBottomWidth: 0 }]}>
+                <Text style={[s.awardIcon, { color: a.won ? C.gold : C.muted }]}>{a.won ? '🏆' : '🎗'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.cardLabel}>
+                    {EMMY_CATEGORY_LABELS[a.category] ?? a.category}
+                  </Text>
+                  <Text style={s.awardSub}>
+                    {a.won ? 'Won' : 'Nominated'} · Year {a.year} · Before your network
+                  </Text>
+                </View>
+              </View>
+            ))}
           </View>
         )}
 
         {/* Career timeline */}
-        {careerShows.length > 0 && (
+        {(legacyCredits.length > 0 || careerShows.length > 0) ? (
           <>
             <Text style={s.sectionLabel}>CAREER TIMELINE</Text>
             <View style={s.card}>
+              {legacyCredits.map((credit, i) => (
+                <View
+                  key={`legacy-credit-${i}`}
+                  style={[s.cardRow, (i === legacyCredits.length - 1 && careerShows.length === 0) && { borderBottomWidth: 0 }]}
+                >
+                  <View>
+                    <Text style={s.cardLabel}>{credit.title}</Text>
+                    <Text style={s.awardSub}>Year {credit.year} · Before your network</Text>
+                  </View>
+                  <Text style={s.cardValue}>{credit.genre}</Text>
+                </View>
+              ))}
               {careerShows.map((sh, i) => (
                 <View key={sh.id} style={[s.cardRow, i === careerShows.length - 1 && { borderBottomWidth: 0 }]}>
                   <Text style={s.cardLabel}>{sh.title}</Text>
@@ -220,6 +250,11 @@ export default function TalentDetailScreen() {
                 </View>
               ))}
             </View>
+          </>
+        ) : (
+          <>
+            <Text style={s.sectionLabel}>CAREER TIMELINE</Text>
+            <Text style={s.emptyText}>Just breaking into the industry — no credits yet.</Text>
           </>
         )}
 
