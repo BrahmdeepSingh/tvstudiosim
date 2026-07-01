@@ -267,13 +267,10 @@ export default function Dashboard() {
   const expiringRef = useRef<Set<string>>(new Set());
   const glowAnim    = useRef(new Animated.Value(0)).current;
 
-  // Glow pulse for advance button
+  // Advance button ripple — one-way pulse: expands out and fades, instant reset
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1, duration: 1000, useNativeDriver: false }),
-        Animated.timing(glowAnim, { toValue: 0, duration: 1000, useNativeDriver: false }),
-      ])
+      Animated.timing(glowAnim, { toValue: 1, duration: 1400, useNativeDriver: true })
     );
     loop.start();
     return () => loop.stop();
@@ -554,9 +551,9 @@ export default function Dashboard() {
             style={[
               s.advanceGlowRing,
               {
-                opacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] }),
+                opacity: glowAnim.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.55, 0] }),
                 transform: [{
-                  scale: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }),
+                  scale: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.3] }),
                 }],
               },
             ]}
