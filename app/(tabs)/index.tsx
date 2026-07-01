@@ -72,6 +72,56 @@ function fmtViewers(n: number): string {
   return String(n);
 }
 
+// ── Film ribbon ambient texture ───────────────────────────────────────────────
+const RIBBONS = [
+  // top band
+  { t: '3%',  l: '4%',  h: 52, rot: '-20deg' },
+  { t: '4%',  l: '42%', h: 44, rot: '12deg'  },
+  { t: '3%',  l: '72%', h: 48, rot: '-8deg'  },
+  { t: '3%',  l: '92%', h: 42, rot: '22deg'  },
+  // upper-mid band
+  { t: '27%', l: '0%',  h: 50, rot: '-30deg' },
+  { t: '28%', l: '29%', h: 46, rot: '15deg'  },
+  { t: '27%', l: '62%', h: 52, rot: '-5deg'  },
+  { t: '28%', l: '87%', h: 44, rot: '28deg'  },
+  // lower-mid band
+  { t: '56%', l: '3%',  h: 50, rot: '-22deg' },
+  { t: '57%', l: '39%', h: 46, rot: '18deg'  },
+  { t: '56%', l: '69%', h: 52, rot: '-12deg' },
+  { t: '57%', l: '90%', h: 48, rot: '8deg'   },
+  // bottom band
+  { t: '82%', l: '10%', h: 44, rot: '-15deg' },
+  { t: '83%', l: '48%', h: 50, rot: '25deg'  },
+  { t: '82%', l: '86%', h: 46, rot: '-20deg' },
+];
+
+function FilmRibbonAmbient() {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {RIBBONS.map((r, i) => {
+        const w = 11;
+        const frames = Math.max(3, Math.round(r.h / 13));
+        return (
+          <View key={i} style={{ position: 'absolute', top: r.t as any, left: r.l as any, width: w, height: r.h, transform: [{ rotate: r.rot }], opacity: 0.12 }}>
+            {/* outer border */}
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 0.75, borderColor: C.gold, borderRadius: 1.5 }} />
+            {/* frame divider lines */}
+            {Array.from({ length: frames - 1 }, (_, j) => (
+              <View key={j} style={{ position: 'absolute', top: Math.round(((j + 1) / frames) * r.h), left: 0, right: 0, height: 0.5, backgroundColor: C.gold }} />
+            ))}
+            {/* sprocket holes — top pair */}
+            <View style={{ position: 'absolute', top: 2.5, left: 1.5, width: 2, height: 2, borderRadius: 1, borderWidth: 0.5, borderColor: C.gold }} />
+            <View style={{ position: 'absolute', top: 2.5, right: 1.5, width: 2, height: 2, borderRadius: 1, borderWidth: 0.5, borderColor: C.gold }} />
+            {/* sprocket holes — bottom pair */}
+            <View style={{ position: 'absolute', bottom: 2.5, left: 1.5, width: 2, height: 2, borderRadius: 1, borderWidth: 0.5, borderColor: C.gold }} />
+            <View style={{ position: 'absolute', bottom: 2.5, right: 1.5, width: 2, height: 2, borderRadius: 1, borderWidth: 0.5, borderColor: C.gold }} />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 // ── Decorative dot row ────────────────────────────────────────────────────────
 function DotRow() {
   return (
@@ -291,6 +341,7 @@ export default function Dashboard() {
   if (!initialized) {
     return (
       <LinearGradient colors={['#141726', '#0c0f1a', '#070a12']} style={{ flex: 1 }}>
+        <FilmRibbonAmbient />
         <SafeAreaView style={s.setupContainer}>
           <Text style={s.setupTitle}>TV STUDIO SIM</Text>
           <TouchableOpacity
@@ -386,6 +437,7 @@ export default function Dashboard() {
       locations={[0, 0.55, 1]}
       style={{ flex: 1 }}
     >
+      <FilmRibbonAmbient />
       <SafeAreaView style={s.container}>
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
