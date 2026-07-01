@@ -1,23 +1,22 @@
 import { GameState, Show, Season, Episode, ShowStatus, InboxItem } from '../types';
 import {
   WRITING_WEEKS,
-  FILMING_WEEKS,
   WEEKS_PER_YEAR,
   EMMY_NOMINATION_WEEK,
   EMMY_CEREMONY_WEEK,
   MAX_PITCHES_PER_YEAR,
   PITCH_GENERATE_CHANCE,
 } from '../constants/game';
-import { calculateQualityScore } from './quality';
+import { calculateScriptScore, calculateQualityScore } from './quality';
 import { calculateEpisodeRating } from './ratings';
 import { generateSocialReactions } from './social';
 import { advanceCompetitors } from './competitors';
 import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
-import { generateStreamingOffer } from './streaming';
+import { tryGenerateStreamingOffer, scheduleNextOfferCheck } from './streaming';
 import { generatePitch } from './pitches';
-import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews } from './news';
+import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews } from './news';
 import { nanoid } from '../utils/nanoid';
-import { randomChance } from '../utils/random';
+import { randomChance, randomBetween } from '../utils/random';
 
 export function advanceWeek(state: GameState): GameState {
   const { currentWeek, currentYear } = state.network;
@@ -38,13 +37,46 @@ export function advanceWeek(state: GameState): GameState {
     if (!season) return show;
 
     switch (show.status) {
-      case 'writing':  return tickWriting(show, season);
+      case 'writing':  return tickWriting(show, season, state);
       case 'filming':  return tickFilming(show, season, state);
       case 'marketing': return tickMarketing(show, season, newWeek, newYear);
       case 'airing':   return tickAiring(show, season, newWeek, newYear);
       default:         return show;
     }
   });
+
+  // Detect filming→marketing transitions: generate wrap news and free cast/director
+  for (let i = 0; i < state.shows.length; i++) {
+    if (state.shows[i].status === 'filming' && shows[i].status === 'marketing') {
+      newNewsItems.push(makeFilmingWrapNews(shows[i].title, { week: newWeek, year: newYear }));
+
+      // Filming is done — cast and director are free to take other work
+      const wrappedSeason = shows[i].seasons[shows[i].currentSeasonIndex];
+      const freedIDs = new Set([
+        ...wrappedSeason.leadActorIDs,
+        ...wrappedSeason.supportingActorIDs,
+        wrappedSeason.directorID,
+      ].filter(Boolean) as string[]);
+
+      talent = talent.map(t =>
+        freedIDs.has(t.id) ? { ...t, available: true, bookedForSeasonID: null } : t
+      );
+    }
+  }
+
+  // Detect premiere and finale episode airings
+  for (let i = 0; i < state.shows.length; i++) {
+    const before = state.shows[i].seasons[state.shows[i].currentSeasonIndex];
+    const after = shows[i].seasons[shows[i].currentSeasonIndex];
+    if (!before || !after) continue;
+    if (state.shows[i].status === 'airing' || shows[i].status === 'renewal-pending') {
+      if (before.episodesAired === 0 && after.episodesAired === 1) {
+        newNewsItems.push(makePremiereNews(shows[i].title, shows[i].genre, { week: newWeek, year: newYear }));
+      } else if (before.episodesAired === before.episodeCount - 1 && after.episodesAired === after.episodeCount) {
+        newNewsItems.push(makeFinaleNews(shows[i].title, after.seasonNumber, { week: newWeek, year: newYear }));
+      }
+    }
+  }
 
   // ─── Ad revenue: accumulate cash from episodes that aired this week ────────
   let revenueThisWeek = 0;
@@ -62,46 +94,72 @@ export function advanceWeek(state: GameState): GameState {
     careerEarnings: network.careerEarnings + revenueThisWeek,
   };
 
-  // ─── Check for completed seasons → streaming offers ───────────────────────
+  // ─── Streaming: expire offers, run scheduled checks, generate offers ─────────
   const updatedShows = shows.map(show => {
-    if (show.status !== 'renewal-pending') return show;
-    const season = show.seasons[show.currentSeasonIndex];
-    if (!season || season.streamingOfferReceived) return show;
+    let s = show;
 
-    const offer = generateStreamingOffer(
-      show,
-      season,
-      network.prestige,
-      network.emmysWon,
-      newWeek,
-      newYear,
-    );
+    // Expire pending offer → schedule re-check in 4–16 weeks
+    if (s.pendingStreamingOffer) {
+      const o = s.pendingStreamingOffer;
+      const expired =
+        newYear > o.expiresYear ||
+        (newYear === o.expiresYear && newWeek > o.expiresWeek);
+      if (expired) {
+        const { checkWeek, checkYear } = scheduleNextOfferCheck(newWeek, newYear, 4, 16);
+        s = { ...s, pendingStreamingOffer: null, streamingOfferCheckWeek: checkWeek, streamingOfferCheckYear: checkYear };
+      }
+    }
 
-    if (!offer) return show;
+    // Count completed seasons — if more than we last checked, a new season is ready
+    const completedCount = s.seasons.filter(se => se.episodesAired >= se.episodeCount).length;
+    const newSeasonReady = completedCount > s.streamingCheckedAtSeasonCount;
 
-    const updatedSeason: Season = {
-      ...season,
-      streamingOfferReceived: true,
-      streamingOfferAmount: offer.amount,
-      streamingOfferSource: offer.platformName,
-      streamingOfferExpiresWeek: offer.expiresWeek,
-      streamingOfferExpiresYear: offer.expiresYear,
-    };
-    const updatedSeasons = [...show.seasons];
-    updatedSeasons[show.currentSeasonIndex] = updatedSeason;
+    // Check if a scheduled check is now due
+    const checkDue =
+      s.streamingOfferCheckWeek !== null &&
+      s.streamingOfferCheckYear !== null &&
+      newYear === s.streamingOfferCheckYear &&
+      newWeek >= s.streamingOfferCheckWeek;
 
-    newInboxItems.push({
-      id: nanoid(),
-      type: 'streaming-offer',
-      week: newWeek,
-      year: newYear,
-      read: false,
-      refID: show.id,
-      title: `${offer.platformName} offering $${formatM(offer.amount)} for "${show.title}"`,
-      preview: `Expires week ${offer.expiresWeek}, Year ${offer.expiresYear}`,
-    });
+    if ((newSeasonReady || checkDue) && !s.pendingStreamingOffer) {
+      if (checkDue) {
+        s = { ...s, streamingOfferCheckWeek: null, streamingOfferCheckYear: null };
+      }
 
-    return { ...show, seasons: updatedSeasons };
+      // Mark this season count as evaluated (prevents re-running same check every week)
+      s = { ...s, streamingCheckedAtSeasonCount: completedCount };
+
+      const activeExclusive = s.streamingDeals.find(
+        d => d.dealType === 'exclusive' && d.expiresYear >= newYear,
+      );
+
+      if (activeExclusive) {
+        // Blocked — schedule check for the year after the deal expires
+        const checkWeek = randomBetween(1, 8);
+        s = { ...s, streamingOfferCheckWeek: checkWeek, streamingOfferCheckYear: activeExclusive.expiresYear + 1 };
+      } else {
+        const offer = tryGenerateStreamingOffer(s, newWeek, newYear);
+        if (offer) {
+          s = { ...s, pendingStreamingOffer: offer };
+          const seasonsLabel =
+            offer.seasonsToInclude.length === 1
+              ? `S${offer.seasonsToInclude[0]}`
+              : `${offer.seasonsToInclude.length} seasons`;
+          newInboxItems.push({
+            id: nanoid(),
+            type: 'streaming-offer',
+            week: newWeek,
+            year: newYear,
+            read: false,
+            refID: show.id,
+            title: `${offer.platformName} wants streaming rights to "${show.title}"`,
+            preview: `${seasonsLabel} · Up to $${formatM(offer.exclusiveAmount)} (excl) · Expires Wk ${offer.expiresWeek}, Yr ${offer.expiresYear}`,
+          });
+        }
+      }
+    }
+
+    return s;
   });
 
   // ─── Expire old pitches ────────────────────────────────────────────────────
@@ -117,7 +175,7 @@ export function advanceWeek(state: GameState): GameState {
   const pitchesThisYear = pitches.filter(p => p.submittedYear === newYear).length;
   if (pitchesThisYear < MAX_PITCHES_PER_YEAR && randomChance(PITCH_GENERATE_CHANCE)) {
     const showrunners = talent.filter(
-      t => t.role === 'showrunner' && t.available && t.prestigeRequired <= network.prestige,
+      t => t.role === 'showrunner' && t.available,
     );
     const pitch = generatePitch(showrunners, newWeek, newYear);
     if (pitch) {
@@ -137,8 +195,9 @@ export function advanceWeek(state: GameState): GameState {
   }
 
   // ─── Advance competitors ───────────────────────────────────────────────────
-  const { updatedCompetitors, newsItems: competitorNews } =
-    advanceCompetitors(state.competitors, newWeek, newYear);
+  const { updatedCompetitors, newsItems: competitorNews, updatedTalent: talentAfterCompetitors } =
+    advanceCompetitors(state.competitors, talent, newWeek, newYear);
+  talent = talentAfterCompetitors;
   newNewsItems.push(...competitorNews);
 
   // ─── Industry news (occasional) ───────────────────────────────────────────
@@ -148,7 +207,7 @@ export function advanceWeek(state: GameState): GameState {
 
   // ─── Emmy nomination week ──────────────────────────────────────────────────
   if (newWeek === EMMY_NOMINATION_WEEK) {
-    const nominations = calculateEmmyNominations(updatedShows, talent, newYear);
+    const nominations = calculateEmmyNominations(updatedShows, talent, updatedCompetitors, newYear);
     awards = [...awards, ...nominations];
 
     const playerNoms = nominations.filter(n =>
@@ -235,33 +294,42 @@ export function advanceWeek(state: GameState): GameState {
 
 // ─── Stage tick functions ──────────────────────────────────────────────────────
 
-function tickWriting(show: Show, season: Season): Show {
+function tickWriting(show: Show, season: Season, state: GameState): Show {
   const completed = season.writingWeeksCompleted + 1;
-  const updatedSeason = { ...season, writingWeeksCompleted: completed };
-  const status: ShowStatus = completed >= WRITING_WEEKS ? 'filming' : 'writing';
-  return updateShow(show, updatedSeason, status);
+  let updatedSeason = { ...season, writingWeeksCompleted: completed };
+
+  if (completed >= WRITING_WEEKS) {
+    const showrunner = state.talent.find(t => t.id === season.showrunnerID);
+    if (showrunner) {
+      updatedSeason = { ...updatedSeason, scriptScore: calculateScriptScore(showrunner) };
+    }
+    return updateShow(show, updatedSeason, 'filming');
+  }
+
+  return updateShow(show, updatedSeason, 'writing');
 }
 
 function tickFilming(show: Show, season: Season, state: GameState): Show {
-  if (!season.directorID || season.castIDs.length === 0) return show; // waiting on player
+  const castFull =
+    season.leadActorIDs.length >= season.leadActorSlots &&
+    season.supportingActorIDs.length >= season.supportingActorSlots;
+  if (!season.directorID || !castFull) return show; // waiting on player
 
   const completed = season.filmingWeeksCompleted + 1;
   let updatedSeason = { ...season, filmingWeeksCompleted: completed };
 
-  if (completed >= FILMING_WEEKS) {
-    const showrunner = state.talent.find(t => t.id === season.showrunnerID);
+  if (completed >= season.filmingWeeksTotal) {
     const director = state.talent.find(t => t.id === season.directorID!);
-    const cast = season.castIDs
+    const allActorIDs = [...season.leadActorIDs, ...season.supportingActorIDs];
+    const cast = allActorIDs
       .map(id => state.talent.find(t => t.id === id))
       .filter((t): t is NonNullable<typeof t> => t !== undefined);
 
-    if (showrunner && director) {
-      const qualityScore = calculateQualityScore(showrunner, director, cast);
+    if (director) {
+      const qualityScore = calculateQualityScore(director, cast);
       updatedSeason = { ...updatedSeason, qualityScore };
     }
 
-    // Unlock talent from this season's booking once filming is done
-    // (handled in store when show transitions to marketing)
     return updateShow(show, updatedSeason, 'marketing');
   }
 

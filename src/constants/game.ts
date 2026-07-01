@@ -34,7 +34,7 @@ export const COMPETITOR_NAMES = [
 
 // ─── Streaming ────────────────────────────────────────────────────────────────
 
-export const STREAMING_OFFER_MIN_RATING = 6.5;
+export const STREAMING_OFFER_MIN_RATING = 5.5;
 export const STREAMING_OFFER_EXPIRY_WEEKS = 4;
 
 export const STREAMING_PLATFORMS = [
@@ -58,26 +58,26 @@ export const TALENT_FEES: Record<TalentRole, {
   high: [number, number];
 }> = {
   showrunner: {
-    low:  [300_000,   600_000],
-    mid:  [700_000, 1_400_000],
-    high: [1_500_000, 3_000_000],
+    low:  [1_500_000,  3_000_000],
+    mid:  [4_000_000,  8_000_000],
+    high: [10_000_000, 20_000_000],
   },
   director: {
-    low:  [200_000,   400_000],
-    mid:  [500_000, 1_000_000],
-    high: [1_100_000, 2_000_000],
+    low:  [1_000_000,  2_000_000],
+    mid:  [3_000_000,  6_000_000],
+    high: [7_000_000, 15_000_000],
   },
   actor: {
-    low:  [400_000,   800_000],
-    mid:  [900_000, 1_800_000],
-    high: [2_000_000, 4_000_000],
+    low:  [2_000_000,  4_000_000],
+    mid:  [5_000_000, 10_000_000],
+    high: [12_000_000, 25_000_000],
   },
 };
 
 export const SUPPORTING_ACTOR_FEES = {
-  low:  [150_000,   350_000],
-  mid:  [400_000,   800_000],
-  high: [900_000, 1_500_000],
+  low:  [1_000_000, 2_000_000],
+  mid:  [2_500_000, 5_000_000],
+  high: [6_000_000, 12_000_000],
 } as const;
 
 // ─── Genre Config ─────────────────────────────────────────────────────────────
@@ -92,42 +92,42 @@ export const GENRE_CONFIG: Record<Genre, {
   drama: {
     ratingCeiling: 9.5,
     baseViewers: 2_000_000,
-    cpm: 180,
+    cpm: 600,
     emmySeriesCategory: 'best-drama-series',
     emmyActorCategories: ['best-drama-actor', 'best-drama-actress'],
   },
   comedy: {
     ratingCeiling: 8.0,
     baseViewers: 2_500_000,
-    cpm: 140,
+    cpm: 450,
     emmySeriesCategory: 'best-comedy-series',
     emmyActorCategories: ['best-comedy-actor', 'best-comedy-actress'],
   },
   'sci-fi': {
     ratingCeiling: 9.0,
     baseViewers: 1_800_000,
-    cpm: 160,
+    cpm: 550,
     emmySeriesCategory: 'best-drama-series',
     emmyActorCategories: ['best-drama-actor', 'best-drama-actress'],
   },
   procedural: {
     ratingCeiling: 7.5,
     baseViewers: 3_500_000,
-    cpm: 130,
+    cpm: 300,
     emmySeriesCategory: 'best-drama-series',
     emmyActorCategories: ['best-drama-actor', 'best-drama-actress'],
   },
   reality: {
     ratingCeiling: 6.5,
     baseViewers: 4_000_000,
-    cpm: 100,
+    cpm: 150,
     emmySeriesCategory: null,
     emmyActorCategories: [],
   },
   'limited-series': {
     ratingCeiling: 10.0,
     baseViewers: 1_500_000,
-    cpm: 220,
+    cpm: 900,
     emmySeriesCategory: 'best-limited-series',
     emmyActorCategories: ['best-drama-actor', 'best-drama-actress'],
   },

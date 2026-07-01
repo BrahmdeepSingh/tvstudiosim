@@ -8,7 +8,28 @@ export type Genre =
   | 'reality'
   | 'limited-series';
 
-export type Tone = 'prestige' | 'mainstream' | 'experimental' | 'procedural';
+export type Theme =
+  | 'romance'
+  | 'superhero'
+  | 'medieval'
+  | 'space'
+  | 'western'
+  | 'crime'
+  | 'political'
+  | 'holiday'
+  | 'dystopian'
+  | 'historical'
+  | 'sports'
+  | 'music'
+  | 'survival'
+  | 'war'
+  | 'legal'
+  | 'medical'
+  | 'horror'
+  | 'workplace'
+  | 'coming-of-age'
+  | 'supernatural'
+  | 'fantasy';
 
 export type TalentRole = 'showrunner' | 'director' | 'actor';
 
@@ -63,9 +84,31 @@ export interface Talent {
   chemistryColor: ChemistryColor;
   available: boolean;
   bookedForSeasonID: string | null; // locked but filming not started yet
+  bookedByCompetitorShowID: string | null; // booked by a competitor show
   awards: Award[];
   careerShowIDs: string[];
   prestigeRequired: number; // min network prestige to see this talent
+  birthplace: string;
+  debutYear: number; // game-clock year they broke into the industry (can predate year 1)
+  quirk: string; // flavor line shown on the talent's profile
+
+  // Pre-game backstory, generated once at creation and frozen — represents
+  // their career before the player's network existed.
+  legacyCredits: LegacyCredit[];
+  legacyAwards: LegacyAward[];
+  priorCareerEarnings: number;
+}
+
+export interface LegacyCredit {
+  title: string;
+  genre: Genre;
+  year: number;
+}
+
+export interface LegacyAward {
+  category: EmmyCategory;
+  year: number;
+  won: boolean;
 }
 
 // ─── Talent Deal ─────────────────────────────────────────────────────────────
@@ -113,7 +156,7 @@ export interface Season {
 
   writingWeeksTotal: number; // always 3
   writingWeeksCompleted: number;
-  filmingWeeksTotal: number; // always 4
+  filmingWeeksTotal: number; // equals episodeCount
   filmingWeeksCompleted: number;
   marketingWeeksTotal: number; // weeks between wrap and chosen air date
   marketingWeeksCompleted: number;
@@ -130,20 +173,24 @@ export interface Season {
   marketingSpend: number; // sum of purchased channel costs
   marketingChannelIDs: string[];
 
-  streamingOfferReceived: boolean;
-  streamingOfferAmount: number;
-  streamingOfferSource: string;
-  streamingOfferAccepted: boolean;
-  streamingOfferExpiresWeek: number | null;
-  streamingOfferExpiresYear: number | null;
+  streamingRevenue: number; // attributed from any streaming deal covering this season
 
   renewalDecisionMade: boolean;
   renewed: boolean;
 
-  castIDs: string[]; // actor talent IDs
+  leadActorSlots: number;       // decided at show creation
+  supportingActorSlots: number; // decided at show creation
+  leadActorIDs: string[];       // filled during casting
+  supportingActorIDs: string[]; // filled during casting
   directorID: string | null;
   showrunnerID: string;
+  scriptScore: number;  // 0–100, calculated when writing wraps
   qualityScore: number; // 0–100, calculated at end of filming
+
+  // Renewal suggestions — carry forward from the previous season
+  suggestedDirectorID: string | null;
+  suggestedLeadActorIDs: string[];
+  suggestedSupportingActorIDs: string[];
 }
 
 // ─── Show ─────────────────────────────────────────────────────────────────────
@@ -152,11 +199,17 @@ export interface Show {
   id: string;
   title: string;
   genre: Genre;
-  tone: Tone;
+  theme: Theme;
   inHouse: boolean; // false = came from an outside pitch
   status: ShowStatus;
   seasons: Season[];
   currentSeasonIndex: number;
+  streamingDeals: StreamingDeal[];
+  pendingStreamingOffer: StreamingOffer | null;
+  streamingOfferCheckWeek: number | null;
+  streamingOfferCheckYear: number | null;
+  streamingCheckedAtSeasonCount: number; // how many completed seasons were present at last offer attempt
+  cancelledClean: boolean;
 }
 
 // ─── Pitch ───────────────────────────────────────────────────────────────────
@@ -165,7 +218,7 @@ export interface Pitch {
   id: string;
   title: string;
   genre: Genre;
-  tone: Tone;
+  theme: Theme;
   logline: string;
   showrunnerID: string;
   askingFlatFee: number;
@@ -193,6 +246,7 @@ export interface CompetitorShow {
   seasonNumber: number;
   episodesAired: number;
   totalEpisodes: number;
+  bookedTalentIDs: string[];
 }
 
 export interface CompetitorStudio {
@@ -202,6 +256,34 @@ export interface CompetitorStudio {
   activeShows: CompetitorShow[];
   emmysWon: number;
   totalShowsProduced: number;
+}
+
+// ─── Streaming ───────────────────────────────────────────────────────────────
+
+export type StreamingDealType = 'exclusive' | 'non-exclusive';
+
+export interface StreamingDeal {
+  id: string;
+  platformName: string;
+  amount: number;
+  dealType: StreamingDealType;
+  seasonsIncluded: number[]; // season numbers
+  acceptedWeek: number;
+  acceptedYear: number;
+  durationYears: number;
+  expiresWeek: number;
+  expiresYear: number;
+}
+
+export interface StreamingOffer {
+  id: string;
+  platformName: string;
+  nonExclusiveAmount: number;
+  exclusiveAmount: number;
+  seasonsToInclude: number[];
+  expiresWeek: number;
+  expiresYear: number;
+  durationYears: number; // how long the deal would last if accepted
 }
 
 // ─── Awards ──────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { Show, Season, Talent, Award, EmmyCategory } from '../types';
+import { Show, Season, Talent, Award, EmmyCategory, CompetitorStudio } from '../types';
 import { GENRE_CONFIG, EMMY_CATEGORIES } from '../constants/game';
 import { nanoid } from '../utils/nanoid';
 import { randomFloat } from '../utils/random';
@@ -6,19 +6,23 @@ import { randomFloat } from '../utils/random';
 export function calculateEmmyNominations(
   playerShows: Show[],
   talent: Talent[],
+  competitors: CompetitorStudio[],
   year: number,
 ): Award[] {
   const eligible = getEligibleSeasons(playerShows, year);
-  if (eligible.length === 0) return [];
-
   const nominations: Award[] = [];
 
   for (const category of EMMY_CATEGORIES) {
-    const candidates = getCandidatesForCategory(category as EmmyCategory, eligible, talent);
-    if (candidates.length === 0) continue;
+    const playerCandidates = eligible.length > 0
+      ? getCandidatesForCategory(category as EmmyCategory, eligible, talent)
+      : [];
+    const competitorCandidates = getCompetitorCandidates(category as EmmyCategory, competitors);
 
-    const nomineeCount = Math.min(5, candidates.length);
-    const selected = weightedSelect(candidates, nomineeCount);
+    const allCandidates = [...playerCandidates, ...competitorCandidates];
+    if (allCandidates.length === 0) continue;
+
+    const nomineeCount = Math.min(5, allCandidates.length);
+    const selected = weightedSelect(allCandidates, nomineeCount);
 
     for (const c of selected) {
       nominations.push({
@@ -30,7 +34,7 @@ export function calculateEmmyNominations(
         showID: c.showID,
         seasonID: c.seasonID,
         talentID: c.talentID,
-        isPlayerAward: true,
+        isPlayerAward: c.isPlayerAward,
       });
     }
   }
@@ -79,6 +83,7 @@ interface Candidate {
   seasonID: string;
   talentID?: string;
   score: number;
+  isPlayerAward: boolean;
 }
 
 function getCandidatesForCategory(
@@ -95,25 +100,25 @@ function getCandidatesForCategory(
 
     if (category === 'best-drama-series') {
       if (['drama', 'sci-fi', 'procedural'].includes(show.genre)) {
-        candidates.push({ showID: show.id, seasonID: season.id, score: base });
+        candidates.push({ showID: show.id, seasonID: season.id, score: base, isPlayerAward: true });
       }
     } else if (category === 'best-comedy-series') {
       if (show.genre === 'comedy') {
-        candidates.push({ showID: show.id, seasonID: season.id, score: base });
+        candidates.push({ showID: show.id, seasonID: season.id, score: base, isPlayerAward: true });
       }
     } else if (category === 'best-limited-series') {
       if (show.genre === 'limited-series') {
-        candidates.push({ showID: show.id, seasonID: season.id, score: base });
+        candidates.push({ showID: show.id, seasonID: season.id, score: base, isPlayerAward: true });
       }
     } else if (category === 'best-director') {
       if (season.directorID) {
-        candidates.push({ showID: show.id, seasonID: season.id, talentID: season.directorID, score: base });
+        candidates.push({ showID: show.id, seasonID: season.id, talentID: season.directorID, score: base, isPlayerAward: true });
       }
     } else if (category === 'best-writing') {
-      candidates.push({ showID: show.id, seasonID: season.id, talentID: season.showrunnerID, score: base });
+      candidates.push({ showID: show.id, seasonID: season.id, talentID: season.showrunnerID, score: base, isPlayerAward: true });
     } else if (['best-drama-actor', 'best-drama-actress'].includes(category)) {
       if (['drama', 'sci-fi', 'procedural', 'limited-series'].includes(show.genre)) {
-        for (const actorID of season.castIDs.slice(0, 2)) {
+        for (const actorID of season.leadActorIDs.slice(0, 2)) {
           const actor = talent.find(t => t.id === actorID);
           if (actor) {
             candidates.push({
@@ -121,13 +126,14 @@ function getCandidatesForCategory(
               seasonID: season.id,
               talentID: actorID,
               score: base + actor.popularity / 100,
+              isPlayerAward: true,
             });
           }
         }
       }
     } else if (['best-comedy-actor', 'best-comedy-actress'].includes(category)) {
       if (show.genre === 'comedy') {
-        for (const actorID of season.castIDs.slice(0, 2)) {
+        for (const actorID of season.leadActorIDs.slice(0, 2)) {
           const actor = talent.find(t => t.id === actorID);
           if (actor) {
             candidates.push({
@@ -135,9 +141,41 @@ function getCandidatesForCategory(
               seasonID: season.id,
               talentID: actorID,
               score: base + actor.popularity / 100,
+              isPlayerAward: true,
             });
           }
         }
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function getCompetitorCandidates(
+  category: EmmyCategory,
+  competitors: CompetitorStudio[],
+): Candidate[] {
+  const candidates: Candidate[] = [];
+  const dramaGenres = ['drama', 'sci-fi', 'procedural'];
+
+  for (const studio of competitors) {
+    for (const show of studio.activeShows) {
+      if (show.status !== 'airing' || show.episodesAired < 4) continue;
+      if (show.currentRating < 6.5) continue;
+
+      const base = show.currentRating + randomFloat(0, 1.5);
+
+      if (category === 'best-drama-series' && dramaGenres.includes(show.genre)) {
+        candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });
+      } else if (category === 'best-comedy-series' && show.genre === 'comedy') {
+        candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });
+      } else if (category === 'best-limited-series' && show.genre === 'limited-series') {
+        candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });
+      } else if (['best-drama-actor', 'best-drama-actress'].includes(category) && dramaGenres.includes(show.genre)) {
+        candidates.push({ showID: show.id, seasonID: show.id, talentID: `comp-${show.id}`, score: base, isPlayerAward: false });
+      } else if (['best-comedy-actor', 'best-comedy-actress'].includes(category) && show.genre === 'comedy') {
+        candidates.push({ showID: show.id, seasonID: show.id, talentID: `comp-${show.id}`, score: base, isPlayerAward: false });
       }
     }
   }

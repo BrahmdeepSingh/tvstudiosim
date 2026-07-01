@@ -1,7 +1,9 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Animated } from 'react-native';
 import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { Show, Season } from '../../src/types';
+import { WEEKS_PER_YEAR } from '../../src/constants/game';
 
 const C = {
   bg:       '#0f0f17',
@@ -29,9 +31,11 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function fmt(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n}`;
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+  return `${sign}$${abs}`;
 }
 
 function fmtViewers(n: number): string {
@@ -48,7 +52,7 @@ function HeatmapDot({ rating, empty }: { rating: number | null; empty?: boolean 
   return <View style={[styles.dot, { backgroundColor: color }]} />;
 }
 
-function ShowCard({ show }: { show: Show }) {
+function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
   const season = show.seasons[show.currentSeasonIndex];
   if (!season) return null;
 
@@ -60,7 +64,7 @@ function ShowCard({ show }: { show: Show }) {
   );
 
   return (
-    <View style={styles.showCard}>
+    <TouchableOpacity style={styles.showCard} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.showCardHeader}>
         <View style={{ flex: 1 }}>
           <Text style={styles.showTitle}>{show.title}</Text>
@@ -88,10 +92,10 @@ function ShowCard({ show }: { show: Show }) {
             ))}
           </View>
 
-          {season.streamingOfferReceived && !season.streamingOfferAccepted && (
+          {show.pendingStreamingOffer && (
             <View style={styles.streamingBanner}>
               <Text style={styles.streamingText}>
-                {season.streamingOfferSource} offering {fmt(season.streamingOfferAmount)} for streaming rights
+                {show.pendingStreamingOffer.platformName} wants streaming rights · up to {fmt(show.pendingStreamingOffer.exclusiveAmount)}
               </Text>
             </View>
           )}
@@ -114,31 +118,73 @@ function ShowCard({ show }: { show: Show }) {
           </View>
         </>
       ) : (
-        <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${show.status === 'writing'
-                  ? (season.writingWeeksCompleted / season.writingWeeksTotal) * 100
-                  : show.status === 'filming'
-                  ? (season.filmingWeeksCompleted / season.filmingWeeksTotal) * 100
-                  : show.status === 'marketing'
-                  ? (season.marketingWeeksCompleted / Math.max(season.marketingWeeksTotal, 1)) * 100
-                  : 0}%`,
-                backgroundColor: statusColor,
-              },
-            ]}
-          />
-        </View>
+        <>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${show.status === 'writing'
+                    ? (season.writingWeeksCompleted / season.writingWeeksTotal) * 100
+                    : show.status === 'filming'
+                    ? (season.filmingWeeksCompleted / season.filmingWeeksTotal) * 100
+                    : show.status === 'marketing'
+                    ? (season.marketingWeeksCompleted / Math.max(season.marketingWeeksTotal, 1)) * 100
+                    : 0}%`,
+                  backgroundColor: statusColor,
+                },
+              ]}
+            />
+          </View>
+          <View style={styles.progressFooter}>
+            <Text style={[styles.progressLabel, { color: statusColor }]}>
+              {show.status === 'writing'
+                ? `${season.writingWeeksTotal - season.writingWeeksCompleted} week${season.writingWeeksTotal - season.writingWeeksCompleted !== 1 ? 's' : ''} remaining`
+                : show.status === 'filming'
+                ? `${season.filmingWeeksTotal - season.filmingWeeksCompleted} week${season.filmingWeeksTotal - season.filmingWeeksCompleted !== 1 ? 's' : ''} remaining`
+                : show.status === 'marketing' && season.airDateWeek != null
+                ? `Premieres Week ${season.airDateWeek}, Year ${season.airDateYear}`
+                : show.status === 'marketing'
+                ? 'No air date set'
+                : ''}
+            </Text>
+          </View>
+        </>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export default function Dashboard() {
   const router = useRouter();
-  const { network, shows, inboxItems, newsItems, advanceWeek, initialized, initializeGame } = useGameStore();
+  const { network, shows, inboxItems, newsItems, pitches, advanceWeek, initialized, initializeGame } = useGameStore();
+
+  // All hooks must be declared before any early return
+  const [fadedIds, setFadedIds] = useState<Set<string>>(new Set());
+  const fadeAnims = useRef<Record<string, Animated.Value>>({});
+  const expiringRef = useRef<Set<string>>(new Set());
+
+  function itemAgeWeeks(item: { week: number; year: number }) {
+    return (network.currentYear - item.year) * WEEKS_PER_YEAR + (network.currentWeek - item.week);
+  }
+
+  useEffect(() => {
+    if (!initialized) return;
+    const newExpiring = inboxItems.filter(
+      i => !i.read && itemAgeWeeks(i) >= 2 && !expiringRef.current.has(i.id) && !fadedIds.has(i.id)
+    );
+    newExpiring.forEach(item => {
+      expiringRef.current.add(item.id);
+      fadeAnims.current[item.id] = new Animated.Value(1);
+      Animated.timing(fadeAnims.current[item.id], {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }).start(() => {
+        setFadedIds(prev => new Set([...prev, item.id]));
+      });
+    });
+  }, [network.currentWeek, network.currentYear, initialized]);
 
   if (!initialized) {
     return (
@@ -160,7 +206,70 @@ export default function Dashboard() {
     ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(s.status)
   );
   const latestNews = newsItems[newsItems.length - 1];
-  const unreadInbox = inboxItems.filter(i => !i.read).slice(0, 3);
+
+  const unreadInbox = inboxItems
+    .filter(i => !i.read && !fadedIds.has(i.id) && (itemAgeWeeks(i) < 2 || expiringRef.current.has(i.id)))
+    .slice(0, 3);
+
+  // ── Task list ──────────────────────────────────────────────────────────────
+  type TaskItem = { id: string; label: string; sub: string; urgency: 'red' | 'amber' | 'purple'; route: string | { pathname: string; params: Record<string, string> } };
+  const tasks: TaskItem[] = [];
+
+  for (const show of activeShows) {
+    const season = show.seasons[show.currentSeasonIndex];
+    if (!season) continue;
+
+    if (show.status === 'renewal-pending') {
+      tasks.push({ id: `renew-${show.id}`, label: 'Renew or cancel', sub: show.title, urgency: 'red', route: `/renew?showID=${show.id}` });
+    }
+
+    if (show.status === 'filming') {
+      if (!season.directorID) {
+        tasks.push({ id: `director-${show.id}`, label: 'Hire director', sub: show.title, urgency: 'amber', route: `/hire-talent?showID=${show.id}&role=director` });
+      }
+      if (season.leadActorIDs.length < season.leadActorSlots) {
+        const filled = season.leadActorIDs.length;
+        const total = season.leadActorSlots;
+        tasks.push({ id: `lead-${show.id}`, label: `Hire lead actor${total - filled > 1 ? 's' : ''} (${filled}/${total})`, sub: show.title, urgency: 'amber', route: `/hire-talent?showID=${show.id}&role=actor&actorType=lead` });
+      }
+      if (season.supportingActorIDs.length < season.supportingActorSlots) {
+        const filled = season.supportingActorIDs.length;
+        const total = season.supportingActorSlots;
+        tasks.push({ id: `supporting-${show.id}`, label: `Hire supporting cast (${filled}/${total})`, sub: show.title, urgency: 'purple', route: `/hire-talent?showID=${show.id}&role=actor&actorType=supporting` });
+      }
+    }
+
+    if (show.status === 'marketing' && season.airDateWeek === null) {
+      tasks.push({ id: `airdate-${show.id}`, label: 'Schedule air date', sub: show.title, urgency: 'amber', route: `/show/${show.id}` });
+    }
+  }
+
+  // Expiring pitches (unread, ≤2 weeks left)
+  for (const pitch of pitches) {
+    if (pitch.passed || pitch.greenlitByPlayer) continue;
+    const weeksLeft = (pitch.expiresYear - network.currentYear) * WEEKS_PER_YEAR + (pitch.expiresWeek - network.currentWeek);
+    if (weeksLeft <= 2 && weeksLeft >= 0) {
+      const inboxItem = inboxItems.find(i => i.type === 'pitch' && i.refID === pitch.id);
+      if (inboxItem) {
+        tasks.push({ id: `pitch-${pitch.id}`, label: `Pitch expiring in ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''}`, sub: pitch.title, urgency: weeksLeft <= 1 ? 'red' : 'amber', route: { pathname: '/(tabs)/inbox', params: { itemID: inboxItem.id } } });
+      }
+    }
+  }
+
+  // Expiring streaming offers (≤1 week left)
+  for (const show of shows) {
+    if (!show.pendingStreamingOffer) continue;
+    const offer = show.pendingStreamingOffer;
+    const inboxItem = inboxItems.find(i => i.type === 'streaming-offer' && i.refID === show.id);
+    const weeksLeft = (offer.expiresYear - network.currentYear) * WEEKS_PER_YEAR + (offer.expiresWeek - network.currentWeek);
+    if (weeksLeft <= 1 && weeksLeft >= 0 && inboxItem) {
+      tasks.push({ id: `stream-${show.id}`, label: `Streaming offer expires soon`, sub: show.title, urgency: 'red', route: { pathname: '/(tabs)/inbox', params: { itemID: inboxItem.id } } });
+    }
+  }
+
+  // Sort: red first, then amber, then purple
+  const urgencyOrder = { red: 0, amber: 1, purple: 2 };
+  tasks.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -217,17 +326,57 @@ export default function Dashboard() {
         {/* Slate */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>YOUR SLATE</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/shows')}>
-            <Text style={styles.seeAll}>See all →</Text>
+          <TouchableOpacity onPress={() => router.push('/create-show')}>
+            <Text style={styles.seeAll}>+ Create Show</Text>
           </TouchableOpacity>
         </View>
 
         {activeShows.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No active shows. Create one or check your inbox for pitches.</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.emptyState}
+            onPress={() => router.push('/create-show')}
+          >
+            <Text style={styles.emptyText}>No active shows.</Text>
+            <Text style={[styles.emptyText, { color: C.accent, marginTop: 6 }]}>+ Create your first show</Text>
+          </TouchableOpacity>
         ) : (
-          activeShows.map(show => <ShowCard key={show.id} show={show} />)
+          activeShows.map(show => (
+            <ShowCard
+              key={show.id}
+              show={show}
+              onPress={() => router.push(`/show/${show.id}`)}
+            />
+          ))
+        )}
+
+        {/* Tasks */}
+        {tasks.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>TASKS</Text>
+              <View style={styles.taskCountBadge}>
+                <Text style={styles.taskCountText}>{tasks.length}</Text>
+              </View>
+            </View>
+            {tasks.map(task => {
+              const accentColor = task.urgency === 'red' ? C.red : task.urgency === 'amber' ? C.amber : C.accent;
+              return (
+                <TouchableOpacity
+                  key={task.id}
+                  style={styles.taskRow}
+                  onPress={() => router.push(task.route as any)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.taskAccent, { backgroundColor: accentColor }]} />
+                  <View style={styles.taskBody}>
+                    <Text style={styles.taskLabel}>{task.label}</Text>
+                    <Text style={styles.taskSub}>{task.sub}</Text>
+                  </View>
+                  <Text style={styles.taskChevron}>›</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </>
         )}
 
         {/* Inbox preview */}
@@ -239,18 +388,26 @@ export default function Dashboard() {
                 <Text style={styles.seeAll}>View all →</Text>
               </TouchableOpacity>
             </View>
-            {unreadInbox.map(item => (
-              <View key={item.id} style={styles.inboxItem}>
-                <View style={styles.inboxDot} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inboxTitle}>{item.title}</Text>
-                  <Text style={styles.inboxPreview}>{item.preview}</Text>
-                </View>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/inbox')}>
+            {unreadInbox.map(item => {
+              const anim = fadeAnims.current[item.id];
+              const inner = (
+                <TouchableOpacity
+                  style={styles.inboxItem}
+                  onPress={() => router.push({ pathname: '/(tabs)/inbox', params: { itemID: item.id } })}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.inboxDot} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inboxTitle}>{item.title}</Text>
+                    <Text style={styles.inboxPreview}>{item.preview}</Text>
+                  </View>
                   <Text style={styles.inboxAction}>Review →</Text>
                 </TouchableOpacity>
-              </View>
-            ))}
+              );
+              return anim
+                ? <Animated.View key={item.id} style={{ opacity: anim }}>{inner}</Animated.View>
+                : <View key={item.id}>{inner}</View>;
+            })}
           </>
         )}
 
@@ -323,9 +480,20 @@ const styles = StyleSheet.create({
 
   progressBar:     { height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
   progressFill:    { height: '100%', borderRadius: 2 },
+  progressFooter:  { marginTop: 6 },
+  progressLabel:   { fontSize: 12, fontWeight: '500' },
 
   emptyState:      { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: 'center', marginBottom: 16 },
   emptyText:       { color: C.muted, fontSize: 14, textAlign: 'center', lineHeight: 20 },
+
+  taskCountBadge:  { backgroundColor: C.red + '33', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  taskCountText:   { color: C.red, fontSize: 12, fontWeight: '700' },
+  taskRow:         { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, marginBottom: 8, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
+  taskAccent:      { width: 4, alignSelf: 'stretch' },
+  taskBody:        { flex: 1, paddingVertical: 12, paddingHorizontal: 12 },
+  taskLabel:       { color: C.text, fontSize: 14, fontWeight: '600' },
+  taskSub:         { color: C.muted, fontSize: 12, marginTop: 2 },
+  taskChevron:     { color: C.muted, fontSize: 22, paddingRight: 12 },
 
   inboxItem:       { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12 },
   inboxDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },

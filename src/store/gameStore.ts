@@ -7,9 +7,10 @@ import {
   Talent,
   TalentDeal,
   Genre,
-  Tone,
+  Theme,
   ShowStatus,
   InboxItem,
+  NewsItem,
 } from '../types';
 import { advanceWeek as engineAdvanceWeek } from '../engine/advancement';
 import { generateInitialTalentPool } from '../engine/talent';
@@ -22,8 +23,8 @@ import {
   STARTING_WEEK,
   STARTING_YEAR,
   WRITING_WEEKS,
-  FILMING_WEEKS,
   TALENT_FEES,
+  SUPPORTING_ACTOR_FEES,
   MARKETING_CHANNELS,
   WEEKS_PER_YEAR,
 } from '../constants/game';
@@ -40,15 +41,15 @@ interface GameStore extends GameState {
   advanceWeek: () => void;
 
   // In-house show creation
-  createShow: (title: string, genre: Genre, tone: Tone, episodeCount: number) => string;
+  createShow: (title: string, genre: Genre, theme: Theme, episodeCount: number, leadActorSlots: number, supportingActorSlots: number) => string;
 
   // Talent hiring (returns true if successful)
   hireShowrunner: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number) => boolean;
   hireDirector: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number) => boolean;
-  hireActor: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number) => boolean;
+  hireActor: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number, actorType: 'lead' | 'supporting') => boolean;
 
   // Talent negotiation: returns whether talent accepts the offer
-  evaluateOffer: (talentID: string, offeredFee: number, networkPrestige: number) => boolean;
+  evaluateOffer: (talentID: string, offeredFee: number, networkPrestige: number, actorType?: 'lead' | 'supporting') => boolean;
 
   // Marketing
   setAirDate: (showID: string, week: number, year: number) => void;
@@ -59,11 +60,11 @@ interface GameStore extends GameState {
   passPitch: (pitchID: string) => void;
 
   // Renewal / cancellation
-  renewShow: (showID: string, newEpisodeCount: number) => void;
+  renewShow: (showID: string, newEpisodeCount: number, newLeadSlots?: number, newSupportingSlots?: number) => void;
   cancelShow: (showID: string) => void;
 
   // Streaming
-  acceptStreamingOffer: (showID: string) => void;
+  acceptStreamingOffer: (showID: string, dealType: 'exclusive' | 'non-exclusive') => void;
   declineStreamingOffer: (showID: string) => void;
 
   // Inbox
@@ -161,7 +162,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Show Creation ─────────────────────────────────────────────────────────
 
-  createShow: (title, genre, tone, episodeCount) => {
+  createShow: (title, genre, theme, episodeCount, leadActorSlots, supportingActorSlots) => {
     const showID = nanoid();
     const seasonID = nanoid();
 
@@ -184,7 +185,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       episodeCount,
       writingWeeksTotal: WRITING_WEEKS,
       writingWeeksCompleted: 0,
-      filmingWeeksTotal: FILMING_WEEKS,
+      filmingWeeksTotal: episodeCount,
       filmingWeeksCompleted: 0,
       marketingWeeksTotal: 0,
       marketingWeeksCompleted: 0,
@@ -197,29 +198,37 @@ export const useGameStore = create<GameStore>((set, get) => ({
       productionCost: 0,
       marketingSpend: 0,
       marketingChannelIDs: [],
-      streamingOfferReceived: false,
-      streamingOfferAmount: 0,
-      streamingOfferSource: '',
-      streamingOfferAccepted: false,
-      streamingOfferExpiresWeek: null,
-      streamingOfferExpiresYear: null,
+      streamingRevenue: 0,
       renewalDecisionMade: false,
       renewed: false,
-      castIDs: [],
+      leadActorSlots,
+      supportingActorSlots,
+      leadActorIDs: [],
+      supportingActorIDs: [],
       directorID: null,
       showrunnerID: '',
+      scriptScore: 0,
       qualityScore: 50,
+      suggestedDirectorID: null,
+      suggestedLeadActorIDs: [],
+      suggestedSupportingActorIDs: [],
     };
 
     const show: Show = {
       id: showID,
       title,
       genre,
-      tone,
+      theme,
       inHouse: true,
       status: 'writing',
       seasons: [season],
       currentSeasonIndex: 0,
+      streamingDeals: [],
+      pendingStreamingOffer: null,
+      streamingOfferCheckWeek: null,
+      streamingOfferCheckYear: null,
+      streamingCheckedAtSeasonCount: 0,
+      cancelledClean: true,
     };
 
     set(state => ({ shows: [...state.shows, show] }));
@@ -228,7 +237,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Talent Negotiation ─────────────────────────────────────────────────────
 
-  evaluateOffer: (talentID, offeredFee, networkPrestige) => {
+  evaluateOffer: (talentID, offeredFee, networkPrestige, actorType = 'lead') => {
     const state = get();
     const talent = state.talent.find(t => t.id === talentID);
     if (!talent) return false;
@@ -238,7 +247,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Determine talent's expected minimum based on popularity
     const tierIndex = popularity < 40 ? 'low' : popularity < 70 ? 'mid' : 'high';
-    const feeRange = TALENT_FEES[role][tierIndex];
+    const feeRange = (role === 'actor' && actorType === 'supporting')
+      ? SUPPORTING_ACTOR_FEES[tierIndex]
+      : TALENT_FEES[role][tierIndex];
     const minAcceptable = feeRange[0] * 0.85; // will accept down to 85% of range floor
     const askingPrice = feeRange[0] + (feeRange[1] - feeRange[0]) * (popularity / 100);
 
@@ -340,7 +351,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true;
   },
 
-  hireActor: (showID, talentID, flatFee, revenueSharePercent) => {
+  hireActor: (showID, talentID, flatFee, revenueSharePercent, actorType) => {
     const state = get();
     if (state.network.cashOnHand < flatFee) return false;
 
@@ -364,7 +375,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const updatedSeason: Season = {
       ...season,
-      castIDs: [...season.castIDs, talentID],
+      leadActorIDs: actorType === 'lead' ? [...season.leadActorIDs, talentID] : season.leadActorIDs,
+      supportingActorIDs: actorType === 'supporting' ? [...season.supportingActorIDs, talentID] : season.supportingActorIDs,
       productionCost: season.productionCost + flatFee,
     };
 
@@ -479,7 +491,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       episodeCount: pitch.proposedEpisodeCount,
       writingWeeksTotal: WRITING_WEEKS,
       writingWeeksCompleted: 0,
-      filmingWeeksTotal: FILMING_WEEKS,
+      filmingWeeksTotal: pitch.proposedEpisodeCount,
       filmingWeeksCompleted: 0,
       marketingWeeksTotal: 0,
       marketingWeeksCompleted: 0,
@@ -492,29 +504,37 @@ export const useGameStore = create<GameStore>((set, get) => ({
       productionCost: pitch.askingFlatFee,
       marketingSpend: 0,
       marketingChannelIDs: [],
-      streamingOfferReceived: false,
-      streamingOfferAmount: 0,
-      streamingOfferSource: '',
-      streamingOfferAccepted: false,
-      streamingOfferExpiresWeek: null,
-      streamingOfferExpiresYear: null,
+      streamingRevenue: 0,
       renewalDecisionMade: false,
       renewed: false,
-      castIDs: [],
+      leadActorSlots: 2,
+      supportingActorSlots: 2,
+      leadActorIDs: [],
+      supportingActorIDs: [],
       directorID: null,
       showrunnerID: pitch.showrunnerID,
-      qualityScore: pitch.hiddenQualityScore, // use hidden score as quality floor
+      scriptScore: 0,
+      qualityScore: pitch.hiddenQualityScore,
+      suggestedDirectorID: null,
+      suggestedLeadActorIDs: [],
+      suggestedSupportingActorIDs: [],
     };
 
     const show: Show = {
       id: showID,
       title: pitch.title,
       genre: pitch.genre,
-      tone: pitch.tone,
+      theme: pitch.theme,
       inHouse: false,
       status: 'writing',
       seasons: [season],
       currentSeasonIndex: 0,
+      streamingDeals: [],
+      pendingStreamingOffer: null,
+      streamingOfferCheckWeek: null,
+      streamingOfferCheckYear: null,
+      streamingCheckedAtSeasonCount: 0,
+      cancelledClean: true,
     };
 
     const deal: TalentDeal = {
@@ -558,7 +578,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Renewal ───────────────────────────────────────────────────────────────
 
-  renewShow: (showID, newEpisodeCount) => {
+  renewShow: (showID, newEpisodeCount, newLeadSlots, newSupportingSlots) => {
     const state = get();
     const show = state.shows.find(s => s.id === showID);
     if (!show || show.status !== 'renewal-pending') return;
@@ -566,6 +586,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const prevSeason = show.seasons[show.currentSeasonIndex];
     const newSeasonNumber = prevSeason.seasonNumber + 1;
     const newSeasonID = nanoid();
+    const resolvedLeadSlots = newLeadSlots ?? prevSeason.leadActorSlots;
+    const resolvedSupportingSlots = newSupportingSlots ?? prevSeason.supportingActorSlots;
 
     const episodes: Episode[] = Array.from({ length: newEpisodeCount }, (_, i) => ({
       id: nanoid(),
@@ -586,7 +608,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       episodeCount: newEpisodeCount,
       writingWeeksTotal: WRITING_WEEKS,
       writingWeeksCompleted: 0,
-      filmingWeeksTotal: FILMING_WEEKS,
+      filmingWeeksTotal: newEpisodeCount,
       filmingWeeksCompleted: 0,
       marketingWeeksTotal: 0,
       marketingWeeksCompleted: 0,
@@ -599,22 +621,47 @@ export const useGameStore = create<GameStore>((set, get) => ({
       productionCost: 0,
       marketingSpend: 0,
       marketingChannelIDs: [],
-      streamingOfferReceived: false,
-      streamingOfferAmount: 0,
-      streamingOfferSource: '',
-      streamingOfferAccepted: false,
-      streamingOfferExpiresWeek: null,
-      streamingOfferExpiresYear: null,
+      streamingRevenue: 0,
       renewalDecisionMade: false,
       renewed: false,
-      castIDs: [],
+      leadActorSlots: resolvedLeadSlots,
+      supportingActorSlots: resolvedSupportingSlots,
+      leadActorIDs: [],
+      supportingActorIDs: [],
       directorID: null,
-      showrunnerID: prevSeason.showrunnerID, // carry over showrunner until re-hired
+      showrunnerID: prevSeason.showrunnerID,
+      scriptScore: 0,
       qualityScore: 50,
+      suggestedDirectorID: prevSeason.directorID,
+      suggestedLeadActorIDs: [...prevSeason.leadActorIDs],
+      suggestedSupportingActorIDs: [...prevSeason.supportingActorIDs],
     };
 
     // Free up talent from previous season now that filming is long done
-    const prevCast = [...prevSeason.castIDs, prevSeason.directorID].filter(Boolean) as string[];
+    const prevCast = [
+      ...prevSeason.leadActorIDs,
+      ...prevSeason.supportingActorIDs,
+      prevSeason.directorID,
+    ].filter(Boolean) as string[];
+
+    const viewers = prevSeason.totalViewers;
+    const vStr = viewers >= 1_000_000
+      ? `${(viewers / 1_000_000).toFixed(1)}M`
+      : viewers >= 1_000
+      ? `${(viewers / 1_000).toFixed(0)}K`
+      : String(viewers);
+
+    const renewalNews: NewsItem = {
+      id: nanoid(),
+      week: state.network.currentWeek,
+      year: state.network.currentYear,
+      type: 'player',
+      read: false,
+      headline: viewers > 0
+        ? `"${show.title}" renewed for Season ${newSeasonNumber} — ${vStr} viewers watched S${prevSeason.seasonNumber}`
+        : `"${show.title}" renewed for Season ${newSeasonNumber}`,
+      body: `The network has officially greenlit another season. Pre-production begins immediately.`,
+    };
 
     set(s => ({
       shows: s.shows.map(sh =>
@@ -635,6 +682,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           ? { ...t, available: true, bookedForSeasonID: null }
           : t,
       ),
+      newsItems: [...s.newsItems, renewalNews].slice(-150),
     }));
   },
 
@@ -647,12 +695,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const bookedTalent = [
       season.showrunnerID,
       season.directorID,
-      ...season.castIDs,
+      ...season.leadActorIDs,
+      ...season.supportingActorIDs,
     ].filter(Boolean) as string[];
+
+    // Cancelling from renewal-pending = clean; mid-production = unclean
+    const cancelledClean = show.status === 'renewal-pending';
 
     set(s => ({
       shows: s.shows.map(sh =>
-        sh.id === showID ? { ...sh, status: 'cancelled' as ShowStatus } : sh,
+        sh.id === showID ? { ...sh, status: 'cancelled' as ShowStatus, cancelledClean } : sh,
       ),
       talent: s.talent.map(t =>
         bookedTalent.includes(t.id)
@@ -668,15 +720,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Streaming ─────────────────────────────────────────────────────────────
 
-  acceptStreamingOffer: (showID) => {
+  acceptStreamingOffer: (showID, dealType) => {
     const state = get();
     const show = state.shows.find(s => s.id === showID);
-    if (!show) return;
+    if (!show?.pendingStreamingOffer) return;
 
-    const season = show.seasons[show.currentSeasonIndex];
-    if (!season?.streamingOfferReceived || season.streamingOfferAccepted) return;
+    const offer = show.pendingStreamingOffer;
+    const amount = dealType === 'exclusive' ? offer.exclusiveAmount : offer.nonExclusiveAmount;
 
-    const amount = season.streamingOfferAmount;
+    // Attribute revenue proportionally across included seasons
+    const includedSeasons = show.seasons.filter(s => offer.seasonsToInclude.includes(s.seasonNumber));
+    const totalEps = includedSeasons.reduce((sum, s) => sum + s.episodeCount, 0);
+
+    const deal = {
+      id: nanoid(),
+      platformName: offer.platformName,
+      amount,
+      dealType,
+      seasonsIncluded: offer.seasonsToInclude,
+      acceptedWeek: state.network.currentWeek,
+      acceptedYear: state.network.currentYear,
+      durationYears: offer.durationYears,
+      expiresWeek: state.network.currentWeek,
+      expiresYear: state.network.currentYear + offer.durationYears,
+    };
 
     set(s => ({
       network: {
@@ -688,9 +755,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         sh.id === showID
           ? {
               ...sh,
-              seasons: sh.seasons.map((se, i) =>
-                i === sh.currentSeasonIndex
-                  ? { ...se, streamingOfferAccepted: true }
+              pendingStreamingOffer: null,
+              streamingDeals: [...sh.streamingDeals, deal],
+              // Attribute revenue to each included season
+              seasons: sh.seasons.map(se =>
+                offer.seasonsToInclude.includes(se.seasonNumber)
+                  ? {
+                      ...se,
+                      streamingRevenue:
+                        se.streamingRevenue +
+                        Math.round((amount * se.episodeCount) / Math.max(totalEps, 1) / 100_000) * 100_000,
+                    }
                   : se,
               ),
             }
@@ -700,16 +775,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   declineStreamingOffer: (showID) => {
+    const state = get();
+    const { currentWeek, currentYear } = state.network;
+    const delay = randomBetween(8, 20);
+    const raw = currentWeek + delay;
+    const checkWeek = raw > 52 ? raw - 52 : raw;
+    const checkYear = raw > 52 ? currentYear + 1 : currentYear;
+
     set(s => ({
       shows: s.shows.map(sh =>
         sh.id === showID
           ? {
               ...sh,
-              seasons: sh.seasons.map((se, i) =>
-                i === sh.currentSeasonIndex
-                  ? { ...se, streamingOfferReceived: false } // reset so engine won't re-offer
-                  : se,
-              ),
+              pendingStreamingOffer: null,
+              streamingOfferCheckWeek: checkWeek,
+              streamingOfferCheckYear: checkYear,
             }
           : sh,
       ),
@@ -735,7 +815,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
   loadGame: async (slot) => {
     const loaded = await loadGameFromStorage(slot);
     if (!loaded) return false;
-    set({ ...loaded, saveSlot: slot });
+
+    // Migrate old saves: add show-level streaming fields and season streamingRevenue
+    const migratedShows = (loaded.shows ?? []).map((sh: any) => ({
+      streamingDeals: [],
+      pendingStreamingOffer: null,
+      streamingOfferCheckWeek: null,
+      streamingOfferCheckYear: null,
+      streamingCheckedAtSeasonCount: 0,
+      cancelledClean: true,
+      ...sh,
+      seasons: (sh.seasons ?? []).map((se: any) => {
+        // Strip old season-level streaming fields; add streamingRevenue
+        const {
+          streamingOfferReceived: _a,
+          streamingOfferAmount: _b,
+          streamingOfferSource: _c,
+          streamingOfferAccepted: _d,
+          streamingOfferExpiresWeek: _e,
+          streamingOfferExpiresYear: _f,
+          streamingDealDurationYears: _g,
+          ...rest
+        } = se;
+        return { streamingRevenue: 0, ...rest };
+      }),
+    }));
+
+    set({ ...loaded, shows: migratedShows, saveSlot: slot });
     return true;
   },
 }));
