@@ -2,6 +2,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   SafeAreaView, Animated, Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -12,45 +13,51 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
-  // Backgrounds
-  pageBg:   '#141726',
-  cardBg:   '#191c2a',
-  cardBg2:  '#1d2035',
-  border:   '#1f2235',
-  borderGold: '#3a3218',
+  pageBg:      '#0f1220',
+  cardBg:      '#191c2a',
+  cardBg2:     '#1d2035',
+  border:      '#252840',
+  borderGold:  '#e6b25430',  // gold @ 18% opacity
+  borderGold55:'#e6b2548c',  // gold @ 55% opacity
 
-  // Text
-  text:     '#f0ede8',
-  muted:    '#9a958e',
-  mutedMid: '#6b6880',
+  text:        '#f0ede8',
+  muted:       '#9a958e',
+  mutedMid:    '#6b6880',
 
-  // Accent
-  gold:     '#e6b254',
-  goldDim:  '#e6b25430',
-  goldMid:  '#c49440',
+  gold:        '#e6b254',
+  goldDim:     '#e6b25420',
+  goldMid:     '#c49440',
+  goldBtnText: '#161008',
 
-  // Status
-  green:    '#4ec46e',
-  greenBg:  '#1a3325',
-  amber:    '#d4753a',
-  amberBg:  '#2a1f12',
-  red:      '#c43820',
-  redBg:    '#2a130f',
-  blue:     '#5b8dd9',
-  blueBg:   '#141e33',
-  purple:   '#8b6fd4',
-  purpleBg: '#1c1633',
-  teal:     '#3db8a8',
+  green:       '#4ec46e',
+  greenBg:     '#1a3325',
+  amber:       '#d4753a',
+  amberBg:     '#2a1f12',
+  red:         '#c43820',
+  redBg:       '#2a130f',
+  blue:        '#cccee0',
+  blueBg:      '#141e33',
+  teal:        '#3db8a8',
+  tealBg:      '#0f2525',
 };
 
-const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  airing:            { label: 'AIRING',    color: C.green,  bg: C.greenBg,  icon: '▶' },
-  filming:           { label: 'FILMING',   color: C.amber,  bg: C.amberBg,  icon: '◉' },
-  writing:           { label: 'WRITING',   color: C.blue,   bg: C.blueBg,   icon: '✎' },
-  marketing:         { label: 'MARKETING', color: C.teal,   bg: '#0f2525',  icon: '◈' },
-  'renewal-pending': { label: 'RENEWAL',   color: C.gold,   bg: '#261e0a',  icon: '⟳' },
-  completed:         { label: 'COMPLETED', color: C.muted,  bg: C.cardBg2,  icon: '✓' },
-  cancelled:         { label: 'CANCELLED', color: C.red,    bg: C.redBg,    icon: '✕' },
+// Font helpers
+const F = {
+  display: 'BebasNeue_400Regular',
+  body:    'Manrope_400Regular',
+  bodyMd:  'Manrope_600SemiBold',
+  bodyBd:  'Manrope_700Bold',
+  bodyXBd: 'Manrope_800ExtraBold',
+};
+
+const STATUS_META: Record<string, { label: string; color: string; bg: string; borderColor: string }> = {
+  airing:            { label: 'AIRING',    color: C.green, bg: '#0f2a1a', borderColor: '#4ec46e55' },
+  filming:           { label: 'FILMING',   color: C.amber, bg: C.amberBg, borderColor: '#d4753a55' },
+  writing:           { label: 'WRITING',   color: C.blue,  bg: C.blueBg,  borderColor: '#cccee055' },
+  marketing:         { label: 'MKT',       color: C.teal,  bg: C.tealBg,  borderColor: '#3db8a855' },
+  'renewal-pending': { label: 'RENEWAL',   color: C.gold,  bg: '#261e0a', borderColor: '#e6b25455' },
+  completed:         { label: 'DONE',      color: C.muted, bg: C.cardBg2, borderColor: '#9a958e44' },
+  cancelled:         { label: 'CANCELLED', color: C.red,   bg: C.redBg,   borderColor: '#c4382055' },
 };
 
 function fmt(n: number): string {
@@ -71,7 +78,7 @@ function fmtViewers(n: number): string {
 function DotRow() {
   return (
     <View style={s.dotRow}>
-      {Array.from({ length: 40 }).map((_, i) => (
+      {Array.from({ length: 50 }).map((_, i) => (
         <View key={i} style={s.dot} />
       ))}
     </View>
@@ -80,10 +87,10 @@ function DotRow() {
 
 // ── Animated news ticker ──────────────────────────────────────────────────────
 function NewsTicker({ headlines }: { headlines: string[] }) {
-  const tickerAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
-  const animRef    = useRef<Animated.CompositeAnimation | null>(null);
-  const text = headlines.join('   ·   ');
-  const estimatedWidth = text.length * 7;
+  const tickerAnim  = useRef(new Animated.Value(SCREEN_WIDTH)).current;
+  const animRef     = useRef<Animated.CompositeAnimation | null>(null);
+  const text        = headlines.join('     ·     ');
+  const estimatedWidth = text.length * 7.5;
 
   useEffect(() => {
     if (!text) return;
@@ -117,13 +124,25 @@ function NewsTicker({ headlines }: { headlines: string[] }) {
   );
 }
 
-// ── Episode rating dots ───────────────────────────────────────────────────────
+// ── Rating dot (episode heatmap) ──────────────────────────────────────────────
 function RatingDot({ rating, empty }: { rating: number | null; empty?: boolean }) {
   let color = C.border;
   if (!empty && rating !== null) {
     color = rating >= 8 ? '#3db87a' : rating >= 6.5 ? '#7db840' : rating >= 5 ? '#c8a135' : '#c04040';
   }
   return <View style={[s.ratingDot, { backgroundColor: color }]} />;
+}
+
+// ── Stat card ─────────────────────────────────────────────────────────────────
+function StatCard({ label, value, valueColor }: {
+  label: string; value: string; valueColor?: string;
+}) {
+  return (
+    <View style={s.statCard}>
+      <Text style={s.statCardLabel}>{label}</Text>
+      <Text style={[s.statCardValue, valueColor ? { color: valueColor } : undefined]}>{value}</Text>
+    </View>
+  );
 }
 
 // ── Show card ─────────────────────────────────────────────────────────────────
@@ -139,10 +158,13 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
     .reduce((acc, e, _, arr) => acc + (e.rating ?? 0) / arr.length, 0);
 
   const progressPct =
-    show.status === 'writing'   ? (season.writingWeeksCompleted / season.writingWeeksTotal) * 100
-    : show.status === 'filming' ? (season.filmingWeeksCompleted / season.filmingWeeksTotal) * 100
-    : show.status === 'marketing' ? (season.marketingWeeksCompleted / Math.max(season.marketingWeeksTotal, 1)) * 100
-    : 0;
+    show.status === 'writing'
+      ? (season.writingWeeksCompleted / season.writingWeeksTotal) * 100
+      : show.status === 'filming'
+      ? (season.filmingWeeksCompleted / season.filmingWeeksTotal) * 100
+      : show.status === 'marketing'
+      ? (season.marketingWeeksCompleted / Math.max(season.marketingWeeksTotal, 1)) * 100
+      : 0;
 
   const progressLabel =
     show.status === 'writing'
@@ -157,7 +179,10 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
 
   const subDetail =
     show.status === 'filming'
-      ? [season.directorID ? 'Director locked' : 'No director', `${season.leadActorIDs.length}/${season.leadActorSlots} lead cast`].join(' · ')
+      ? [
+          season.directorID ? 'Director locked' : 'No director',
+          `${season.leadActorIDs.length}/${season.leadActorSlots} lead cast`,
+        ].join(' · ')
       : show.status === 'writing'
       ? `${season.episodeCount} episodes · Script in progress`
       : show.status === 'marketing' && season.airDateWeek != null
@@ -168,9 +193,6 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
 
   return (
     <TouchableOpacity style={s.showCard} onPress={onPress} activeOpacity={0.85}>
-      {/* Status accent line */}
-      <View style={[s.showCardAccent, { backgroundColor: meta.color }]} />
-
       <View style={s.showCardInner}>
         {/* Header row */}
         <View style={s.showCardHeader}>
@@ -178,12 +200,11 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
             <Text style={s.showTitle} numberOfLines={1}>{show.title.toUpperCase()}</Text>
             <Text style={s.showGenre}>{genreLabel} · S{show.currentSeasonIndex + 1}</Text>
           </View>
-          <View style={[s.statusCapsule, { backgroundColor: meta.bg, borderColor: meta.color + '55' }]}>
-            <Text style={[s.statusCapsuleText, { color: meta.color }]}>{meta.icon}  {meta.label}</Text>
+          <View style={[s.statusCapsule, { backgroundColor: meta.bg, borderColor: meta.borderColor }]}>
+            <Text style={[s.statusCapsuleText, { color: meta.color }]}>{meta.label}</Text>
           </View>
         </View>
 
-        {/* Airing: heatmap + stats */}
         {isAiring ? (
           <>
             <View style={s.heatmap}>
@@ -195,7 +216,7 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
             {show.pendingStreamingOffer && (
               <View style={s.streamBanner}>
                 <Text style={s.streamText}>
-                  🎬 {show.pendingStreamingOffer.platformName} streaming offer · up to {fmt(show.pendingStreamingOffer.exclusiveAmount)}
+                  🎬 {show.pendingStreamingOffer.platformName} offer · up to {fmt(show.pendingStreamingOffer.exclusiveAmount)}
                 </Text>
               </View>
             )}
@@ -220,33 +241,24 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
             </View>
           </>
         ) : (
-          /* Production phase */
           <>
             <View style={s.progressRow}>
               <Text style={s.progressLabel}>{progressLabel}</Text>
               <Text style={[s.progressPct, { color: meta.color }]}>{Math.round(progressPct)}%</Text>
             </View>
             <View style={s.progressTrack}>
-              <View style={[s.progressFill, { width: `${progressPct}%` as any, backgroundColor: meta.color }]} />
+              <LinearGradient
+                colors={['#c49440', '#e6b254']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[s.progressFill, { width: `${Math.max(progressPct, 2)}%` as any }]}
+              />
             </View>
             {!!subDetail && <Text style={s.showSubDetail}>{subDetail}</Text>}
           </>
         )}
       </View>
     </TouchableOpacity>
-  );
-}
-
-// ── Stat card (2×2 grid) ──────────────────────────────────────────────────────
-function StatCard({ label, value, valueColor, sub }: {
-  label: string; value: string; valueColor?: string; sub?: string;
-}) {
-  return (
-    <View style={s.statCard}>
-      <Text style={s.statCardLabel}>{label}</Text>
-      <Text style={[s.statCardValue, valueColor ? { color: valueColor } : undefined]}>{value}</Text>
-      {sub ? <Text style={s.statCardSub}>{sub}</Text> : null}
-    </View>
   );
 }
 
@@ -258,17 +270,17 @@ export default function Dashboard() {
     advanceWeek, initialized, initializeGame,
   } = useGameStore();
 
-  const [fadedIds, setFadedIds] = useState<Set<string>>(new Set());
-  const fadeAnims  = useRef<Record<string, Animated.Value>>({});
+  const [fadedIds, setFadedIds]   = useState<Set<string>>(new Set());
+  const fadeAnims   = useRef<Record<string, Animated.Value>>({});
   const expiringRef = useRef<Set<string>>(new Set());
-  const pulseAnim  = useRef(new Animated.Value(1)).current;
+  const glowAnim    = useRef(new Animated.Value(0)).current;
 
-  // Pulsing glow for advance button
+  // Glow pulse for advance button
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.03, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,    duration: 900, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 1, duration: 1000, useNativeDriver: false }),
+        Animated.timing(glowAnim, { toValue: 0, duration: 1000, useNativeDriver: false }),
       ])
     );
     loop.start();
@@ -298,23 +310,30 @@ export default function Dashboard() {
   // ── New-game splash ─────────────────────────────────────────────────────────
   if (!initialized) {
     return (
-      <SafeAreaView style={s.container}>
-        <View style={s.setupScreen}>
+      <LinearGradient colors={['#141726', '#0c0f1a', '#070a12']} style={{ flex: 1 }}>
+        <SafeAreaView style={s.setupContainer}>
           <Text style={s.setupTitle}>TV STUDIO SIM</Text>
           <TouchableOpacity
             style={s.advanceBtn}
             onPress={() => initializeGame('Apex Television', 'AT')}
           >
-            <Text style={s.advanceBtnText}>START NEW GAME</Text>
+            <LinearGradient
+              colors={['#f0c060', '#c49440']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={s.advanceBtnGradient}
+            >
+              <Text style={s.advanceBtnText}>START NEW GAME</Text>
+            </LinearGradient>
           </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </LinearGradient>
     );
   }
 
   // ── Derived data ────────────────────────────────────────────────────────────
-  const activeShows = shows.filter(s =>
-    ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(s.status)
+  const activeShows = shows.filter(sh =>
+    ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(sh.status)
   );
 
   const unreadInbox = inboxItems
@@ -377,282 +396,296 @@ export default function Dashboard() {
 
   tasks.sort((a, b) => ({ red: 0, amber: 1, purple: 2 }[a.urgency] - { red: 0, amber: 1, purple: 2 }[b.urgency]));
 
+  const nextWeek = network.currentWeek + 1 > WEEKS_PER_YEAR ? 1 : network.currentWeek + 1;
+  const nextYear = network.currentWeek + 1 > WEEKS_PER_YEAR ? network.currentYear + 1 : network.currentYear;
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={s.container}>
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+    <LinearGradient
+      colors={['#141726', '#0c0f1a', '#070a12']}
+      locations={[0, 0.55, 1]}
+      style={{ flex: 1 }}
+    >
+      <SafeAreaView style={s.container}>
+        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
-        {/* ── Header ── */}
-        <View style={s.header}>
-          <DotRow />
-          <View style={s.headerRow}>
-            {/* Network badge */}
-            <View style={s.networkBadge}>
-              <Text style={s.networkInitials}>{network.initials}</Text>
-            </View>
+          {/* ── Header ── */}
+          <View style={s.header}>
+            <DotRow />
+            <View style={s.headerRow}>
+              {/* Network badge */}
+              <View style={s.networkBadge}>
+                <Text style={s.networkInitials}>{network.initials}</Text>
+              </View>
 
-            {/* Network name + subtitle */}
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={s.networkName}>{network.name.toUpperCase()}</Text>
-              <Text style={s.networkSub}>TELEVISION NETWORK</Text>
-            </View>
+              {/* Network name + subtitle */}
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={s.networkName}>{network.name.toUpperCase()}</Text>
+                <Text style={s.networkSub}>Independent · Year {network.currentYear}</Text>
+              </View>
 
-            {/* Week pill */}
-            <View style={s.weekPill}>
-              <Text style={s.weekPillText}>Y{network.currentYear} · W{network.currentWeek}</Text>
+              {/* Week widget — column card */}
+              <View style={s.weekCard}>
+                <Text style={s.weekCardLabel}>WEEK</Text>
+                <Text style={s.weekCardNumber}>{network.currentWeek}</Text>
+              </View>
             </View>
+            <DotRow />
           </View>
-          <DotRow />
-        </View>
 
-        {/* ── Stats 2×2 grid ── */}
-        <View style={s.statsGrid}>
-          <View style={s.statsRow}>
+          {/* ── Stats 2×2 grid ── */}
+          <View style={s.statsGrid}>
             <StatCard
               label="CASH ON HAND"
               value={fmt(network.cashOnHand)}
-              valueColor={network.cashOnHand >= 0 ? C.green : C.red}
-            />
-            <View style={s.statsDividerV} />
-            <StatCard
-              label="PRESTIGE"
-              value={String(Math.round(network.prestige))}
               valueColor={C.gold}
-              sub="/ 100"
             />
-          </View>
-          <View style={s.statsDividerH} />
-          <View style={s.statsRow}>
             <StatCard
-              label="EMMY WINS"
-              value={String(network.emmysWon)}
-              valueColor={network.emmysWon > 0 ? C.gold : C.muted}
+              label="CAREER EARNINGS"
+              value={fmt(network.careerEarnings)}
             />
-            <View style={s.statsDividerV} />
             <StatCard
-              label="ON SLATE"
+              label="ACTIVE SHOWS"
               value={String(activeShows.length)}
-              sub={activeShows.length === 1 ? 'show' : 'shows'}
+              valueColor={C.gold}
+            />
+            <StatCard
+              label="EMMYS WON"
+              value={String(network.emmysWon)}
             />
           </View>
-        </View>
 
-        {/* ── News ticker ── */}
-        {newsItems.length > 0 && (
-          <NewsTicker headlines={newsItems.slice(-10).map(n => n.headline)} />
-        )}
+          {/* ── News ticker ── */}
+          {newsItems.length > 0 && (
+            <NewsTicker headlines={newsItems.slice(-10).map(n => n.headline)} />
+          )}
 
-        {/* ── Your Slate ── */}
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>YOUR SLATE</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            {activeShows.length > 0 && (
-              <Text style={s.sectionMeta}>{activeShows.length} in production</Text>
-            )}
-            <TouchableOpacity onPress={() => router.push('/create-show')}>
-              <Text style={s.sectionAction}>+ NEW SHOW</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {activeShows.length === 0 ? (
-          <TouchableOpacity style={s.emptyCard} onPress={() => router.push('/create-show')}>
-            <Text style={s.emptyTitle}>NO ACTIVE SHOWS</Text>
-            <Text style={s.emptyBody}>Greenlight a pitch or create your first show to get started.</Text>
-            <View style={s.emptyAction}>
-              <Text style={s.emptyActionText}>+ CREATE SHOW</Text>
-            </View>
-          </TouchableOpacity>
-        ) : (
-          activeShows.map(show => (
-            <ShowCard key={show.id} show={show} onPress={() => router.push(`/show/${show.id}`)} />
-          ))
-        )}
-
-        {/* ── Tasks ── */}
-        {tasks.length > 0 && (
-          <>
-            <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>TASKS</Text>
-              <View style={s.taskCountPill}>
-                <Text style={s.taskCountText}>{tasks.length}</Text>
-              </View>
-            </View>
-            {tasks.map(task => {
-              const accent = task.urgency === 'red' ? C.red : task.urgency === 'amber' ? C.amber : C.purple;
-              const bg     = task.urgency === 'red' ? C.redBg : task.urgency === 'amber' ? C.amberBg : C.purpleBg;
-              return (
-                <TouchableOpacity
-                  key={task.id}
-                  style={[s.taskRow, { borderColor: accent + '33' }]}
-                  onPress={() => router.push(task.route as any)}
-                  activeOpacity={0.8}
-                >
-                  <View style={[s.taskAccentBar, { backgroundColor: accent }]} />
-                  <View style={s.taskBody}>
-                    <Text style={s.taskLabel}>{task.label}</Text>
-                    <Text style={[s.taskSub, { color: accent }]}>{task.sub.toUpperCase()}</Text>
-                  </View>
-                  <Text style={[s.chevron, { color: accent }]}>›</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </>
-        )}
-
-        {/* ── Inbox preview ── */}
-        {unreadInbox.length > 0 && (
-          <>
-            <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>INBOX</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/inbox')}>
-                <Text style={s.sectionAction}>VIEW ALL →</Text>
+          {/* ── Your Slate ── */}
+          <View style={s.sectionHeader}>
+            <Text style={s.sectionTitle}>YOUR SLATE</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              {activeShows.length > 0 && (
+                <Text style={s.sectionMeta}>{activeShows.length} in production</Text>
+              )}
+              <TouchableOpacity onPress={() => router.push('/create-show')}>
+                <Text style={s.sectionAction}>+ NEW SHOW</Text>
               </TouchableOpacity>
             </View>
-            {unreadInbox.map(item => {
-              const anim = fadeAnims.current[item.id];
-              const inner = (
-                <TouchableOpacity
-                  style={s.inboxRow}
-                  onPress={() => router.push({ pathname: '/(tabs)/inbox', params: { itemID: item.id } })}
-                  activeOpacity={0.8}
-                >
-                  <View style={s.inboxDot} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.inboxTitle}>{item.title}</Text>
-                    <Text style={s.inboxPreview} numberOfLines={1}>{item.preview}</Text>
-                  </View>
-                  <Text style={s.inboxAction}>›</Text>
+          </View>
+
+          {activeShows.length === 0 ? (
+            <TouchableOpacity style={s.emptyCard} onPress={() => router.push('/create-show')}>
+              <Text style={s.emptyTitle}>NO ACTIVE SHOWS</Text>
+              <Text style={s.emptyBody}>Greenlight a pitch or create your first show to get started.</Text>
+              <View style={s.emptyAction}>
+                <Text style={s.emptyActionText}>+ CREATE SHOW</Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            activeShows.map(show => (
+              <ShowCard key={show.id} show={show} onPress={() => router.push(`/show/${show.id}`)} />
+            ))
+          )}
+
+          {/* ── Tasks ── */}
+          {tasks.length > 0 && (
+            <>
+              <View style={s.sectionHeader}>
+                <Text style={s.sectionTitle}>TASKS</Text>
+                <View style={s.taskCountPill}>
+                  <Text style={s.taskCountText}>{tasks.length}</Text>
+                </View>
+              </View>
+              {tasks.map(task => {
+                const dotColor = task.urgency === 'red' ? C.red : C.gold;
+                return (
+                  <TouchableOpacity
+                    key={task.id}
+                    style={s.taskRow}
+                    onPress={() => router.push(task.route as any)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[s.taskDot, { backgroundColor: dotColor }]} />
+                    <View style={s.taskBody}>
+                      <Text style={s.taskLabel}>{task.label}</Text>
+                      <Text style={s.taskSub}>{task.sub.toUpperCase()}</Text>
+                    </View>
+                    <Text style={s.chevron}>›</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
+
+          {/* ── Inbox preview ── */}
+          {unreadInbox.length > 0 && (
+            <>
+              <View style={s.sectionHeader}>
+                <Text style={s.sectionTitle}>INBOX</Text>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/inbox')}>
+                  <Text style={s.sectionAction}>VIEW ALL →</Text>
                 </TouchableOpacity>
-              );
-              return anim
-                ? <Animated.View key={item.id} style={{ opacity: anim }}>{inner}</Animated.View>
-                : <View key={item.id}>{inner}</View>;
-            })}
-          </>
-        )}
+              </View>
+              {unreadInbox.map(item => {
+                const anim = fadeAnims.current[item.id];
+                const inner = (
+                  <TouchableOpacity
+                    style={s.inboxRow}
+                    onPress={() => router.push({ pathname: '/(tabs)/inbox', params: { itemID: item.id } })}
+                    activeOpacity={0.8}
+                  >
+                    <View style={s.inboxDot} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.inboxTitle}>{item.title}</Text>
+                      <Text style={s.inboxPreview} numberOfLines={1}>{item.preview}</Text>
+                    </View>
+                    <Text style={s.inboxChevron}>›</Text>
+                  </TouchableOpacity>
+                );
+                return anim
+                  ? <Animated.View key={item.id} style={{ opacity: anim }}>{inner}</Animated.View>
+                  : <View key={item.id}>{inner}</View>;
+              })}
+            </>
+          )}
 
-        <View style={{ height: 24 }} />
-      </ScrollView>
+          <View style={{ height: 24 }} />
+        </ScrollView>
 
-      {/* ── Advance Week button ── */}
-      <View style={s.advanceWrap}>
-        <Animated.View style={[s.advanceBtnContainer, { transform: [{ scale: pulseAnim }] }]}>
+        {/* ── Advance Week button ── */}
+        <View style={s.advanceWrap}>
+          <Animated.View
+            style={[
+              s.advanceGlowRing,
+              {
+                opacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] }),
+                transform: [{
+                  scale: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }),
+                }],
+              },
+            ]}
+          />
           <TouchableOpacity style={s.advanceBtn} onPress={advanceWeek} activeOpacity={0.88}>
-            <Text style={s.advanceBtnText}>ADVANCE TO WEEK {network.currentWeek + 1 > WEEKS_PER_YEAR ? 1 : network.currentWeek + 1}  ▶</Text>
+            <LinearGradient
+              colors={['#f0c060', '#c49440']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={s.advanceBtnGradient}
+            >
+              <Text style={s.advanceBtnText}>
+                ADVANCE TO Y{nextYear} · W{nextWeek}  ▶
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
-        </Animated.View>
-      </View>
-    </SafeAreaView>
+        </View>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  container:     { flex: 1, backgroundColor: C.pageBg },
+  container:     { flex: 1 },
   scroll:        { flex: 1 },
   scrollContent: { paddingBottom: 8 },
 
   // Setup splash
-  setupScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  setupTitle:  { color: C.gold, fontSize: 34, fontWeight: '900', letterSpacing: 6, marginBottom: 40 },
+  setupContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  setupTitle:     { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 48, letterSpacing: 8, marginBottom: 40 },
 
   // ── Header ──────────────────────────────────────────────────────────────────
   header:    { backgroundColor: C.cardBg, borderBottomWidth: 1, borderBottomColor: C.border },
   dotRow:    { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, overflow: 'hidden', gap: 3 },
-  dot:       { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.goldDim },
+  dot:       { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.borderGold },
   headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
 
   networkBadge:    { width: 46, height: 46, borderRadius: 23, backgroundColor: C.goldDim, borderWidth: 1.5, borderColor: C.gold, justifyContent: 'center', alignItems: 'center' },
-  networkInitials: { color: C.gold, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
-  networkName:     { color: C.text, fontSize: 18, fontWeight: '900', letterSpacing: 2.5 },
-  networkSub:      { color: C.mutedMid, fontSize: 9, fontWeight: '700', letterSpacing: 2.5, marginTop: 2 },
+  networkInitials: { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 17, letterSpacing: 1 },
+  networkName:     { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 22, letterSpacing: 3 },
+  networkSub:      { fontFamily: 'Manrope_600SemiBold', color: C.mutedMid, fontSize: 9, letterSpacing: 1.5, marginTop: 2 },
 
-  weekPill:     { backgroundColor: C.cardBg2, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: C.border },
-  weekPillText: { color: C.gold, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  // Week widget — column card
+  weekCard:       { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minWidth: 54, height: 48, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#e6b25459' },
+  weekCardLabel:  { fontFamily: 'Manrope_600SemiBold', fontSize: 8.5, letterSpacing: 1.5, color: C.muted },
+  weekCardNumber: { fontFamily: 'BebasNeue_400Regular', fontSize: 22, color: '#ffffff', lineHeight: 24 },
 
-  // ── Stats grid ──────────────────────────────────────────────────────────────
-  statsGrid:      { backgroundColor: C.cardBg, borderBottomWidth: 1, borderBottomColor: C.border, marginBottom: 16 },
-  statsRow:       { flexDirection: 'row' },
-  statsDividerV:  { width: 1, backgroundColor: C.border },
-  statsDividerH:  { height: 1, backgroundColor: C.border },
-
-  statCard:      { flex: 1, padding: 16, alignItems: 'center' },
-  statCardLabel: { color: C.mutedMid, fontSize: 8, fontWeight: '700', letterSpacing: 2, marginBottom: 6 },
-  statCardValue: { color: C.text, fontSize: 22, fontWeight: '900', letterSpacing: 1 },
-  statCardSub:   { color: C.mutedMid, fontSize: 10, fontWeight: '600', marginTop: 2 },
+  // ── Stats 2×2 grid (individual cards) ───────────────────────────────────────
+  statsGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 6, marginBottom: 10 },
+  statCard:       { width: '47.5%', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.borderGold, padding: 12 },
+  statCardLabel:  { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 2, marginBottom: 6 },
+  statCardValue:  { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 26, letterSpacing: 1 },
 
   // ── News ticker ─────────────────────────────────────────────────────────────
-  tickerWrap:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e1020', borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border, height: 36, marginBottom: 20, overflow: 'hidden' },
+  tickerWrap:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0a0d18', borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border, height: 36, marginBottom: 20, overflow: 'hidden' },
   tickerPill:     { backgroundColor: C.red, paddingHorizontal: 12, height: '100%', justifyContent: 'center' },
-  tickerPillText: { color: '#fff', fontSize: 9, fontWeight: '900', letterSpacing: 2.5 },
+  tickerPillText: { fontFamily: 'Manrope_800ExtraBold', color: '#fff', fontSize: 9, letterSpacing: 2.5 },
   tickerDivider:  { width: 1, height: '60%', backgroundColor: C.border },
   tickerTrack:    { flex: 1, overflow: 'hidden', height: '100%', justifyContent: 'center', paddingLeft: 10 },
-  tickerText:     { color: C.muted, fontSize: 11.5, letterSpacing: 0.3 },
+  tickerText:     { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11.5, letterSpacing: 0.3 },
 
   // ── Section headers ──────────────────────────────────────────────────────────
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 10 },
-  sectionTitle:  { color: C.mutedMid, fontSize: 9, fontWeight: '800', letterSpacing: 3 },
-  sectionMeta:   { color: C.mutedMid, fontSize: 11 },
-  sectionAction: { color: C.gold, fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
+  sectionTitle:  { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 21, letterSpacing: 1.5 },
+  sectionMeta:   { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 11 },
+  sectionAction: { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 10, letterSpacing: 1.5 },
 
   // ── Show cards ──────────────────────────────────────────────────────────────
-  showCard:       { flexDirection: 'row', backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10, overflow: 'hidden' },
-  showCardAccent: { width: 3, backgroundColor: C.gold },
-  showCardInner:  { flex: 1, padding: 14 },
+  showCard:       { backgroundColor: C.cardBg, borderRadius: 16, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+  showCardInner:  { padding: 14 },
   showCardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  showTitle:      { color: C.text, fontSize: 14, fontWeight: '900', letterSpacing: 1.5 },
-  showGenre:      { color: C.mutedMid, fontSize: 9, fontWeight: '700', letterSpacing: 2, marginTop: 4 },
+  showTitle:      { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 18, letterSpacing: 1.5 },
+  showGenre:      { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 9, letterSpacing: 2, marginTop: 4 },
 
-  statusCapsule:     { borderRadius: 999, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4 },
-  statusCapsuleText: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  statusCapsule:     { borderRadius: 999, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 4 },
+  statusCapsuleText: { fontFamily: 'Manrope_800ExtraBold', fontSize: 9, letterSpacing: 1 },
 
   heatmap:   { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 12 },
   ratingDot: { width: 18, height: 18, borderRadius: 4 },
 
   streamBanner: { backgroundColor: '#192b22', borderRadius: 8, padding: 8, marginBottom: 10 },
-  streamText:   { color: C.green, fontSize: 11 },
+  streamText:   { fontFamily: 'Manrope_400Regular', color: C.green, fontSize: 11 },
 
   showStatsRow:       { flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 },
   showStatCell:       { flex: 1, alignItems: 'center' },
   showStatCellBorder: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: C.border },
-  showStatVal:        { color: C.text, fontSize: 16, fontWeight: '900' },
-  showStatLbl:        { color: C.mutedMid, fontSize: 8, fontWeight: '700', letterSpacing: 1.5, marginTop: 4 },
+  showStatVal:        { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 20 },
+  showStatLbl:        { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 1.5, marginTop: 4 },
 
   progressRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  progressLabel: { color: C.muted, fontSize: 11 },
-  progressPct:   { fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
-  progressTrack: { height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden', marginBottom: 8 },
-  progressFill:  { height: '100%', borderRadius: 2 },
-  showSubDetail: { color: C.mutedMid, fontSize: 10, letterSpacing: 0.3 },
+  progressLabel: { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11 },
+  progressPct:   { fontFamily: 'Manrope_800ExtraBold', fontSize: 12, letterSpacing: 0.5 },
+  progressTrack: { height: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden', marginBottom: 8 },
+  progressFill:  { height: '100%', borderRadius: 999 },
+  showSubDetail: { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 10, letterSpacing: 0.3 },
 
   // ── Empty slate ──────────────────────────────────────────────────────────────
-  emptyCard:       { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10, padding: 28, alignItems: 'center' },
-  emptyTitle:      { color: C.mutedMid, fontSize: 11, fontWeight: '900', letterSpacing: 3, marginBottom: 8 },
-  emptyBody:       { color: C.muted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  emptyCard:       { backgroundColor: C.cardBg, borderRadius: 16, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10, padding: 28, alignItems: 'center' },
+  emptyTitle:      { fontFamily: 'BebasNeue_400Regular', color: C.mutedMid, fontSize: 18, letterSpacing: 3, marginBottom: 8 },
+  emptyBody:       { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
   emptyAction:     { marginTop: 18, backgroundColor: C.goldDim, borderRadius: 999, borderWidth: 1, borderColor: C.gold + '55', paddingHorizontal: 18, paddingVertical: 8 },
-  emptyActionText: { color: C.gold, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  emptyActionText: { fontFamily: 'Manrope_800ExtraBold', color: C.gold, fontSize: 11, letterSpacing: 1.5 },
 
   // ── Tasks ────────────────────────────────────────────────────────────────────
   taskCountPill: { backgroundColor: C.red + '25', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, borderColor: C.red + '44' },
-  taskCountText: { color: C.red, fontSize: 11, fontWeight: '800' },
-  taskRow:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, marginHorizontal: 14, marginBottom: 6, overflow: 'hidden' },
-  taskAccentBar: { width: 3, alignSelf: 'stretch' },
-  taskBody:      { flex: 1, paddingVertical: 13, paddingHorizontal: 14 },
-  taskLabel:     { color: C.text, fontSize: 13, fontWeight: '600' },
-  taskSub:       { fontSize: 8, fontWeight: '800', letterSpacing: 1.5, marginTop: 4 },
-  chevron:       { fontSize: 24, paddingRight: 14 },
+  taskCountText: { fontFamily: 'Manrope_800ExtraBold', color: C.red, fontSize: 11 },
+  taskRow:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.borderGold, marginHorizontal: 14, marginBottom: 6, paddingHorizontal: 14, paddingVertical: 13 },
+  taskDot:       { width: 9, height: 9, borderRadius: 4.5, marginRight: 12 },
+  taskBody:      { flex: 1 },
+  taskLabel:     { fontFamily: 'Manrope_600SemiBold', color: C.text, fontSize: 13 },
+  taskSub:       { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 1.5, marginTop: 4 },
+  chevron:       { fontFamily: 'Manrope_400Regular', color: C.gold, fontSize: 24 },
 
   // ── Inbox ────────────────────────────────────────────────────────────────────
   inboxRow:     { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, padding: 14, marginBottom: 6, gap: 12 },
   inboxDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: C.gold, marginTop: 2 },
-  inboxTitle:   { color: C.text, fontSize: 13, fontWeight: '700' },
-  inboxPreview: { color: C.muted, fontSize: 11, marginTop: 3 },
-  inboxAction:  { color: C.gold, fontSize: 22 },
+  inboxTitle:   { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 13 },
+  inboxPreview: { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11, marginTop: 3 },
+  inboxChevron: { color: C.gold, fontSize: 22 },
 
   // ── Advance Week ─────────────────────────────────────────────────────────────
-  advanceWrap:         { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, backgroundColor: C.pageBg, borderTopWidth: 1, borderTopColor: C.border },
-  advanceBtnContainer: { borderRadius: 999, overflow: 'hidden' },
-  advanceBtn:          { backgroundColor: C.gold, borderRadius: 999, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
-  advanceBtnText:      { color: '#0e0f18', fontSize: 13, fontWeight: '900', letterSpacing: 3 },
+  advanceWrap:        { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: C.border },
+  advanceGlowRing:    { position: 'absolute', left: 16, right: 16, top: 12, borderRadius: 999, height: 56, backgroundColor: C.gold },
+  advanceBtn:         { borderRadius: 999, overflow: 'hidden' },
+  advanceBtnGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
+  advanceBtnText:     { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
 });
