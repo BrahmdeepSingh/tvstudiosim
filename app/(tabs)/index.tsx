@@ -10,39 +10,47 @@ import { WEEKS_PER_YEAR } from '../../src/constants/game';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
-  bg:       '#09090e',
-  card:     '#0f0f18',
-  border:   '#1a1a28',
-  text:     '#f0f0f8',
-  muted:    '#52526a',
-  gold:     '#e8b84b',
-  goldDim:  '#e8b84b44',
-  green:    '#3dba7e',
-  amber:    '#f0a030',
-  red:      '#e05252',
-  blue:     '#4a7fd4',
-  purple:   '#9b59b6',
+  // Backgrounds
+  pageBg:   '#141726',
+  cardBg:   '#191c2a',
+  cardBg2:  '#1d2035',
+  border:   '#1f2235',
+  borderGold: '#3a3218',
+
+  // Text
+  text:     '#f0ede8',
+  muted:    '#9a958e',
+  mutedMid: '#6b6880',
+
+  // Accent
+  gold:     '#e6b254',
+  goldDim:  '#e6b25430',
+  goldMid:  '#c49440',
+
+  // Status
+  green:    '#4ec46e',
+  greenBg:  '#1a3325',
+  amber:    '#d4753a',
+  amberBg:  '#2a1f12',
+  red:      '#c43820',
+  redBg:    '#2a130f',
+  blue:     '#5b8dd9',
+  blueBg:   '#141e33',
+  purple:   '#8b6fd4',
+  purpleBg: '#1c1633',
+  teal:     '#3db8a8',
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  airing:            C.green,
-  filming:           C.red,
-  writing:           C.blue,
-  marketing:         C.amber,
-  'renewal-pending': C.gold,
-  completed:         C.muted,
-  cancelled:         C.red,
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  airing:            'AIRING',
-  filming:           'FILMING',
-  writing:           'WRITING',
-  marketing:         'MARKETING',
-  'renewal-pending': 'RENEWAL',
-  completed:         'COMPLETED',
-  cancelled:         'CANCELLED',
+const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
+  airing:            { label: 'AIRING',    color: C.green,  bg: C.greenBg,  icon: '▶' },
+  filming:           { label: 'FILMING',   color: C.amber,  bg: C.amberBg,  icon: '◉' },
+  writing:           { label: 'WRITING',   color: C.blue,   bg: C.blueBg,   icon: '✎' },
+  marketing:         { label: 'MARKETING', color: C.teal,   bg: '#0f2525',  icon: '◈' },
+  'renewal-pending': { label: 'RENEWAL',   color: C.gold,   bg: '#261e0a',  icon: '⟳' },
+  completed:         { label: 'COMPLETED', color: C.muted,  bg: C.cardBg2,  icon: '✓' },
+  cancelled:         { label: 'CANCELLED', color: C.red,    bg: C.redBg,    icon: '✕' },
 };
 
 function fmt(n: number): string {
@@ -60,39 +68,21 @@ function fmtViewers(n: number): string {
 }
 
 // ── Decorative dot row ────────────────────────────────────────────────────────
-
 function DotRow() {
   return (
-    <View style={styles.dotRow}>
-      {Array.from({ length: 48 }).map((_, i) => (
-        <View key={i} style={styles.dot} />
+    <View style={s.dotRow}>
+      {Array.from({ length: 40 }).map((_, i) => (
+        <View key={i} style={s.dot} />
       ))}
     </View>
   );
 }
 
-// ── Film-reel icon ────────────────────────────────────────────────────────────
-
-function FilmReel() {
-  return (
-    <View style={styles.reelOuter}>
-      <View style={styles.reelCenter} />
-      <View style={[styles.reelHole, { top: 5, left: 5 }]} />
-      <View style={[styles.reelHole, { top: 5, right: 5 }]} />
-      <View style={[styles.reelHole, { bottom: 5, left: 5 }]} />
-      <View style={[styles.reelHole, { bottom: 5, right: 5 }]} />
-    </View>
-  );
-}
-
 // ── Animated news ticker ──────────────────────────────────────────────────────
-
 function NewsTicker({ headlines }: { headlines: string[] }) {
   const tickerAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const animRef    = useRef<Animated.CompositeAnimation | null>(null);
-
   const text = headlines.join('   ·   ');
-  // ~7 px per character at fontSize 12 is a reliable estimate; avoids layout-measurement race
   const estimatedWidth = text.length * 7;
 
   useEffect(() => {
@@ -101,7 +91,7 @@ function NewsTicker({ headlines }: { headlines: string[] }) {
     animRef.current = Animated.loop(
       Animated.timing(tickerAnim, {
         toValue:  -estimatedWidth,
-        duration: (SCREEN_WIDTH + estimatedWidth) * 24,
+        duration: (SCREEN_WIDTH + estimatedWidth) * 22,
         useNativeDriver: true,
       })
     );
@@ -110,13 +100,14 @@ function NewsTicker({ headlines }: { headlines: string[] }) {
   }, [text]);
 
   return (
-    <View style={styles.tickerWrap}>
-      <View style={styles.tickerPill}>
-        <Text style={styles.tickerPillText}>DEADLINE</Text>
+    <View style={s.tickerWrap}>
+      <View style={s.tickerPill}>
+        <Text style={s.tickerPillText}>DEADLINE</Text>
       </View>
-      <View style={styles.tickerTrack}>
+      <View style={s.tickerDivider} />
+      <View style={s.tickerTrack}>
         <Animated.Text
-          style={[styles.tickerText, { transform: [{ translateX: tickerAnim }] }]}
+          style={[s.tickerText, { transform: [{ translateX: tickerAnim }] }]}
           numberOfLines={1}
         >
           {text}
@@ -126,45 +117,38 @@ function NewsTicker({ headlines }: { headlines: string[] }) {
   );
 }
 
-// ── Episode heatmap dot ───────────────────────────────────────────────────────
-
-function HeatDot({ rating, empty }: { rating: number | null; empty?: boolean }) {
+// ── Episode rating dots ───────────────────────────────────────────────────────
+function RatingDot({ rating, empty }: { rating: number | null; empty?: boolean }) {
   let color = C.border;
   if (!empty && rating !== null) {
-    color = rating >= 8 ? '#2d8a5e' : rating >= 6.5 ? '#5a9e45' : rating >= 5 ? '#c8a135' : '#c04040';
+    color = rating >= 8 ? '#3db87a' : rating >= 6.5 ? '#7db840' : rating >= 5 ? '#c8a135' : '#c04040';
   }
-  return <View style={[styles.heatDot, { backgroundColor: color }]} />;
+  return <View style={[s.ratingDot, { backgroundColor: color }]} />;
 }
 
 // ── Show card ─────────────────────────────────────────────────────────────────
-
 function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
   const season = show.seasons[show.currentSeasonIndex];
   if (!season) return null;
 
-  const statusColor = STATUS_COLORS[show.status] ?? C.muted;
-  const statusLabel = STATUS_LABELS[show.status] ?? show.status.toUpperCase();
-  const genreLabel  = show.genre.replace('-', ' ').toUpperCase();
+  const meta       = STATUS_META[show.status] ?? STATUS_META.completed;
+  const genreLabel = show.genre.replace('-', ' ').toUpperCase();
 
   const avgRating = season.episodes
     .filter(e => e.rating !== null)
     .reduce((acc, e, _, arr) => acc + (e.rating ?? 0) / arr.length, 0);
 
-  // Progress for non-airing phases
   const progressPct =
-    show.status === 'writing'
-      ? (season.writingWeeksCompleted / season.writingWeeksTotal) * 100
-      : show.status === 'filming'
-      ? (season.filmingWeeksCompleted / season.filmingWeeksTotal) * 100
-      : show.status === 'marketing'
-      ? (season.marketingWeeksCompleted / Math.max(season.marketingWeeksTotal, 1)) * 100
-      : 0;
+    show.status === 'writing'   ? (season.writingWeeksCompleted / season.writingWeeksTotal) * 100
+    : show.status === 'filming' ? (season.filmingWeeksCompleted / season.filmingWeeksTotal) * 100
+    : show.status === 'marketing' ? (season.marketingWeeksCompleted / Math.max(season.marketingWeeksTotal, 1)) * 100
+    : 0;
 
-  const progressWeekLabel =
+  const progressLabel =
     show.status === 'writing'
-      ? `Week ${season.writingWeeksCompleted + 1} of ${season.writingWeeksTotal}`
+      ? `Wk ${season.writingWeeksCompleted + 1} / ${season.writingWeeksTotal}`
       : show.status === 'filming'
-      ? `Week ${season.filmingWeeksCompleted + 1} of ${season.filmingWeeksTotal}`
+      ? `Ep ${season.filmingWeeksCompleted + 1} / ${season.filmingWeeksTotal}`
       : show.status === 'marketing' && season.airDateWeek != null
       ? `Premieres Y${season.airDateYear} W${season.airDateWeek}`
       : show.status === 'marketing'
@@ -173,88 +157,79 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
 
   const subDetail =
     show.status === 'filming'
-      ? [
-          season.directorID ? 'Director locked' : 'No director',
-          `${season.leadActorIDs.length}/${season.leadActorSlots} lead cast`,
-        ].join(' · ')
+      ? [season.directorID ? 'Director locked' : 'No director', `${season.leadActorIDs.length}/${season.leadActorSlots} lead cast`].join(' · ')
       : show.status === 'writing'
       ? `${season.episodeCount} episodes · Script in progress`
       : show.status === 'marketing' && season.airDateWeek != null
-      ? `${season.marketingChannelIDs.length} marketing channel${season.marketingChannelIDs.length !== 1 ? 's' : ''} active`
+      ? `${season.marketingChannelIDs.length} channel${season.marketingChannelIDs.length !== 1 ? 's' : ''} active`
       : '';
 
-  return (
-    <TouchableOpacity style={styles.showCard} onPress={onPress} activeOpacity={0.8}>
-      {/* Left-side status accent */}
-      <View style={[styles.cardAccentBar, { backgroundColor: statusColor }]} />
+  const isAiring = show.status === 'airing' || show.status === 'renewal-pending';
 
-      <View style={styles.cardInner}>
-        {/* Title row */}
-        <View style={styles.showCardHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.showTitle}>{show.title.toUpperCase()}</Text>
-            <Text style={styles.showGenre}>{genreLabel}</Text>
+  return (
+    <TouchableOpacity style={s.showCard} onPress={onPress} activeOpacity={0.85}>
+      {/* Status accent line */}
+      <View style={[s.showCardAccent, { backgroundColor: meta.color }]} />
+
+      <View style={s.showCardInner}>
+        {/* Header row */}
+        <View style={s.showCardHeader}>
+          <View style={{ flex: 1, marginRight: 10 }}>
+            <Text style={s.showTitle} numberOfLines={1}>{show.title.toUpperCase()}</Text>
+            <Text style={s.showGenre}>{genreLabel} · S{show.currentSeasonIndex + 1}</Text>
           </View>
-          <View style={[styles.statusPill, { borderColor: statusColor + '88', backgroundColor: statusColor + '18' }]}>
-            <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
+          <View style={[s.statusCapsule, { backgroundColor: meta.bg, borderColor: meta.color + '55' }]}>
+            <Text style={[s.statusCapsuleText, { color: meta.color }]}>{meta.icon}  {meta.label}</Text>
           </View>
         </View>
 
-        {/* Airing / renewal-pending: heatmap + stats */}
-        {(show.status === 'airing' || show.status === 'renewal-pending') ? (
+        {/* Airing: heatmap + stats */}
+        {isAiring ? (
           <>
-            <View style={styles.heatmap}>
+            <View style={s.heatmap}>
               {Array.from({ length: season.episodeCount }, (_, i) => (
-                <HeatDot
-                  key={i}
-                  rating={season.episodes[i]?.rating ?? null}
-                  empty={i >= season.episodesAired}
-                />
+                <RatingDot key={i} rating={season.episodes[i]?.rating ?? null} empty={i >= season.episodesAired} />
               ))}
             </View>
 
             {show.pendingStreamingOffer && (
-              <View style={styles.streamBanner}>
-                <Text style={styles.streamText}>
-                  {show.pendingStreamingOffer.platformName} wants streaming rights · up to {fmt(show.pendingStreamingOffer.exclusiveAmount)}
+              <View style={s.streamBanner}>
+                <Text style={s.streamText}>
+                  🎬 {show.pendingStreamingOffer.platformName} streaming offer · up to {fmt(show.pendingStreamingOffer.exclusiveAmount)}
                 </Text>
               </View>
             )}
 
-            <View style={styles.statsRow}>
-              <View style={styles.statCell}>
-                <Text style={styles.statVal}>{avgRating > 0 ? avgRating.toFixed(1) : '—'}</Text>
-                <Text style={styles.statLbl}>AVG RATING</Text>
+            <View style={s.showStatsRow}>
+              <View style={s.showStatCell}>
+                <Text style={s.showStatVal}>{avgRating > 0 ? avgRating.toFixed(1) : '—'}</Text>
+                <Text style={s.showStatLbl}>AVG RATING</Text>
               </View>
-              <View style={[styles.statCell, styles.statCellBorder]}>
-                <Text style={styles.statVal}>
+              <View style={[s.showStatCell, s.showStatCellBorder]}>
+                <Text style={s.showStatVal}>
                   {season.totalViewers > 0
                     ? fmtViewers(Math.round(season.totalViewers / Math.max(season.episodesAired, 1)))
                     : '—'}
                 </Text>
-                <Text style={styles.statLbl}>VIEWERS/EP</Text>
+                <Text style={s.showStatLbl}>VIEWERS / EP</Text>
               </View>
-              <View style={styles.statCell}>
-                <Text style={styles.statVal}>{fmt(season.totalAdRevenue)}</Text>
-                <Text style={styles.statLbl}>AD REVENUE</Text>
+              <View style={s.showStatCell}>
+                <Text style={s.showStatVal}>{fmt(season.totalAdRevenue)}</Text>
+                <Text style={s.showStatLbl}>AD REVENUE</Text>
               </View>
             </View>
           </>
         ) : (
-          /* Production phase: progress bar */
+          /* Production phase */
           <>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressWeekLabel}>{progressWeekLabel}</Text>
-              <Text style={[styles.progressPct, { color: statusColor }]}>
-                {Math.round(progressPct)}%
-              </Text>
+            <View style={s.progressRow}>
+              <Text style={s.progressLabel}>{progressLabel}</Text>
+              <Text style={[s.progressPct, { color: meta.color }]}>{Math.round(progressPct)}%</Text>
             </View>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progressPct}%`, backgroundColor: statusColor }]} />
+            <View style={s.progressTrack}>
+              <View style={[s.progressFill, { width: `${progressPct}%` as any, backgroundColor: meta.color }]} />
             </View>
-            {subDetail ? (
-              <Text style={styles.subDetail}>{subDetail}</Text>
-            ) : null}
+            {!!subDetail && <Text style={s.showSubDetail}>{subDetail}</Text>}
           </>
         )}
       </View>
@@ -262,8 +237,20 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
   );
 }
 
-// ── Dashboard ─────────────────────────────────────────────────────────────────
+// ── Stat card (2×2 grid) ──────────────────────────────────────────────────────
+function StatCard({ label, value, valueColor, sub }: {
+  label: string; value: string; valueColor?: string; sub?: string;
+}) {
+  return (
+    <View style={s.statCard}>
+      <Text style={s.statCardLabel}>{label}</Text>
+      <Text style={[s.statCardValue, valueColor ? { color: valueColor } : undefined]}>{value}</Text>
+      {sub ? <Text style={s.statCardSub}>{sub}</Text> : null}
+    </View>
+  );
+}
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const router = useRouter();
   const {
@@ -271,9 +258,22 @@ export default function Dashboard() {
     advanceWeek, initialized, initializeGame,
   } = useGameStore();
 
-  const [fadedIds, setFadedIds]   = useState<Set<string>>(new Set());
+  const [fadedIds, setFadedIds] = useState<Set<string>>(new Set());
   const fadeAnims  = useRef<Record<string, Animated.Value>>({});
   const expiringRef = useRef<Set<string>>(new Set());
+  const pulseAnim  = useRef(new Animated.Value(1)).current;
+
+  // Pulsing glow for advance button
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.03, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,    duration: 900, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
 
   function itemAgeWeeks(item: { week: number; year: number }) {
     return (network.currentYear - item.year) * WEEKS_PER_YEAR + (network.currentWeek - item.week);
@@ -298,14 +298,14 @@ export default function Dashboard() {
   // ── New-game splash ─────────────────────────────────────────────────────────
   if (!initialized) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.setupScreen}>
-          <Text style={styles.setupTitle}>TV STUDIO SIM</Text>
+      <SafeAreaView style={s.container}>
+        <View style={s.setupScreen}>
+          <Text style={s.setupTitle}>TV STUDIO SIM</Text>
           <TouchableOpacity
-            style={styles.advanceBtn}
+            style={s.advanceBtn}
             onPress={() => initializeGame('Apex Television', 'AT')}
           >
-            <Text style={styles.advanceBtnText}>START NEW GAME</Text>
+            <Text style={s.advanceBtnText}>START NEW GAME</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -321,7 +321,7 @@ export default function Dashboard() {
     .filter(i => !i.read && !fadedIds.has(i.id) && (itemAgeWeeks(i) < 2 || expiringRef.current.has(i.id)))
     .slice(0, 3);
 
-  // ── Task list ───────────────────────────────────────────────────────────────
+  // ── Tasks ───────────────────────────────────────────────────────────────────
   type TaskItem = {
     id: string; label: string; sub: string;
     urgency: 'red' | 'amber' | 'purple';
@@ -360,7 +360,7 @@ export default function Dashboard() {
     if (weeksLeft <= 2 && weeksLeft >= 0) {
       const inboxItem = inboxItems.find(i => i.type === 'pitch' && i.refID === pitch.id);
       if (inboxItem) {
-        tasks.push({ id: `pitch-${pitch.id}`, label: `Pitch expiring in ${weeksLeft} week${weeksLeft !== 1 ? 's' : ''}`, sub: pitch.title, urgency: weeksLeft <= 1 ? 'red' : 'amber', route: { pathname: '/(tabs)/inbox', params: { itemID: inboxItem.id } } });
+        tasks.push({ id: `pitch-${pitch.id}`, label: `Pitch expiring in ${weeksLeft} wk${weeksLeft !== 1 ? 's' : ''}`, sub: pitch.title, urgency: weeksLeft <= 1 ? 'red' : 'amber', route: { pathname: '/(tabs)/inbox', params: { itemID: inboxItem.id } } });
       }
     }
   }
@@ -375,48 +375,65 @@ export default function Dashboard() {
     }
   }
 
-  const urgencyOrder = { red: 0, amber: 1, purple: 2 };
-  tasks.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
+  tasks.sort((a, b) => ({ red: 0, amber: 1, purple: 2 }[a.urgency] - { red: 0, amber: 1, purple: 2 }[b.urgency]));
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+    <SafeAreaView style={s.container}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
-        {/* ── Header block ── */}
-        <View style={styles.headerBlock}>
+        {/* ── Header ── */}
+        <View style={s.header}>
           <DotRow />
-          <View style={styles.headerRow}>
-            <FilmReel />
-            <View style={styles.headerMid}>
-              <Text style={styles.networkName}>{network.name.toUpperCase()}</Text>
-              <Text style={styles.networkSub}>TELEVISION NETWORK</Text>
+          <View style={s.headerRow}>
+            {/* Network badge */}
+            <View style={s.networkBadge}>
+              <Text style={s.networkInitials}>{network.initials}</Text>
             </View>
-            <View style={styles.prestigeBadge}>
-              <Text style={styles.prestigeStar}>★</Text>
-              <Text style={styles.prestigeNum}>{Math.round(network.prestige)}</Text>
+
+            {/* Network name + subtitle */}
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={s.networkName}>{network.name.toUpperCase()}</Text>
+              <Text style={s.networkSub}>TELEVISION NETWORK</Text>
+            </View>
+
+            {/* Week pill */}
+            <View style={s.weekPill}>
+              <Text style={s.weekPillText}>Y{network.currentYear} · W{network.currentWeek}</Text>
             </View>
           </View>
           <DotRow />
         </View>
 
-        {/* ── Stats strip ── */}
-        <View style={styles.statsStrip}>
-          <View style={styles.stripCell}>
-            <Text style={styles.stripLabel}>CASH</Text>
-            <Text style={[styles.stripValue, { color: C.green }]}>{fmt(network.cashOnHand)}</Text>
+        {/* ── Stats 2×2 grid ── */}
+        <View style={s.statsGrid}>
+          <View style={s.statsRow}>
+            <StatCard
+              label="CASH ON HAND"
+              value={fmt(network.cashOnHand)}
+              valueColor={network.cashOnHand >= 0 ? C.green : C.red}
+            />
+            <View style={s.statsDividerV} />
+            <StatCard
+              label="PRESTIGE"
+              value={String(Math.round(network.prestige))}
+              valueColor={C.gold}
+              sub="/ 100"
+            />
           </View>
-          <View style={[styles.stripCell, styles.stripCellBorder]}>
-            <Text style={styles.stripLabel}>WEEK</Text>
-            <Text style={styles.stripValue}>Y{network.currentYear} · W{network.currentWeek}</Text>
-          </View>
-          <View style={styles.stripCell}>
-            <Text style={styles.stripLabel}>SLATE</Text>
-            <Text style={[styles.stripValue, { color: C.gold }]}>{activeShows.length} SHOWS</Text>
+          <View style={s.statsDividerH} />
+          <View style={s.statsRow}>
+            <StatCard
+              label="EMMY WINS"
+              value={String(network.emmysWon)}
+              valueColor={network.emmysWon > 0 ? C.gold : C.muted}
+            />
+            <View style={s.statsDividerV} />
+            <StatCard
+              label="ON SLATE"
+              value={String(activeShows.length)}
+              sub={activeShows.length === 1 ? 'show' : 'shows'}
+            />
           </View>
         </View>
 
@@ -426,22 +443,25 @@ export default function Dashboard() {
         )}
 
         {/* ── Your Slate ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>YOUR SLATE</Text>
-          <View style={styles.sectionRight}>
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>YOUR SLATE</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             {activeShows.length > 0 && (
-              <Text style={styles.sectionCount}>{activeShows.length} in production</Text>
+              <Text style={s.sectionMeta}>{activeShows.length} in production</Text>
             )}
             <TouchableOpacity onPress={() => router.push('/create-show')}>
-              <Text style={styles.sectionAction}>+ Create</Text>
+              <Text style={s.sectionAction}>+ NEW SHOW</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {activeShows.length === 0 ? (
-          <TouchableOpacity style={styles.emptyCard} onPress={() => router.push('/create-show')}>
-            <Text style={styles.emptyText}>No active shows.</Text>
-            <Text style={[styles.emptyText, { color: C.gold, marginTop: 6 }]}>+ Create your first show</Text>
+          <TouchableOpacity style={s.emptyCard} onPress={() => router.push('/create-show')}>
+            <Text style={s.emptyTitle}>NO ACTIVE SHOWS</Text>
+            <Text style={s.emptyBody}>Greenlight a pitch or create your first show to get started.</Text>
+            <View style={s.emptyAction}>
+              <Text style={s.emptyActionText}>+ CREATE SHOW</Text>
+            </View>
           </TouchableOpacity>
         ) : (
           activeShows.map(show => (
@@ -452,27 +472,28 @@ export default function Dashboard() {
         {/* ── Tasks ── */}
         {tasks.length > 0 && (
           <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>TASKS</Text>
-              <View style={styles.taskBadge}>
-                <Text style={styles.taskBadgeText}>{tasks.length}</Text>
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>TASKS</Text>
+              <View style={s.taskCountPill}>
+                <Text style={s.taskCountText}>{tasks.length}</Text>
               </View>
             </View>
             {tasks.map(task => {
               const accent = task.urgency === 'red' ? C.red : task.urgency === 'amber' ? C.amber : C.purple;
+              const bg     = task.urgency === 'red' ? C.redBg : task.urgency === 'amber' ? C.amberBg : C.purpleBg;
               return (
                 <TouchableOpacity
                   key={task.id}
-                  style={styles.taskRow}
+                  style={[s.taskRow, { borderColor: accent + '33' }]}
                   onPress={() => router.push(task.route as any)}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.taskAccent, { backgroundColor: accent }]} />
-                  <View style={styles.taskBody}>
-                    <Text style={styles.taskLabel}>{task.label}</Text>
-                    <Text style={styles.taskSub}>{task.sub.toUpperCase()}</Text>
+                  <View style={[s.taskAccentBar, { backgroundColor: accent }]} />
+                  <View style={s.taskBody}>
+                    <Text style={s.taskLabel}>{task.label}</Text>
+                    <Text style={[s.taskSub, { color: accent }]}>{task.sub.toUpperCase()}</Text>
                   </View>
-                  <Text style={styles.chevron}>›</Text>
+                  <Text style={[s.chevron, { color: accent }]}>›</Text>
                 </TouchableOpacity>
               );
             })}
@@ -482,26 +503,26 @@ export default function Dashboard() {
         {/* ── Inbox preview ── */}
         {unreadInbox.length > 0 && (
           <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>INBOX</Text>
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>INBOX</Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/inbox')}>
-                <Text style={styles.sectionAction}>View all →</Text>
+                <Text style={s.sectionAction}>VIEW ALL →</Text>
               </TouchableOpacity>
             </View>
             {unreadInbox.map(item => {
               const anim = fadeAnims.current[item.id];
               const inner = (
                 <TouchableOpacity
-                  style={styles.inboxRow}
+                  style={s.inboxRow}
                   onPress={() => router.push({ pathname: '/(tabs)/inbox', params: { itemID: item.id } })}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.inboxDot} />
+                  <View style={s.inboxDot} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.inboxTitle}>{item.title}</Text>
-                    <Text style={styles.inboxPreview}>{item.preview}</Text>
+                    <Text style={s.inboxTitle}>{item.title}</Text>
+                    <Text style={s.inboxPreview} numberOfLines={1}>{item.preview}</Text>
                   </View>
-                  <Text style={styles.inboxAction}>Review →</Text>
+                  <Text style={s.inboxAction}>›</Text>
                 </TouchableOpacity>
               );
               return anim
@@ -511,132 +532,127 @@ export default function Dashboard() {
           </>
         )}
 
-        <View style={{ height: 20 }} />
+        <View style={{ height: 24 }} />
       </ScrollView>
 
-      {/* ── Advance Week ── */}
-      <View style={styles.advanceWrap}>
-        <TouchableOpacity style={styles.advanceBtn} onPress={advanceWeek} activeOpacity={0.85}>
-          <Text style={styles.advanceBtnText}>
-            ADVANCE WEEK ▶
-          </Text>
-        </TouchableOpacity>
+      {/* ── Advance Week button ── */}
+      <View style={s.advanceWrap}>
+        <Animated.View style={[s.advanceBtnContainer, { transform: [{ scale: pulseAnim }] }]}>
+          <TouchableOpacity style={s.advanceBtn} onPress={advanceWeek} activeOpacity={0.88}>
+            <Text style={s.advanceBtnText}>ADVANCE TO WEEK {network.currentWeek + 1 > WEEKS_PER_YEAR ? 1 : network.currentWeek + 1}  ▶</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: C.bg },
-  scroll:       { flex: 1 },
+const s = StyleSheet.create({
+  container:     { flex: 1, backgroundColor: C.pageBg },
+  scroll:        { flex: 1 },
   scrollContent: { paddingBottom: 8 },
 
   // Setup splash
-  setupScreen:  { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  setupTitle:   { color: C.gold, fontSize: 32, fontWeight: '800', letterSpacing: 5, marginBottom: 40 },
+  setupScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  setupTitle:  { color: C.gold, fontSize: 34, fontWeight: '900', letterSpacing: 6, marginBottom: 40 },
 
-  // ── Header ──
-  headerBlock:  { backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border },
-  dotRow:       { flexDirection: 'row', paddingHorizontal: 14, paddingVertical: 7, overflow: 'hidden' },
-  dot:          { flex: 1, height: 3, borderRadius: 1.5, backgroundColor: C.goldDim, marginHorizontal: 1.5 },
+  // ── Header ──────────────────────────────────────────────────────────────────
+  header:    { backgroundColor: C.cardBg, borderBottomWidth: 1, borderBottomColor: C.border },
+  dotRow:    { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, overflow: 'hidden', gap: 3 },
+  dot:       { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.goldDim },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
 
-  headerRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 14 },
+  networkBadge:    { width: 46, height: 46, borderRadius: 23, backgroundColor: C.goldDim, borderWidth: 1.5, borderColor: C.gold, justifyContent: 'center', alignItems: 'center' },
+  networkInitials: { color: C.gold, fontSize: 15, fontWeight: '900', letterSpacing: 1 },
+  networkName:     { color: C.text, fontSize: 18, fontWeight: '900', letterSpacing: 2.5 },
+  networkSub:      { color: C.mutedMid, fontSize: 9, fontWeight: '700', letterSpacing: 2.5, marginTop: 2 },
 
-  // Film reel
-  reelOuter:    { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: C.gold, justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  reelCenter:   { width: 13, height: 13, borderRadius: 6.5, backgroundColor: C.gold },
-  reelHole:     { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: C.bg, borderWidth: 1.5, borderColor: C.gold },
+  weekPill:     { backgroundColor: C.cardBg2, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: C.border },
+  weekPillText: { color: C.gold, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
 
-  headerMid:    { flex: 1 },
-  networkName:  { color: C.gold, fontSize: 22, fontWeight: '800', letterSpacing: 3 },
-  networkSub:   { color: C.muted, fontSize: 9, fontWeight: '600', letterSpacing: 2.5, marginTop: 3 },
+  // ── Stats grid ──────────────────────────────────────────────────────────────
+  statsGrid:      { backgroundColor: C.cardBg, borderBottomWidth: 1, borderBottomColor: C.border, marginBottom: 16 },
+  statsRow:       { flexDirection: 'row' },
+  statsDividerV:  { width: 1, backgroundColor: C.border },
+  statsDividerH:  { height: 1, backgroundColor: C.border },
 
-  // Prestige badge
-  prestigeBadge: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: C.gold, justifyContent: 'center', alignItems: 'center' },
-  prestigeStar:  { color: C.gold, fontSize: 12, lineHeight: 14, textAlign: 'center' },
-  prestigeNum:   { color: C.gold, fontSize: 13, fontWeight: '800', lineHeight: 15, textAlign: 'center' },
+  statCard:      { flex: 1, padding: 16, alignItems: 'center' },
+  statCardLabel: { color: C.mutedMid, fontSize: 8, fontWeight: '700', letterSpacing: 2, marginBottom: 6 },
+  statCardValue: { color: C.text, fontSize: 22, fontWeight: '900', letterSpacing: 1 },
+  statCardSub:   { color: C.mutedMid, fontSize: 10, fontWeight: '600', marginTop: 2 },
 
-  // ── Stats strip ──
-  statsStrip:      { flexDirection: 'row', backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border, marginBottom: 14 },
-  stripCell:       { flex: 1, paddingVertical: 13, paddingHorizontal: 12, alignItems: 'center' },
-  stripCellBorder: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: C.border },
-  stripLabel:      { color: C.muted, fontSize: 9, fontWeight: '700', letterSpacing: 1.5, marginBottom: 5 },
-  stripValue:      { color: C.text, fontSize: 14, fontWeight: '700', letterSpacing: 0.5 },
+  // ── News ticker ─────────────────────────────────────────────────────────────
+  tickerWrap:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0e1020', borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border, height: 36, marginBottom: 20, overflow: 'hidden' },
+  tickerPill:     { backgroundColor: C.red, paddingHorizontal: 12, height: '100%', justifyContent: 'center' },
+  tickerPillText: { color: '#fff', fontSize: 9, fontWeight: '900', letterSpacing: 2.5 },
+  tickerDivider:  { width: 1, height: '60%', backgroundColor: C.border },
+  tickerTrack:    { flex: 1, overflow: 'hidden', height: '100%', justifyContent: 'center', paddingLeft: 10 },
+  tickerText:     { color: C.muted, fontSize: 11.5, letterSpacing: 0.3 },
 
-  // ── News ticker ──
-  tickerWrap:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0c0c14', borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border, height: 34, marginBottom: 18, overflow: 'hidden' },
-  tickerPill:     { backgroundColor: C.red, paddingHorizontal: 10, height: '100%', justifyContent: 'center', zIndex: 2 },
-  tickerPillText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 2 },
-  tickerTrack:    { flex: 1, overflow: 'hidden', height: '100%', justifyContent: 'center' },
-  tickerText:     { color: C.muted, fontSize: 11, letterSpacing: 0.3, paddingLeft: 10 },
-
-  // ── Section headers ──
+  // ── Section headers ──────────────────────────────────────────────────────────
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 10 },
-  sectionTitle:  { color: C.muted, fontSize: 10, fontWeight: '700', letterSpacing: 2.5 },
-  sectionRight:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  sectionCount:  { color: C.muted, fontSize: 11 },
-  sectionAction: { color: C.gold, fontSize: 12, fontWeight: '600' },
+  sectionTitle:  { color: C.mutedMid, fontSize: 9, fontWeight: '800', letterSpacing: 3 },
+  sectionMeta:   { color: C.mutedMid, fontSize: 11 },
+  sectionAction: { color: C.gold, fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
 
-  // ── Show cards ──
-  showCard:       { flexDirection: 'row', backgroundColor: C.card, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border, marginBottom: 8, overflow: 'hidden' },
-  cardAccentBar:  { width: 3, alignSelf: 'stretch' },
-  cardInner:      { flex: 1, padding: 14 },
-
+  // ── Show cards ──────────────────────────────────────────────────────────────
+  showCard:       { flexDirection: 'row', backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10, overflow: 'hidden' },
+  showCardAccent: { width: 3, backgroundColor: C.gold },
+  showCardInner:  { flex: 1, padding: 14 },
   showCardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  showTitle:      { color: C.text, fontSize: 14, fontWeight: '800', letterSpacing: 1.2 },
-  showGenre:      { color: C.muted, fontSize: 9, fontWeight: '700', letterSpacing: 2, marginTop: 4 },
+  showTitle:      { color: C.text, fontSize: 14, fontWeight: '900', letterSpacing: 1.5 },
+  showGenre:      { color: C.mutedMid, fontSize: 9, fontWeight: '700', letterSpacing: 2, marginTop: 4 },
 
-  statusPill:     { borderWidth: 1, borderRadius: 3, paddingHorizontal: 7, paddingVertical: 3 },
-  statusText:     { fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
+  statusCapsule:     { borderRadius: 999, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4 },
+  statusCapsuleText: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
 
-  // Heatmap
-  heatmap:  { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 12 },
-  heatDot:  { width: 20, height: 20, borderRadius: 3 },
+  heatmap:   { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 12 },
+  ratingDot: { width: 18, height: 18, borderRadius: 4 },
 
-  // Streaming banner
-  streamBanner: { backgroundColor: '#1a3526', borderRadius: 4, padding: 8, marginBottom: 10 },
-  streamText:   { color: C.green, fontSize: 11, fontWeight: '500' },
+  streamBanner: { backgroundColor: '#192b22', borderRadius: 8, padding: 8, marginBottom: 10 },
+  streamText:   { color: C.green, fontSize: 11 },
 
-  // Airing stats row
-  statsRow:       { flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12, marginTop: 2 },
-  statCell:       { flex: 1, alignItems: 'center' },
-  statCellBorder: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: C.border },
-  statVal:        { color: C.text, fontSize: 15, fontWeight: '700' },
-  statLbl:        { color: C.muted, fontSize: 8, fontWeight: '700', letterSpacing: 1, marginTop: 4 },
+  showStatsRow:       { flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 },
+  showStatCell:       { flex: 1, alignItems: 'center' },
+  showStatCellBorder: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: C.border },
+  showStatVal:        { color: C.text, fontSize: 16, fontWeight: '900' },
+  showStatLbl:        { color: C.mutedMid, fontSize: 8, fontWeight: '700', letterSpacing: 1.5, marginTop: 4 },
 
-  // Progress
-  progressHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  progressWeekLabel:{ color: C.muted, fontSize: 11 },
-  progressPct:      { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
-  progressTrack:    { height: 5, backgroundColor: C.border, borderRadius: 2.5, overflow: 'hidden', marginBottom: 8 },
-  progressFill:     { height: '100%', borderRadius: 2.5 },
-  subDetail:        { color: C.muted, fontSize: 10, letterSpacing: 0.3 },
+  progressRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  progressLabel: { color: C.muted, fontSize: 11 },
+  progressPct:   { fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
+  progressTrack: { height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden', marginBottom: 8 },
+  progressFill:  { height: '100%', borderRadius: 2 },
+  showSubDetail: { color: C.mutedMid, fontSize: 10, letterSpacing: 0.3 },
 
-  // Empty state
-  emptyCard: { backgroundColor: C.card, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border, padding: 24, alignItems: 'center', marginBottom: 16 },
-  emptyText: { color: C.muted, fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  // ── Empty slate ──────────────────────────────────────────────────────────────
+  emptyCard:       { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10, padding: 28, alignItems: 'center' },
+  emptyTitle:      { color: C.mutedMid, fontSize: 11, fontWeight: '900', letterSpacing: 3, marginBottom: 8 },
+  emptyBody:       { color: C.muted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  emptyAction:     { marginTop: 18, backgroundColor: C.goldDim, borderRadius: 999, borderWidth: 1, borderColor: C.gold + '55', paddingHorizontal: 18, paddingVertical: 8 },
+  emptyActionText: { color: C.gold, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
 
-  // ── Tasks ──
-  taskBadge:     { backgroundColor: C.red + '30', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  taskBadgeText: { color: C.red, fontSize: 11, fontWeight: '800' },
-  taskRow:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border, marginBottom: 4, overflow: 'hidden' },
-  taskAccent:    { width: 3, alignSelf: 'stretch' },
+  // ── Tasks ────────────────────────────────────────────────────────────────────
+  taskCountPill: { backgroundColor: C.red + '25', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, borderColor: C.red + '44' },
+  taskCountText: { color: C.red, fontSize: 11, fontWeight: '800' },
+  taskRow:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, marginHorizontal: 14, marginBottom: 6, overflow: 'hidden' },
+  taskAccentBar: { width: 3, alignSelf: 'stretch' },
   taskBody:      { flex: 1, paddingVertical: 13, paddingHorizontal: 14 },
   taskLabel:     { color: C.text, fontSize: 13, fontWeight: '600' },
-  taskSub:       { color: C.muted, fontSize: 9, fontWeight: '700', letterSpacing: 1.5, marginTop: 4 },
-  chevron:       { color: C.muted, fontSize: 22, paddingRight: 14 },
+  taskSub:       { fontSize: 8, fontWeight: '800', letterSpacing: 1.5, marginTop: 4 },
+  chevron:       { fontSize: 24, paddingRight: 14 },
 
-  // ── Inbox ──
-  inboxRow:     { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border, padding: 14, marginBottom: 4, gap: 12 },
-  inboxDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: C.gold },
-  inboxTitle:   { color: C.text, fontSize: 13, fontWeight: '600' },
-  inboxPreview: { color: C.muted, fontSize: 11, marginTop: 2 },
-  inboxAction:  { color: C.gold, fontSize: 12, fontWeight: '600' },
+  // ── Inbox ────────────────────────────────────────────────────────────────────
+  inboxRow:     { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, padding: 14, marginBottom: 6, gap: 12 },
+  inboxDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: C.gold, marginTop: 2 },
+  inboxTitle:   { color: C.text, fontSize: 13, fontWeight: '700' },
+  inboxPreview: { color: C.muted, fontSize: 11, marginTop: 3 },
+  inboxAction:  { color: C.gold, fontSize: 22 },
 
-  // ── Advance Week ──
-  advanceWrap:    { padding: 14, paddingBottom: 6, backgroundColor: C.bg, borderTopWidth: 1, borderTopColor: C.border },
-  advanceBtn:     { backgroundColor: C.gold, borderRadius: 10, paddingVertical: 16, alignItems: 'center' },
-  advanceBtnText: { color: '#09090e', fontSize: 13, fontWeight: '800', letterSpacing: 2.5 },
+  // ── Advance Week ─────────────────────────────────────────────────────────────
+  advanceWrap:         { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, backgroundColor: C.pageBg, borderTopWidth: 1, borderTopColor: C.border },
+  advanceBtnContainer: { borderRadius: 999, overflow: 'hidden' },
+  advanceBtn:          { backgroundColor: C.gold, borderRadius: 999, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  advanceBtnText:      { color: '#0e0f18', fontSize: 13, fontWeight: '900', letterSpacing: 3 },
 });
