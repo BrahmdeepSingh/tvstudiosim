@@ -1,15 +1,13 @@
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, Animated, Dimensions,
+  SafeAreaView, Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Show } from '../../src/types';
+import { Show, NewsItem } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -85,41 +83,23 @@ function DotRow() {
   );
 }
 
-// ── Animated news ticker ──────────────────────────────────────────────────────
-function NewsTicker({ headlines }: { headlines: string[] }) {
-  const tickerAnim  = useRef(new Animated.Value(SCREEN_WIDTH)).current;
-  const animRef     = useRef<Animated.CompositeAnimation | null>(null);
-  const text        = headlines.join('     ·     ');
-  const estimatedWidth = text.length * 7.5;
-
-  useEffect(() => {
-    if (!text) return;
-    tickerAnim.setValue(SCREEN_WIDTH);
-    animRef.current = Animated.loop(
-      Animated.timing(tickerAnim, {
-        toValue:  -estimatedWidth,
-        duration: (SCREEN_WIDTH + estimatedWidth) * 22,
-        useNativeDriver: true,
-      })
-    );
-    animRef.current.start();
-    return () => animRef.current?.stop();
-  }, [text]);
+// ── DEADLINE news card ────────────────────────────────────────────────────────
+function NewsCard({ item, week, year }: { item: NewsItem | null; week: number; year: number }) {
+  const headline = item?.headline ?? 'Welcome to TV Studio Sim';
+  const body     = item?.body     ?? 'Greenlight your first show to get started. The ratings race begins now.';
+  const cardWeek = item?.week ?? week;
+  const cardYear = item?.year ?? year;
 
   return (
-    <View style={s.tickerWrap}>
-      <View style={s.tickerPill}>
-        <Text style={s.tickerPillText}>DEADLINE</Text>
+    <View style={s.newsCard}>
+      <View style={s.newsCardTopRow}>
+        <View style={s.newsDeadlinePill}>
+          <Text style={s.newsDeadlinePillText}>DEADLINE</Text>
+        </View>
+        <Text style={s.newsWeekLabel}>Week {cardWeek} · Year {cardYear}</Text>
       </View>
-      <View style={s.tickerDivider} />
-      <View style={s.tickerTrack}>
-        <Animated.Text
-          style={[s.tickerText, { transform: [{ translateX: tickerAnim }] }]}
-          numberOfLines={1}
-        >
-          {text}
-        </Animated.Text>
-      </View>
+      <Text style={s.newsHeadline}>{headline}</Text>
+      <Text style={s.newsBody} numberOfLines={3}>{body}</Text>
     </View>
   );
 }
@@ -455,13 +435,11 @@ export default function Dashboard() {
             />
           </View>
 
-          {/* ── News ticker ── */}
-          <NewsTicker
-            headlines={
-              newsItems.length > 0
-                ? newsItems.slice(-10).map(n => n.headline)
-                : ['Welcome to TV Studio Sim', 'Greenlight your first show to get started', 'The ratings race begins now']
-            }
+          {/* ── DEADLINE news card ── */}
+          <NewsCard
+            item={newsItems.length > 0 ? newsItems[newsItems.length - 1] : null}
+            week={network.currentWeek}
+            year={network.currentYear}
           />
 
           {/* ── Your Slate ── */}
@@ -619,13 +597,14 @@ const s = StyleSheet.create({
   statCardLabel:  { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 2, marginBottom: 6 },
   statCardValue:  { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 26, letterSpacing: 1 },
 
-  // ── News ticker ─────────────────────────────────────────────────────────────
-  tickerWrap:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0a0d18', borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border, height: 36, marginBottom: 20, overflow: 'hidden' },
-  tickerPill:     { backgroundColor: C.red, paddingHorizontal: 12, height: '100%', justifyContent: 'center' },
-  tickerPillText: { fontFamily: 'Manrope_800ExtraBold', color: '#fff', fontSize: 9, letterSpacing: 2.5 },
-  tickerDivider:  { width: 1, height: '60%', backgroundColor: C.border },
-  tickerTrack:    { flex: 1, overflow: 'hidden', height: '100%', justifyContent: 'center', paddingLeft: 10 },
-  tickerText:     { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11.5, letterSpacing: 0.3 },
+  // ── DEADLINE news card ───────────────────────────────────────────────────────
+  newsCard:              { backgroundColor: '#1a1108', borderRadius: 14, borderWidth: 1, borderColor: '#e6b2544d', marginHorizontal: 14, marginBottom: 20, padding: 14 },
+  newsCardTopRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
+  newsDeadlinePill:      { backgroundColor: C.gold, borderRadius: 5, paddingHorizontal: 9, paddingVertical: 3 },
+  newsDeadlinePillText:  { fontFamily: 'BebasNeue_400Regular', color: '#161008', fontSize: 11, letterSpacing: 2 },
+  newsWeekLabel:         { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 10 },
+  newsHeadline:          { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 16, letterSpacing: 0.5, lineHeight: 20 },
+  newsBody:              { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11.5, marginTop: 7, lineHeight: 18 },
 
   // ── Section headers ──────────────────────────────────────────────────────────
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 10 },
