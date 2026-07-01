@@ -456,9 +456,13 @@ export default function Dashboard() {
           </View>
 
           {/* ── News ticker ── */}
-          {newsItems.length > 0 && (
-            <NewsTicker headlines={newsItems.slice(-10).map(n => n.headline)} />
-          )}
+          <NewsTicker
+            headlines={
+              newsItems.length > 0
+                ? newsItems.slice(-10).map(n => n.headline)
+                : ['Welcome to TV Studio Sim', 'Greenlight your first show to get started', 'The ratings race begins now']
+            }
+          />
 
           {/* ── Your Slate ── */}
           <View style={s.sectionHeader}>
