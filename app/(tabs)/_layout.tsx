@@ -1,21 +1,11 @@
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
 
-const COLORS = {
-  bg: '#0f0f17',
-  tabBar: '#16161f',
-  active: '#7c6af7',
-  inactive: '#4a4a5e',
-  border: '#1e1e2e',
+const C = {
+  tabBar:   '#0d1025',
+  gold:     '#e6b254',
+  inactive: '#4a4760',
+  border:   '#1e2240',
 };
-
-function TabIcon({ label, focused }: { label: string; focused: boolean }) {
-  return (
-    <Text style={{ color: focused ? COLORS.active : COLORS.inactive, fontSize: 10, marginTop: 2 }}>
-      {label}
-    </Text>
-  );
-}
 
 export default function TabsLayout() {
   return (
@@ -23,14 +13,14 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: COLORS.tabBar,
-          borderTopColor: COLORS.border,
+          backgroundColor: C.tabBar,
+          borderTopColor: C.border,
           borderTopWidth: 1,
           height: 60,
           paddingBottom: 8,
         },
-        tabBarActiveTintColor: COLORS.active,
-        tabBarInactiveTintColor: COLORS.inactive,
+        tabBarActiveTintColor: C.gold,
+        tabBarInactiveTintColor: C.inactive,
         tabBarLabelStyle: { fontSize: 11 },
       }}
     >

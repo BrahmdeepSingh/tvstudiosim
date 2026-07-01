@@ -1,13 +1,27 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Alert, Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 
 const C = {
-  bg: '#0f0f17', card: '#16161f', border: '#1e1e2e',
-  text: '#e8e8f0', muted: '#6b6b82', accent: '#7c6af7',
-  green: '#4caf82', red: '#e85d5d', amber: '#f5a623',
+  pageBg: '#0f1220', cardBg: '#191c2a',
+  border: '#252840',
+  text: '#f0ede8', muted: '#9a958e',
+  gold: '#e6b254', goldBtnText: '#161008',
+  green: '#4ec46e', amber: '#d4753a', red: '#c43820',
 };
+
+function FilmRibbonAmbient() {
+  return (
+    <Image
+      source={require('../../assets/tvbg.png')}
+      style={[StyleSheet.absoluteFill, { tintColor: C.gold, opacity: 0.06 }]}
+      resizeMode="repeat"
+      pointerEvents="none"
+    />
+  );
+}
 
 function fmt(n: number): string {
   const sign = n < 0 ? '-' : '';
@@ -19,20 +33,20 @@ function fmt(n: number): string {
 
 function PrestigeBar({ value }: { value: number }) {
   const pct = Math.min(100, Math.max(0, value));
-  const color = pct >= 70 ? C.accent : pct >= 40 ? C.amber : C.muted;
   const label =
     pct >= 85 ? 'Elite' :
     pct >= 70 ? 'Established' :
     pct >= 50 ? 'Rising' :
     pct >= 30 ? 'Developing' : 'Unknown';
+  const barColor = pct >= 70 ? C.gold : pct >= 40 ? C.amber : C.muted;
   return (
     <View>
       <View style={s.prestigeHeader}>
         <Text style={s.prestigeValue}>{value}</Text>
-        <Text style={[s.prestigeLabel, { color }]}>{label}</Text>
+        <Text style={[s.prestigeLabel, { color: barColor }]}>{label}</Text>
       </View>
       <View style={s.prestigeTrack}>
-        <View style={[s.prestigeFill, { width: `${pct}%`, backgroundColor: color }]} />
+        <View style={[s.prestigeFill, { width: `${pct}%` as any, backgroundColor: barColor }]} />
       </View>
     </View>
   );
@@ -76,7 +90,12 @@ export default function StudioScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      {/* Header */}
+      <LinearGradient
+        colors={['#131829', '#0f1220', '#0a0d18']}
+        style={StyleSheet.absoluteFill}
+      />
+      <FilmRibbonAmbient />
+
       <View style={s.header}>
         <Text style={s.headerTitle}>Studio</Text>
       </View>
@@ -106,21 +125,21 @@ export default function StudioScreen() {
         {/* Network stats */}
         <Text style={s.sectionLabel}>NETWORK STATS</Text>
         <View style={s.card}>
-          <StatRow label="Cash on hand"      value={fmt(network.cashOnHand)}      color={C.green} />
+          <StatRow label="Cash on hand"     value={fmt(network.cashOnHand)}     color={C.green} />
           <View style={s.divider} />
-          <StatRow label="Career earnings"   value={fmt(network.careerEarnings)} />
+          <StatRow label="Career earnings"  value={fmt(network.careerEarnings)} />
           <View style={s.divider} />
-          <StatRow label="Active shows"      value={String(activeShows)}          color={C.accent} />
+          <StatRow label="Active shows"     value={String(activeShows)}         color={C.gold} />
           <View style={s.divider} />
-          <StatRow label="Total shows"       value={String(shows.length)} />
+          <StatRow label="Total shows"      value={String(shows.length)} />
           <View style={s.divider} />
-          <StatRow label="Total seasons"     value={String(totalSeasons)} />
+          <StatRow label="Total seasons"    value={String(totalSeasons)} />
           <View style={s.divider} />
-          <StatRow label="Emmy nominations"  value={String(network.emmyNominations)} />
+          <StatRow label="Emmy nominations" value={String(network.emmyNominations)} />
           <View style={s.divider} />
-          <StatRow label="Emmys won"         value={String(network.emmysWon)}     color={network.emmysWon > 0 ? C.amber : undefined} />
+          <StatRow label="Emmys won"        value={String(network.emmysWon)} color={network.emmysWon > 0 ? C.amber : undefined} />
           <View style={s.divider} />
-          <StatRow label="Current week"      value={`Week ${network.currentWeek}, Year ${network.currentYear}`} />
+          <StatRow label="Current week"     value={`Week ${network.currentWeek}, Year ${network.currentYear}`} />
         </View>
 
         {/* Actions */}
@@ -135,7 +154,7 @@ export default function StudioScreen() {
                 </Text>
               )}
             </View>
-            <Text style={[s.actionChevron, { color: C.accent }]}>Save →</Text>
+            <Text style={[s.actionChevron, { color: C.gold }]}>Save →</Text>
           </TouchableOpacity>
           <View style={s.divider} />
           <TouchableOpacity style={s.actionRow} onPress={handleReset}>
@@ -154,37 +173,37 @@ export default function StudioScreen() {
 }
 
 const s = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: C.bg },
+  container:       { flex: 1, backgroundColor: C.pageBg },
   header:          { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
-  headerTitle:     { color: C.text, fontSize: 20, fontWeight: '700' },
+  headerTitle:     { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 1 },
   scroll:          { flex: 1 },
   scrollContent:   { padding: 16 },
 
-  sectionLabel:    { color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 10, marginTop: 20 },
+  sectionLabel:    { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 10, marginTop: 20 },
 
-  identityCard:    { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 4 },
-  networkBadge:    { width: 52, height: 52, borderRadius: 12, backgroundColor: C.accent, justifyContent: 'center', alignItems: 'center' },
-  networkInitials: { color: '#fff', fontSize: 20, fontWeight: '700' },
-  networkName:     { color: C.text, fontSize: 18, fontWeight: '700', marginBottom: 3 },
-  networkSub:      { color: C.muted, fontSize: 13 },
+  identityCard:    { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 4 },
+  networkBadge:    { width: 52, height: 52, borderRadius: 12, backgroundColor: C.gold, justifyContent: 'center', alignItems: 'center' },
+  networkInitials: { color: C.goldBtnText, fontFamily: 'BebasNeue_400Regular', fontSize: 24, letterSpacing: 1 },
+  networkName:     { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 18, marginBottom: 3 },
+  networkSub:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13 },
 
-  card:            { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16 },
+  card:            { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16 },
 
   prestigeHeader:  { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 },
-  prestigeValue:   { color: C.text, fontSize: 36, fontWeight: '700' },
-  prestigeLabel:   { fontSize: 14, fontWeight: '600' },
+  prestigeValue:   { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 44, letterSpacing: 1 },
+  prestigeLabel:   { fontFamily: 'Manrope_700Bold', fontSize: 14 },
   prestigeTrack:   { height: 8, backgroundColor: C.border, borderRadius: 4, overflow: 'hidden', marginBottom: 10 },
   prestigeFill:    { height: '100%', borderRadius: 4 },
-  prestigeHint:    { color: C.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  prestigeHint:    { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, lineHeight: 18, marginTop: 4 },
 
   statRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11 },
-  statLabel:       { color: C.muted, fontSize: 14 },
-  statValue:       { color: C.text, fontSize: 14, fontWeight: '600' },
+  statLabel:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14 },
+  statValue:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
   divider:         { height: 1, backgroundColor: C.border },
 
-  actionsCard:     { backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+  actionsCard:     { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border },
   actionRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  actionLabel:     { color: C.text, fontSize: 15, fontWeight: '500', marginBottom: 2 },
-  actionSub:       { color: C.muted, fontSize: 12 },
-  actionChevron:   { fontSize: 14, fontWeight: '600' },
+  actionLabel:     { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15, marginBottom: 2 },
+  actionSub:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
+  actionChevron:   { fontFamily: 'Manrope_700Bold', fontSize: 14 },
 });

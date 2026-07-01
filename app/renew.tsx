@@ -1,19 +1,33 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image,
 } from 'react-native';
 import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { Talent } from '../src/types';
 import { TALENT_FEES, MIN_EPISODES, MAX_EPISODES } from '../src/constants/game';
 
 const C = {
-  bg: '#0f0f17', card: '#16161f', border: '#1e1e2e',
-  text: '#e8e8f0', muted: '#6b6b82', accent: '#7c6af7',
-  green: '#4caf82', red: '#e85d5d', amber: '#f5a623', purple: '#9b59b6',
+  pageBg: '#0f1220', cardBg: '#191c2a',
+  border: '#252840',
+  text: '#f0ede8', muted: '#9a958e',
+  gold: '#e6b254', goldDim: '#e6b25420', goldBtnText: '#161008',
+  green: '#4ec46e', greenBg: '#1a3325', amber: '#d4753a', red: '#c43820',
 };
 
 const CHEM_COLORS = { green: C.green, blue: '#5b8dee', red: C.red };
+
+function FilmRibbonAmbient() {
+  return (
+    <Image
+      source={require('../assets/tvbg.png')}
+      style={[StyleSheet.absoluteFill, { tintColor: C.gold, opacity: 0.06 }]}
+      resizeMode="repeat"
+      pointerEvents="none"
+    />
+  );
+}
 
 function fmt(n: number): string {
   const sign = n < 0 ? '-' : '';
@@ -30,7 +44,6 @@ function autoResignFee(t: Talent): number {
 }
 
 function isReturnable(t: Talent): boolean {
-  // Talent is free to re-sign if available (freed when filming wrapped) or still held by this show
   return t.available;
 }
 
@@ -107,7 +120,6 @@ export default function RenewScreen() {
   const show = shows.find(s => s.id === showID);
   const prevSeason = show?.seasons[show.currentSeasonIndex];
 
-  // All hooks must come before any conditional return (React rules of hooks)
   const [episodeCount, setEpisodeCount] = useState(prevSeason?.episodeCount ?? 10);
   const [leadSlots, setLeadSlots] = useState(prevSeason?.leadActorSlots ?? 2);
   const [supportingSlots, setSupportingSlots] = useState(prevSeason?.supportingActorSlots ?? 2);
@@ -118,7 +130,8 @@ export default function RenewScreen() {
   if (!show || !prevSeason || show.status !== 'renewal-pending') {
     return (
       <SafeAreaView style={s.container}>
-        <Text style={{ color: C.muted, padding: 32 }}>Show not available for renewal.</Text>
+        <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
+        <Text style={{ color: C.muted, padding: 32, fontFamily: 'Manrope_400Regular' }}>Show not available for renewal.</Text>
       </SafeAreaView>
     );
   }
@@ -126,7 +139,6 @@ export default function RenewScreen() {
   const prevSeasonNumber = prevSeason.seasonNumber;
   const newSeasonNumber = prevSeasonNumber + 1;
 
-  // Returning talent from prev season
   const returningShowrunner = talent.find(t => t.id === prevSeason.showrunnerID) ?? null;
   const returningDirector   = prevSeason.directorID ? talent.find(t => t.id === prevSeason.directorID) ?? null : null;
   const returningLeads      = prevSeason.leadActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
@@ -135,7 +147,7 @@ export default function RenewScreen() {
   function toggleLeadResign(id: string) {
     setResignLeadIDs(prev => {
       if (prev.includes(id)) return prev.filter(x => x !== id);
-      if (prev.length >= leadSlots) return prev; // can't exceed slot count
+      if (prev.length >= leadSlots) return prev;
       return [...prev, id];
     });
   }
@@ -151,7 +163,6 @@ export default function RenewScreen() {
   function adjustLeadSlots(delta: number) {
     const next = Math.max(1, Math.min(6, leadSlots + delta));
     setLeadSlots(next);
-    // Drop trailing re-signs if they exceed new slot count
     if (resignLeadIDs.length > next) {
       setResignLeadIDs(prev => prev.slice(0, next));
     }
@@ -165,7 +176,6 @@ export default function RenewScreen() {
     }
   }
 
-  // Cost preview
   const directorFee    = resignDirector && returningDirector ? autoResignFee(returningDirector) : 0;
   const leadFees       = resignLeadIDs.reduce((sum, id) => {
     const t = talent.find(x => x.id === id);
@@ -179,10 +189,8 @@ export default function RenewScreen() {
   const canAfford = network.cashOnHand >= totalResignCost;
 
   function handleStartPreProduction() {
-    // 1. Create new season (frees prev cast, applies slot counts)
     renewShow(showID!, episodeCount, leadSlots, supportingSlots);
 
-    // 2. Re-sign selected talent (they're now free after renewShow)
     if (resignDirector && returningDirector) {
       hireDirector(showID!, returningDirector.id, autoResignFee(returningDirector), 0);
     }
@@ -195,7 +203,6 @@ export default function RenewScreen() {
       if (t) hireActor(showID!, t.id, autoResignFee(t), 0, 'supporting');
     }
 
-    // 3. Navigate back to show detail
     router.replace(`/show/${showID}`);
   }
 
@@ -203,7 +210,9 @@ export default function RenewScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      {/* Header */}
+      <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
+      <FilmRibbonAmbient />
+
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backText}>← Back</Text>
@@ -222,7 +231,7 @@ export default function RenewScreen() {
           </Text>
         </View>
 
-        {/* Showrunner — always returns */}
+        {/* Showrunner */}
         <Text style={s.sectionLabel}>SHOWRUNNER</Text>
         {returningShowrunner ? (
           <View style={[s.talentCard, s.talentCardAuto]}>
@@ -379,9 +388,24 @@ export default function RenewScreen() {
           onPress={handleStartPreProduction}
           disabled={!canAfford}
         >
-          <Text style={[s.proceedBtnText, !canAfford && s.proceedBtnTextDisabled]}>
-            Start Season {newSeasonNumber} Pre-Production →
-          </Text>
+          {canAfford ? (
+            <LinearGradient
+              colors={['#c49440', '#e6b254']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={s.proceedBtnGrad}
+            >
+              <Text style={s.proceedBtnText}>
+                Start Season {newSeasonNumber} Pre-Production →
+              </Text>
+            </LinearGradient>
+          ) : (
+            <View style={s.proceedBtnGrad}>
+              <Text style={s.proceedBtnTextDisabled}>
+                Start Season {newSeasonNumber} Pre-Production →
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -389,67 +413,68 @@ export default function RenewScreen() {
 }
 
 const s = StyleSheet.create({
-  container:          { flex: 1, backgroundColor: C.bg },
-  header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn:            { width: 60 },
-  backText:           { color: C.accent, fontSize: 15 },
-  headerTitle:        { color: C.text, fontSize: 17, fontWeight: '600' },
-  scroll:             { flex: 1 },
-  scrollContent:      { padding: 16 },
+  container:           { flex: 1, backgroundColor: C.pageBg },
+  header:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
+  backBtn:             { width: 60 },
+  backText:            { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+  headerTitle:         { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 22, letterSpacing: 0.5 },
+  scroll:              { flex: 1 },
+  scrollContent:       { padding: 16 },
 
-  showBanner:         { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.accent + '55', padding: 14, marginBottom: 20 },
-  showTitle:          { color: C.text, fontSize: 18, fontWeight: '700', marginBottom: 3 },
-  showMeta:           { color: C.accent, fontSize: 13 },
+  showBanner:          { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.gold + '44', padding: 14, marginBottom: 20 },
+  showTitle:           { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 18, marginBottom: 3 },
+  showMeta:            { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
 
-  sectionLabel:       { color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 10, marginTop: 20 },
-  emptyHint:          { color: C.muted, fontSize: 13, marginBottom: 8 },
+  sectionLabel:        { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 10, marginTop: 20 },
+  emptyHint:           { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, marginBottom: 8 },
 
-  cardGroup:          { gap: 8, marginTop: 8 },
+  cardGroup:           { gap: 8, marginTop: 8 },
 
-  talentCard:         { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
-  talentCardSelected: { borderColor: C.green + '88' },
-  talentCardAuto:     { borderColor: C.accent + '44' },
-  talentCardBusy:     { opacity: 0.55 },
-  talentLeft:         { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  chemDot:            { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
-  talentName:         { color: C.text, fontSize: 14, fontWeight: '500', marginBottom: 2 },
-  talentMeta:         { color: C.muted, fontSize: 12 },
-  talentFee:          { color: C.muted, fontSize: 12, marginTop: 2 },
-  talentRight:        { marginLeft: 12 },
+  talentCard:          { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
+  talentCardSelected:  { borderColor: C.green + '88' },
+  talentCardAuto:      { borderColor: C.gold + '44' },
+  talentCardBusy:      { opacity: 0.55 },
+  talentLeft:          { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  chemDot:             { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+  talentName:          { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14, marginBottom: 2 },
+  talentMeta:          { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
+  talentFee:           { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
+  talentRight:         { marginLeft: 12 },
 
-  busyBadge:          { backgroundColor: C.red + '22', borderWidth: 1, borderColor: C.red + '66', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5 },
-  busyText:           { color: C.red, fontSize: 12, fontWeight: '500' },
+  busyBadge:           { backgroundColor: C.red + '22', borderWidth: 1, borderColor: C.red + '66', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5 },
+  busyText:            { color: C.red, fontFamily: 'Manrope_600SemiBold', fontSize: 12 },
 
-  toggleBtn:          { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1 },
-  toggleBtnOn:        { backgroundColor: C.green + '22', borderColor: C.green },
-  toggleBtnOff:       { backgroundColor: C.card, borderColor: C.border },
-  toggleBtnAuto:      { backgroundColor: C.accent + '18', borderColor: C.accent + '55' },
-  toggleBtnDisabled:  { opacity: 0.35 },
-  toggleBtnText:      { fontSize: 12, fontWeight: '600' },
-  toggleBtnTextOn:    { color: C.green },
-  toggleBtnTextOff:   { color: C.muted },
-  toggleBtnTextAuto:  { color: C.accent },
+  toggleBtn:           { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1 },
+  toggleBtnOn:         { backgroundColor: C.green + '22', borderColor: C.green },
+  toggleBtnOff:        { backgroundColor: C.cardBg, borderColor: C.border },
+  toggleBtnAuto:       { backgroundColor: C.goldDim, borderColor: C.gold + '55' },
+  toggleBtnDisabled:   { opacity: 0.35 },
+  toggleBtnText:       { fontFamily: 'Manrope_700Bold', fontSize: 12 },
+  toggleBtnTextOn:     { color: C.green },
+  toggleBtnTextOff:    { color: C.muted },
+  toggleBtnTextAuto:   { color: C.gold },
 
-  stepperCard:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 16 },
-  slotStepper:        { flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 12, paddingHorizontal: 16 },
-  stepBtn:            { width: 40, height: 40, borderRadius: 10, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
-  stepBtnDisabled:    { opacity: 0.3 },
-  stepBtnText:        { color: C.text, fontSize: 22, lineHeight: 26 },
-  stepDisplay:        { alignItems: 'center', minWidth: 80 },
-  stepValue:          { color: C.text, fontSize: 36, fontWeight: '700', lineHeight: 42 },
-  stepUnit:           { color: C.muted, fontSize: 12 },
-  slotCount:          { flex: 1, color: C.text, fontSize: 18, fontWeight: '600', textAlign: 'center' },
+  stepperCard:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16 },
+  slotStepper:         { flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 12, paddingHorizontal: 16 },
+  stepBtn:             { width: 40, height: 40, borderRadius: 10, backgroundColor: C.pageBg, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
+  stepBtnDisabled:     { opacity: 0.3 },
+  stepBtnText:         { color: C.text, fontSize: 22, lineHeight: 26 },
+  stepDisplay:         { alignItems: 'center', minWidth: 80 },
+  stepValue:           { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 40, letterSpacing: 0.5, lineHeight: 46 },
+  stepUnit:            { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
+  slotCount:           { flex: 1, color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 18, textAlign: 'center' },
 
-  costCard:           { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, marginTop: 20, gap: 4 },
-  costRow:            { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  costLabel:          { color: C.muted, fontSize: 14 },
-  costValue:          { color: C.text, fontSize: 14, fontWeight: '600' },
-  costWarning:        { color: C.red, fontSize: 13, marginTop: 4 },
+  costCard:            { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginTop: 20, gap: 4 },
+  costRow:             { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  costLabel:           { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14 },
+  costValue:           { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14 },
+  costWarning:         { color: C.red, fontFamily: 'Manrope_600SemiBold', fontSize: 13, marginTop: 4 },
 
-  footer:             { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
-  footerNote:         { color: C.muted, fontSize: 12, textAlign: 'center' },
-  proceedBtn:         { backgroundColor: C.accent, borderRadius: 12, padding: 16, alignItems: 'center' },
-  proceedBtnDisabled: { backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
-  proceedBtnText:     { color: '#fff', fontSize: 15, fontWeight: '600' },
-  proceedBtnTextDisabled: { color: C.muted },
+  footer:              { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
+  footerNote:          { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, textAlign: 'center' },
+  proceedBtn:          { borderRadius: 14, overflow: 'hidden' },
+  proceedBtnDisabled:  { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 14 },
+  proceedBtnGrad:      { padding: 16, alignItems: 'center' },
+  proceedBtnText:      { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 15 },
+  proceedBtnTextDisabled: { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
 });

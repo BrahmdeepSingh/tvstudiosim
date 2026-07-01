@@ -1,17 +1,31 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { InboxItem } from '../../src/types';
 import { EMMY_CATEGORY_LABELS } from '../../src/constants/game';
 
 const C = {
-  bg: '#0f0f17', card: '#16161f', border: '#1e1e2e',
-  text: '#e8e8f0', muted: '#6b6b82', accent: '#7c6af7',
-  green: '#4caf82', red: '#e85d5d', amber: '#f5a623', blue: '#5b8dee',
+  pageBg: '#0f1220', cardBg: '#191c2a', cardBg2: '#1d2035',
+  border: '#252840', borderGold: '#e6b25430',
+  text: '#f0ede8', muted: '#9a958e', mutedMid: '#6b6880',
+  gold: '#e6b254', goldDim: '#e6b25420',
+  green: '#4ec46e', amber: '#d4753a', red: '#c43820', blue: '#5b8dee', teal: '#3db8a8',
 };
+
+function FilmRibbonAmbient() {
+  return (
+    <Image
+      source={require('../../assets/tvbg.png')}
+      style={[StyleSheet.absoluteFill, { tintColor: C.gold, opacity: 0.06 }]}
+      resizeMode="repeat"
+      pointerEvents="none"
+    />
+  );
+}
 
 function fmt(n: number): string {
   const sign = n < 0 ? '-' : '';
@@ -22,8 +36,8 @@ function fmt(n: number): string {
 }
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
-  'pitch':               { label: 'PITCH',    color: C.accent },
-  'streaming-offer':     { label: 'STREAMING', color: C.green },
+  'pitch':               { label: 'PITCH',    color: C.gold },
+  'streaming-offer':     { label: 'STREAMING', color: C.teal },
   'emmy-nominations':    { label: 'EMMYS',    color: C.amber },
   'emmy-ceremony':       { label: 'EMMYS',    color: C.amber },
   'revenue-share-payout':{ label: 'PAYOUT',   color: C.green },
@@ -92,7 +106,14 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
             <Text style={d.passBtnText}>Pass</Text>
           </TouchableOpacity>
           <TouchableOpacity style={d.primaryBtn} onPress={handleGreenlight}>
-            <Text style={d.primaryBtnText}>Greenlight →</Text>
+            <LinearGradient
+              colors={['#c49440', '#e6b254']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={d.primaryBtnGrad}
+            >
+              <Text style={d.primaryBtnText}>Greenlight →</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       )}
@@ -162,10 +183,24 @@ function StreamingOfferDetail({ item, onDone }: { item: InboxItem; onDone: () =>
           <Text style={d.passBtnText}>Decline</Text>
         </TouchableOpacity>
         <TouchableOpacity style={d.primaryBtn} onPress={() => handleAccept('non-exclusive')}>
-          <Text style={d.primaryBtnText}>Non-Excl</Text>
+          <LinearGradient
+            colors={['#c49440', '#e6b254']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={d.primaryBtnGrad}
+          >
+            <Text style={d.primaryBtnText}>Non-Excl</Text>
+          </LinearGradient>
         </TouchableOpacity>
-        <TouchableOpacity style={[d.primaryBtn, { backgroundColor: C.green }]} onPress={() => handleAccept('exclusive')}>
-          <Text style={d.primaryBtnText}>Exclusive</Text>
+        <TouchableOpacity style={d.primaryBtn} onPress={() => handleAccept('exclusive')}>
+          <LinearGradient
+            colors={['#2a9e78', '#3db8a8']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={d.primaryBtnGrad}
+          >
+            <Text style={d.primaryBtnText}>Exclusive</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </View>
@@ -222,7 +257,6 @@ function EmmyDetail({ item, isWins }: { item: InboxItem; isWins: boolean }) {
 
 function NewsDetail({ item }: { item: InboxItem }) {
   const { newsItems } = useGameStore();
-  // Try to find a matching news item by week/year/type as body text
   const related = newsItems.filter(
     n => n.week === item.week && n.year === item.year
   ).slice(0, 3);
@@ -251,8 +285,6 @@ function PayoutDetail({ item }: { item: InboxItem }) {
   );
 }
 
-// ─── Shared sub-components ─────────────────────────────────────────────────────
-
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <View style={d.row}>
@@ -270,7 +302,6 @@ export default function InboxScreen() {
   const { itemID } = useLocalSearchParams<{ itemID?: string }>();
   const autoOpenedRef = useRef(false);
 
-  // Sort: unread first, then by most recent
   const sorted = [...inboxItems].sort((a, b) => {
     if (a.read !== b.read) return a.read ? 1 : -1;
     if (b.year !== a.year) return b.year - a.year;
@@ -279,7 +310,6 @@ export default function InboxScreen() {
 
   const unreadCount = inboxItems.filter(i => !i.read).length;
 
-  // Auto-open item when deep-linked from dashboard
   useEffect(() => {
     if (!itemID || autoOpenedRef.current) return;
     const item = inboxItems.find(i => i.id === itemID);
@@ -304,6 +334,8 @@ export default function InboxScreen() {
     const meta = TYPE_META[selected.type] ?? { label: 'MESSAGE', color: C.muted };
     return (
       <SafeAreaView style={s.container}>
+        <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
+        <FilmRibbonAmbient />
         <View style={s.header}>
           <TouchableOpacity onPress={closeDetail} style={s.backBtn}>
             <Text style={s.backText}>← Inbox</Text>
@@ -352,6 +384,8 @@ export default function InboxScreen() {
 
   return (
     <SafeAreaView style={s.container}>
+      <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
+      <FilmRibbonAmbient />
       <View style={s.header}>
         <Text style={s.headerTitle}>Inbox</Text>
         {unreadCount > 0 && (
@@ -406,87 +440,88 @@ export default function InboxScreen() {
 // ─── Detail styles ─────────────────────────────────────────────────────────────
 
 const d = StyleSheet.create({
-  emptyNote:       { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 16, alignItems: 'center' },
-  emptyNoteText:   { color: C.muted, fontSize: 14, textAlign: 'center' },
+  emptyNote:        { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16, alignItems: 'center' },
+  emptyNoteText:    { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14, textAlign: 'center' },
 
-  pitchGenreRow:   { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
-  tag:             { backgroundColor: C.card, borderRadius: 6, borderWidth: 1, borderColor: C.border, paddingHorizontal: 10, paddingVertical: 4 },
-  tagText:         { color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 0.5 },
+  pitchGenreRow:    { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
+  tag:              { backgroundColor: C.cardBg, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingHorizontal: 10, paddingVertical: 4 },
+  tagText:          { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 0.5 },
 
-  logline:         { color: '#a89fd4', fontSize: 15, lineHeight: 22, fontStyle: 'italic', marginBottom: 18 },
+  logline:          { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 15, lineHeight: 22, fontStyle: 'italic', marginBottom: 18 },
 
-  infoBlock:       { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, marginBottom: 14, overflow: 'hidden' },
-  row:             { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
-  rowLabel:        { color: C.muted, fontSize: 14 },
-  rowValue:        { color: C.text, fontSize: 14, fontWeight: '500' },
+  infoBlock:        { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginBottom: 14, overflow: 'hidden' },
+  row:              { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
+  rowLabel:         { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14 },
+  rowValue:         { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
 
-  noteCard:        { backgroundColor: '#16161f', borderRadius: 8, borderWidth: 1, borderColor: C.border, padding: 12, marginBottom: 20 },
-  noteText:        { color: C.muted, fontSize: 13, lineHeight: 19 },
+  noteCard:         { backgroundColor: C.cardBg2, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 12, marginBottom: 20 },
+  noteText:         { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 19 },
 
-  actionRow:       { flexDirection: 'row', gap: 10 },
-  passBtn:         { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 15, alignItems: 'center' },
-  passBtnText:     { color: C.muted, fontSize: 15, fontWeight: '500' },
-  primaryBtn:      { flex: 2, backgroundColor: C.accent, borderRadius: 12, padding: 15, alignItems: 'center' },
-  primaryBtnText:  { color: '#fff', fontSize: 15, fontWeight: '600' },
+  actionRow:        { flexDirection: 'row', gap: 10 },
+  passBtn:          { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 15, alignItems: 'center', justifyContent: 'center' },
+  passBtnText:      { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+  primaryBtn:       { flex: 2, borderRadius: 12, overflow: 'hidden' },
+  primaryBtnGrad:   { padding: 15, alignItems: 'center' },
+  primaryBtnText:   { color: '#161008', fontFamily: 'Manrope_800ExtraBold', fontSize: 15 },
 
-  expiredNote:     { borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 14, alignItems: 'center' },
-  expiredText:     { color: C.muted, fontSize: 14 },
+  expiredNote:      { borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, alignItems: 'center' },
+  expiredText:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14 },
 
-  streamingAmount: { color: C.text, fontSize: 38, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
-  streamingFrom:   { color: C.muted, fontSize: 14, textAlign: 'center' },
-  streamingShow:   { color: C.accent, fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 18 },
+  streamingAmount:  { fontFamily: 'BebasNeue_400Regular', fontSize: 44, textAlign: 'center', marginBottom: 4, letterSpacing: 1 },
+  streamingFrom:    { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14, textAlign: 'center' },
+  streamingShow:    { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 16, textAlign: 'center', marginBottom: 18 },
 
-  emmyWinBanner:   { backgroundColor: C.amber + '22', borderWidth: 1, borderColor: C.amber + '66', borderRadius: 10, padding: 14, marginBottom: 14, alignItems: 'center' },
-  emmyWinText:     { color: C.amber, fontSize: 16, fontWeight: '700' },
-  emmyRow:         { backgroundColor: C.card, borderRadius: 8, borderWidth: 1, borderColor: C.border, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
-  emmyRowWon:      { borderColor: C.amber + '66', backgroundColor: '#1e1a10' },
-  emmyCategory:    { color: C.text, fontSize: 14, fontWeight: '500', marginBottom: 2 },
-  emmyShow:        { color: C.muted, fontSize: 12 },
-  emmyWonBadge:    { color: C.amber, fontSize: 12, fontWeight: '700' },
-  emmyNomBadge:    { color: C.muted, fontSize: 12 },
+  emmyWinBanner:    { backgroundColor: C.amber + '22', borderWidth: 1, borderColor: C.amber + '66', borderRadius: 12, padding: 14, marginBottom: 14, alignItems: 'center' },
+  emmyWinText:      { color: C.amber, fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
+  emmyRow:          { backgroundColor: C.cardBg, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 12, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
+  emmyRowWon:       { borderColor: C.amber + '66', backgroundColor: '#1e1808' },
+  emmyCategory:     { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14, marginBottom: 2 },
+  emmyShow:         { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
+  emmyWonBadge:     { color: C.amber, fontFamily: 'Manrope_800ExtraBold', fontSize: 12 },
+  emmyNomBadge:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
 
-  newsBody:        { color: '#a89fd4', fontSize: 15, lineHeight: 22, marginBottom: 16 },
-  newsCard:        { backgroundColor: C.card, borderRadius: 8, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 8 },
-  newsCardHeadline:{ color: C.text, fontSize: 14, fontWeight: '600', marginBottom: 6 },
-  newsCardBody:    { color: C.muted, fontSize: 13, lineHeight: 19 },
+  newsBody:         { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 15, lineHeight: 22, marginBottom: 16 },
+  newsCard:         { backgroundColor: C.cardBg, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 8 },
+  newsCardHeadline: { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 6 },
+  newsCardBody:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 19 },
 });
 
 // ─── List styles ──────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: C.bg },
-  header:          { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border, gap: 10 },
-  backBtn:         { marginRight: 'auto' as any },
-  backText:        { color: C.accent, fontSize: 15 },
-  headerTitle:     { color: C.text, fontSize: 20, fontWeight: '700' },
-  unreadBadge:     { backgroundColor: C.accent, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  unreadBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  container:        { flex: 1, backgroundColor: C.pageBg },
+  header:           { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border, gap: 10 },
+  backBtn:          { marginRight: 'auto' as any },
+  backText:         { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+  headerTitle:      { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 1 },
+  unreadBadge:      { backgroundColor: C.gold, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  unreadBadgeText:  { color: '#161008', fontFamily: 'Manrope_800ExtraBold', fontSize: 12 },
 
-  scroll:          { flex: 1 },
-  scrollContent:   { padding: 16 },
+  scroll:           { flex: 1 },
+  scrollContent:    { padding: 16 },
 
-  empty:           { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyText:       { color: C.muted, fontSize: 16, marginBottom: 8 },
-  emptyHint:       { color: C.muted, fontSize: 13, textAlign: 'center', lineHeight: 19 },
+  empty:            { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  emptyText:        { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 16, marginBottom: 8 },
+  emptyHint:        { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, textAlign: 'center', lineHeight: 19 },
 
-  itemCard:        { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
-  itemCardRead:    { opacity: 0.65 },
-  itemLeft:        { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  unreadDot:       { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent, marginTop: 5 },
-  readDot:         { width: 8, height: 8, borderRadius: 4, backgroundColor: 'transparent', marginTop: 5 },
-  itemTopRow:      { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  typeBadgeSmall:  { borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
-  typeBadgeSmallText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
-  itemWeek:        { color: C.muted, fontSize: 11 },
-  itemTitle:       { color: C.text, fontSize: 14, fontWeight: '600', marginBottom: 2 },
-  itemTitleRead:   { color: C.muted, fontWeight: '400' },
-  itemPreview:     { color: C.muted, fontSize: 12 },
-  itemChevron:     { color: C.muted, fontSize: 22, marginLeft: 8 },
+  itemCard:         { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
+  itemCardRead:     { opacity: 0.65 },
+  itemLeft:         { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  unreadDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: C.gold, marginTop: 5 },
+  readDot:          { width: 8, height: 8, borderRadius: 4, backgroundColor: 'transparent', marginTop: 5 },
+  itemTopRow:       { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  typeBadgeSmall:   { borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  typeBadgeSmallText: { fontFamily: 'Manrope_800ExtraBold', fontSize: 9, letterSpacing: 0.5 },
+  itemWeek:         { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11 },
+  itemTitle:        { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 2 },
+  itemTitleRead:    { color: C.muted, fontFamily: 'Manrope_400Regular' },
+  itemPreview:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
+  itemChevron:      { color: C.muted, fontSize: 22, marginLeft: 8 },
 
-  detailMeta:      { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  typeBadge:       { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
-  typeBadgeText:   { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  detailWeek:      { color: C.muted, fontSize: 13 },
-  detailTitle:     { color: C.text, fontSize: 22, fontWeight: '700', marginBottom: 20, lineHeight: 28 },
-  detailBody:      {},
+  detailMeta:       { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  typeBadge:        { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  typeBadgeText:    { fontFamily: 'Manrope_800ExtraBold', fontSize: 11, letterSpacing: 0.5 },
+  detailWeek:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13 },
+  detailTitle:      { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 30, marginBottom: 20, letterSpacing: 0.5, lineHeight: 34 },
+  detailBody:       {},
 });
