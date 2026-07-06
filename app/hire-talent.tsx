@@ -189,7 +189,10 @@ function OfferModal({
           </TouchableOpacity>
         </View>
 
-        <Text style={s.modalName}>{talent.name}</Text>
+        <View style={s.modalNameRow}>
+          <Image source={AVATAR_MAP[talent.avatarId]} style={s.modalAvatar} />
+          <Text style={s.modalName}>{talent.name}</Text>
+        </View>
         <Text style={s.modalRole}>{ROLE_LABELS[role]} · {popularityLabel(talent.popularity)}</Text>
 
         <View style={s.statsBlock}>
@@ -452,7 +455,9 @@ const s = StyleSheet.create({
   modalChemText:  { fontFamily: 'Manrope_700Bold', fontSize: 12 },
   modalClose:     { padding: 4 },
   modalCloseText: { color: C.muted, fontSize: 18 },
-  modalName:      { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 30, letterSpacing: 0.5, marginBottom: 4 },
+  modalNameRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  modalAvatar:    { width: 30, height: 36, borderRadius: 5 },
+  modalName:      { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 30, letterSpacing: 0.5 },
   modalRole:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14, marginBottom: 20 },
 
   statsBlock:     { gap: 10, marginBottom: 24 },
