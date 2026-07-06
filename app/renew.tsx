@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { Talent } from '../src/types';
 import { TALENT_FEES, MIN_EPISODES, MAX_EPISODES } from '../src/constants/game';
+import { AVATAR_MAP } from '../src/utils/avatars';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
@@ -74,7 +75,10 @@ function TalentReturnCard({
   return (
     <View style={[s.talentCard, selected && s.talentCardSelected, !returnable && s.talentCardBusy]}>
       <View style={s.talentLeft}>
-        <View style={[s.chemDot, { backgroundColor: chemColor }]} />
+        <View style={s.avatarWrap}>
+          <Image source={AVATAR_MAP[talent.avatarId]} style={s.avatarThumb} />
+          <View style={[s.chemPip, { backgroundColor: chemColor }]} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={s.talentName}>{talent.name}</Text>
           <Text style={s.talentMeta}>
@@ -236,7 +240,10 @@ export default function RenewScreen() {
         {returningShowrunner ? (
           <View style={[s.talentCard, s.talentCardAuto]}>
             <View style={s.talentLeft}>
-              <View style={[s.chemDot, { backgroundColor: CHEM_COLORS[returningShowrunner.chemistryColor] }]} />
+              <View style={s.avatarWrap}>
+                <Image source={AVATAR_MAP[returningShowrunner.avatarId]} style={s.avatarThumb} />
+                <View style={[s.chemPip, { backgroundColor: CHEM_COLORS[returningShowrunner.chemistryColor] }]} />
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.talentName}>{returningShowrunner.name}</Text>
                 <Text style={s.talentMeta}>Showrunner · Returning automatically</Text>
@@ -435,7 +442,9 @@ const s = StyleSheet.create({
   talentCardAuto:      { borderColor: C.gold + '44' },
   talentCardBusy:      { opacity: 0.55 },
   talentLeft:          { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  chemDot:             { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
+  avatarWrap:          { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
+  avatarThumb:         { width: 44, height: 52 },
+  chemPip:             { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
   talentName:          { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14, marginBottom: 2 },
   talentMeta:          { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
   talentFee:           { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },

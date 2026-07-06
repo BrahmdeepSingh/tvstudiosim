@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { Talent, TalentRole } from '../src/types';
 import { TALENT_FEES } from '../src/constants/game';
+import { AVATAR_MAP } from '../src/utils/avatars';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a', cardBg2: '#1d2035',
@@ -106,7 +107,10 @@ function TalentCard({
   return (
     <TouchableOpacity style={s.talentCard} onPress={() => onSelect(talent)}>
       <View style={s.talentCardLeft}>
-        <View style={[s.chemDot, { backgroundColor: CHEM_COLORS[talent.chemistryColor] }]} />
+        <View style={s.avatarWrap}>
+          <Image source={AVATAR_MAP[talent.avatarId]} style={s.avatarThumb} />
+          <View style={[s.chemPip, { backgroundColor: CHEM_COLORS[talent.chemistryColor] }]} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={s.talentName}>{talent.name}</Text>
           <Text style={s.talentMeta}>
@@ -185,6 +189,9 @@ function OfferModal({
           </TouchableOpacity>
         </View>
 
+        <View style={s.modalAvatarWrap}>
+          <Image source={AVATAR_MAP[talent.avatarId]} style={s.modalAvatar} />
+        </View>
         <Text style={s.modalName}>{talent.name}</Text>
         <Text style={s.modalRole}>{ROLE_LABELS[role]} · {popularityLabel(talent.popularity)}</Text>
 
@@ -420,10 +427,14 @@ const s = StyleSheet.create({
   searchRow:      { paddingHorizontal: 16, paddingBottom: 8 },
   searchInput:    { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 15 },
 
-  talentCard:     { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
-  talentCardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  chemDot:        { width: 12, height: 12, borderRadius: 6 },
-  talentName:     { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+  talentCard:       { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
+  talentCardLeft:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatarWrap:       { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
+  avatarThumb:      { width: 44, height: 52 },
+  chemPip:          { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
+  modalAvatarWrap:  { alignItems: 'center', marginBottom: 10 },
+  modalAvatar:      { width: 80, height: 94, borderRadius: 40 },
+  talentName:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
   talentMeta:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
   talentCardRight:{ alignItems: 'flex-end' },
   talentStat:     { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },

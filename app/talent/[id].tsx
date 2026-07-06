@@ -362,7 +362,7 @@ const s = StyleSheet.create({
   backText:     { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
 
   portraitWrap: { alignItems: 'center', marginBottom: 16 },
-  portrait:     { width: 140, height: 165, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+  portrait:     { width: 140, height: 165, borderRadius: 70 },
   nameRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
   name:         { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 32, letterSpacing: 0.5 },
   chemBadge:    { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
