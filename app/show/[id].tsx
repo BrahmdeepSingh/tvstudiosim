@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
 import { Season, Episode } from '../../src/types';
+import { AVATAR_MAP } from '../../src/utils/avatars';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -153,7 +154,10 @@ function CrewRow({ label, talent }: { label: string; talent: any }) {
   const chemColor = CHEM_COLORS[talent.chemistryColor as keyof typeof CHEM_COLORS] ?? C.muted;
   return (
     <View style={sd.crewRow}>
-      <View style={[sd.crewChemDot, { backgroundColor: chemColor }]} />
+      <View style={sd.crewAvatarWrap}>
+        <Image source={AVATAR_MAP[talent.avatarId]} style={sd.crewAvatar} />
+        <View style={[sd.crewChemPip, { backgroundColor: chemColor }]} />
+      </View>
       <View style={{ flex: 1 }}>
         <Text style={sd.crewName}>{talent.name}</Text>
         <Text style={sd.crewRole}>{label}</Text>
@@ -703,9 +707,11 @@ const sd = StyleSheet.create({
   finValue:    { fontFamily: 'Manrope_600SemiBold', color: C.text, fontSize: 13 },
 
   // ── Crew ─────────────────────────────────────────────────────────────────────
-  crewRow:     { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border },
-  crewChemDot: { width: 10, height: 10, borderRadius: 5 },
-  crewName:    { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 14 },
+  crewRow:        { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border },
+  crewAvatarWrap: { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
+  crewAvatar:     { width: 44, height: 52 },
+  crewChemPip:    { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
+  crewName:       { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 14 },
   crewRole:    { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11, marginTop: 2 },
   hireBtn:     { marginTop: 10, borderWidth: 1, borderColor: C.borderGold55, borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: C.goldDim },
   hireBtnText: { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 11, letterSpacing: 1 },
