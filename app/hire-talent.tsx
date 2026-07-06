@@ -1,6 +1,6 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, FlatList,
-  StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Modal, Image,
+  StyleSheet, SafeAreaView, Image,
 } from 'react-native';
 import { useState, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -392,7 +392,7 @@ export default function HireTalentScreen() {
       )}
 
       {selectedTalent && (
-        <Modal transparent animationType="fade">
+        <View style={[StyleSheet.absoluteFill, { zIndex: 50 }]} pointerEvents="box-none">
           <OfferModal
             talent={selectedTalent}
             showID={showID}
@@ -401,7 +401,7 @@ export default function HireTalentScreen() {
             onSuccess={handleSuccess}
             onClose={() => setSelectedTalent(null)}
           />
-        </Modal>
+        </View>
       )}
     </SafeAreaView>
   );
