@@ -189,9 +189,6 @@ function OfferModal({
           </TouchableOpacity>
         </View>
 
-        <View style={s.modalAvatarWrap}>
-          <Image source={AVATAR_MAP[talent.avatarId]} style={s.modalAvatar} />
-        </View>
         <Text style={s.modalName}>{talent.name}</Text>
         <Text style={s.modalRole}>{ROLE_LABELS[role]} · {popularityLabel(talent.popularity)}</Text>
 
@@ -432,8 +429,6 @@ const s = StyleSheet.create({
   avatarWrap:       { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
   avatarThumb:      { width: 44, height: 52 },
   chemPip:          { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
-  modalAvatarWrap:  { alignItems: 'center', marginBottom: 10 },
-  modalAvatar:      { width: 80, height: 94, borderRadius: 40 },
   talentName:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
   talentMeta:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
   talentCardRight:{ alignItems: 'flex-end' },
@@ -451,7 +446,7 @@ const s = StyleSheet.create({
 
   // Modal
   modalOverlay:   { flex: 1, backgroundColor: '#000000cc', justifyContent: 'flex-end' },
-  modalCard:      { backgroundColor: '#16192a', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: C.border, padding: 24 },
+  modalCard:      { backgroundColor: '#16192a', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: C.border, padding: 24, maxHeight: '88%' },
   modalHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   modalChemBadge: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
   modalChemText:  { fontFamily: 'Manrope_700Bold', fontSize: 12 },
