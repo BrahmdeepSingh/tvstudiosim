@@ -2,17 +2,24 @@ import { Talent, TalentStats, ChemistryColor, TalentRole, Genre, EmmyCategory, L
 import { nanoid } from '../utils/nanoid';
 import { randomBetween, randomItem, clamp } from '../utils/random';
 import { STARTING_YEAR, TALENT_FEES } from '../constants/game';
+import { MALE_AVATAR_IDS, FEMALE_AVATAR_IDS } from '../utils/avatars';
 
 const CHEMISTRY_COLORS: ChemistryColor[] = ['green', 'blue', 'red'];
 
 // ─── Name pools ───────────────────────────────────────────────────────────────
 
-const FIRST_NAMES = [
-  'James', 'Maria', 'David', 'Sarah', 'Michael', 'Elena', 'Robert', 'Angela',
-  'Thomas', 'Diana', 'Kevin', 'Nicole', 'Daniel', 'Rachel', 'Marcus', 'Lauren',
-  'Eric', 'Vanessa', 'Brian', 'Tara', 'Jason', 'Melissa', 'Chris', 'Dana',
-  'Nathan', 'Olivia', 'Patrick', 'Claire', 'Derek', 'Simone', 'Aaron', 'Priya',
-  'Leon', 'Cassandra', 'Owen', 'Nina', 'Victor', 'Sofia', 'Adrian', 'Maya',
+const MALE_FIRST_NAMES = [
+  'James', 'David', 'Michael', 'Robert', 'Thomas', 'Kevin', 'Daniel', 'Marcus',
+  'Eric', 'Brian', 'Jason', 'Nathan', 'Patrick', 'Derek', 'Aaron', 'Leon',
+  'Owen', 'Victor', 'Adrian', 'Chris', 'Raymond', 'Curtis', 'Miles', 'Grant',
+  'Elliot', 'Calvin', 'Brendan', 'Theo', 'Silas', 'Hugo',
+];
+
+const FEMALE_FIRST_NAMES = [
+  'Maria', 'Sarah', 'Elena', 'Angela', 'Diana', 'Nicole', 'Rachel', 'Lauren',
+  'Vanessa', 'Tara', 'Melissa', 'Dana', 'Olivia', 'Claire', 'Simone', 'Priya',
+  'Cassandra', 'Nina', 'Sofia', 'Maya', 'Layla', 'Audrey', 'Camille', 'Iris',
+  'Serena', 'Jade', 'Amara', 'Fiona', 'Nadia', 'Celeste',
 ];
 
 const LAST_NAMES = [
@@ -22,8 +29,9 @@ const LAST_NAMES = [
   'Sinclair', 'Patel', 'Graham', 'Moss', 'Burke', 'Adler', 'Yates', 'Kim',
 ];
 
-function randomName(): string {
-  return `${randomItem(FIRST_NAMES)} ${randomItem(LAST_NAMES)}`;
+function randomName(gender: 'male' | 'female'): string {
+  const first = gender === 'male' ? randomItem(MALE_FIRST_NAMES) : randomItem(FEMALE_FIRST_NAMES);
+  return `${first} ${randomItem(LAST_NAMES)}`;
 }
 
 // ─── Flavor pools ─────────────────────────────────────────────────────────────
@@ -81,16 +89,17 @@ function randomLegacyTitle(): string {
   return `${randomItem(LEGACY_TITLE_ADJECTIVES)} ${randomItem(LEGACY_TITLE_NOUNS)}`;
 }
 
-const ACTING_CATEGORIES_DRAMA: EmmyCategory[] = ['best-drama-actor', 'best-drama-actress'];
-const ACTING_CATEGORIES_COMEDY: EmmyCategory[] = ['best-comedy-actor', 'best-comedy-actress'];
-
-function categoryForLegacyCredit(role: TalentRole, genre: Genre): EmmyCategory | null {
+function categoryForLegacyCredit(
+  role: TalentRole,
+  genre: Genre,
+  gender: 'male' | 'female',
+): EmmyCategory | null {
   if (role === 'showrunner') return 'best-writing';
   if (role === 'director') return 'best-director';
-  // actor — reality has no acting Emmy category in this game's model
+  // actor — reality has no acting Emmy in this game's model
   if (genre === 'reality') return null;
-  if (genre === 'comedy') return randomItem(ACTING_CATEGORIES_COMEDY);
-  return randomItem(ACTING_CATEGORIES_DRAMA);
+  if (genre === 'comedy') return gender === 'male' ? 'best-comedy-actor' : 'best-comedy-actress';
+  return gender === 'male' ? 'best-drama-actor' : 'best-drama-actress';
 }
 
 function generateLegacyCareer(
@@ -99,6 +108,7 @@ function generateLegacyCareer(
   popularity: number,
   yearsActive: number,
   debutYear: number,
+  gender: 'male' | 'female',
 ): { legacyCredits: LegacyCredit[]; legacyAwards: LegacyAward[]; priorCareerEarnings: number } {
   if (yearsActive <= 0) {
     return { legacyCredits: [], legacyAwards: [], priorCareerEarnings: 0 };
@@ -121,7 +131,7 @@ function generateLegacyCareer(
 
     legacyCredits.push({ title: randomLegacyTitle(), genre, year });
 
-    const category = categoryForLegacyCredit(role, genre);
+    const category = categoryForLegacyCredit(role, genre, gender);
     if (category && Math.random() < nominationChance) {
       const won = Math.random() < winChanceGivenNom;
       legacyAwards.push({ category, year, won });
@@ -130,7 +140,6 @@ function generateLegacyCareer(
 
   legacyCredits.sort((a, b) => a.year - b.year);
 
-  // Each past credit paid at least the going minimum rate for this role/tier.
   const minFeeForTier = TALENT_FEES[role][tier][0];
   const priorCareerEarnings = numCredits * minFeeForTier;
 
@@ -202,6 +211,8 @@ function prestigeRequiredForTier(tier: 'low' | 'mid' | 'high'): number {
 function makeTalent(
   role: TalentRole,
   tier: 'low' | 'mid' | 'high',
+  gender: 'male' | 'female',
+  avatarId: string,
 ): Talent {
   const stats: TalentStats =
     role === 'showrunner'
@@ -210,19 +221,19 @@ function makeTalent(
       ? makeDirectorStats(tier)
       : makeActorStats(tier);
 
-  // Actors skew younger (room for true newcomers); showrunners/directors
-  // are rarely fresh out of school.
   const age = role === 'actor' ? randomBetween(20, 60) : randomBetween(26, 64);
   const yearsActive = randomBetween(0, Math.max(0, age - 20));
   const debutYear = STARTING_YEAR - yearsActive;
   const popularity = popularityForTier(tier);
 
   const { legacyCredits, legacyAwards, priorCareerEarnings } =
-    generateLegacyCareer(role, tier, popularity, yearsActive, debutYear);
+    generateLegacyCareer(role, tier, popularity, yearsActive, debutYear, gender);
 
   return {
     id: nanoid(),
-    name: randomName(),
+    name: randomName(gender),
+    gender,
+    avatarId,
     role,
     age,
     popularity,
@@ -243,25 +254,52 @@ function makeTalent(
   };
 }
 
+// ─── Avatar pool helpers ──────────────────────────────────────────────────────
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 // ─── Initial Pool ─────────────────────────────────────────────────────────────
 
 export function generateInitialTalentPool(): Talent[] {
   const pool: Talent[] = [];
 
+  // Shuffle avatar pools once per game — guarantees no duplicates within a game,
+  // random variety across games.
+  const maleAvatars = shuffle([...MALE_AVATAR_IDS]);
+  const femaleAvatars = shuffle([...FEMALE_AVATAR_IDS]);
+  let maleIdx = 0;
+  let femaleIdx = 0;
+
+  function nextAvatar(gender: 'male' | 'female'): string {
+    return gender === 'male' ? maleAvatars[maleIdx++] : femaleAvatars[femaleIdx++];
+  }
+
+  function make(role: TalentRole, tier: 'low' | 'mid' | 'high'): Talent {
+    const gender: 'male' | 'female' = Math.random() < 0.5 ? 'male' : 'female';
+    return makeTalent(role, tier, gender, nextAvatar(gender));
+  }
+
   // Low tier (available from the start)
-  for (let i = 0; i < 6; i++) pool.push(makeTalent('showrunner', 'low'));
-  for (let i = 0; i < 6; i++) pool.push(makeTalent('director', 'low'));
-  for (let i = 0; i < 14; i++) pool.push(makeTalent('actor', 'low'));
+  for (let i = 0; i < 6; i++) pool.push(make('showrunner', 'low'));
+  for (let i = 0; i < 6; i++) pool.push(make('director', 'low'));
+  for (let i = 0; i < 14; i++) pool.push(make('actor', 'low'));
 
   // Mid tier (unlocked at prestige 21)
-  for (let i = 0; i < 5; i++) pool.push(makeTalent('showrunner', 'mid'));
-  for (let i = 0; i < 5; i++) pool.push(makeTalent('director', 'mid'));
-  for (let i = 0; i < 10; i++) pool.push(makeTalent('actor', 'mid'));
+  for (let i = 0; i < 5; i++) pool.push(make('showrunner', 'mid'));
+  for (let i = 0; i < 5; i++) pool.push(make('director', 'mid'));
+  for (let i = 0; i < 10; i++) pool.push(make('actor', 'mid'));
 
   // High tier (unlocked at prestige 61)
-  for (let i = 0; i < 3; i++) pool.push(makeTalent('showrunner', 'high'));
-  for (let i = 0; i < 3; i++) pool.push(makeTalent('director', 'high'));
-  for (let i = 0; i < 6; i++) pool.push(makeTalent('actor', 'high'));
+  for (let i = 0; i < 3; i++) pool.push(make('showrunner', 'high'));
+  for (let i = 0; i < 3; i++) pool.push(make('director', 'high'));
+  for (let i = 0; i < 6; i++) pool.push(make('actor', 'high'));
 
   return pool;
 }

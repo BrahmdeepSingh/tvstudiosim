@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { Talent, TalentRole } from '../../src/types';
+import { AVATAR_MAP } from '../../src/utils/avatars';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
@@ -70,7 +71,10 @@ function TalentCard({ talent, onPress }: { talent: Talent; onPress: () => void }
   return (
     <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
       <View style={s.cardLeft}>
-        <View style={[s.chemDot, { backgroundColor: chemColor }]} />
+        <View style={s.avatarWrap}>
+          <Image source={AVATAR_MAP[talent.avatarId]} style={s.avatarThumb} />
+          <View style={[s.chemPip, { backgroundColor: chemColor }]} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={s.name}>{talent.name}</Text>
           <Text style={s.meta}>
@@ -246,7 +250,9 @@ const s = StyleSheet.create({
 
   card:             { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
   cardLeft:         { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  chemDot:          { width: 11, height: 11, borderRadius: 6 },
+  avatarWrap:       { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
+  avatarThumb:      { width: 44, height: 52 },
+  chemPip:          { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
   name:             { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15, marginBottom: 2 },
   meta:             { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
   cardRight:        { flexDirection: 'row', alignItems: 'center', gap: 12 },

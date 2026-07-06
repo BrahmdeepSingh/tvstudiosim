@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { getYearsActive } from '../../src/engine/talent';
 import { EMMY_CATEGORY_LABELS } from '../../src/constants/game';
+import { AVATAR_MAP } from '../../src/utils/avatars';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
@@ -162,6 +163,9 @@ export default function TalentDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        <View style={s.portraitWrap}>
+          <Image source={AVATAR_MAP[person.avatarId]} style={s.portrait} />
+        </View>
         <View style={s.nameRow}>
           <Text style={s.name}>{person.name}</Text>
           <View style={[s.chemBadge, { borderColor: chemColor, backgroundColor: chemColor + '22' }]}>
@@ -357,6 +361,8 @@ const s = StyleSheet.create({
   backBtn:      { padding: 4 },
   backText:     { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
 
+  portraitWrap: { alignItems: 'center', marginBottom: 16 },
+  portrait:     { width: 140, height: 165, borderRadius: 12, borderWidth: 1, borderColor: C.border },
   nameRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
   name:         { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 32, letterSpacing: 0.5 },
   chemBadge:    { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },

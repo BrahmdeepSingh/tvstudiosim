@@ -77,6 +77,8 @@ export type TalentStats =
 export interface Talent {
   id: string;
   name: string;
+  gender: 'male' | 'female';
+  avatarId: string; // e.g. "03_c" → assets/avatars/avatar_03_c.png
   role: TalentRole;
   age: number;
   popularity: number; // 0–100, drives negotiation difficulty
