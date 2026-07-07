@@ -446,9 +446,19 @@ export default function Dashboard() {
             />
           </View>
 
-          {/* ── DEADLINE news card ── */}
+          {/* ── DEADLINE news card — top story this week (priority: player > emmy > competitor > industry) ── */}
           <NewsCard
-            item={newsItems.length > 0 ? newsItems[newsItems.length - 1] : null}
+            item={(() => {
+              if (newsItems.length === 0) return null;
+              const TYPE_PRIORITY: Record<string, number> = { player: 0, emmy: 1, competitor: 2, industry: 3 };
+              const thisWeekItems = newsItems.filter(
+                n => n.week === network.currentWeek && n.year === network.currentYear
+              );
+              const pool = thisWeekItems.length > 0 ? thisWeekItems : [newsItems[newsItems.length - 1]];
+              return pool.reduce((best, n) =>
+                (TYPE_PRIORITY[n.type] ?? 99) < (TYPE_PRIORITY[best.type] ?? 99) ? n : best
+              );
+            })()}
             week={network.currentWeek}
             year={network.currentYear}
           />
