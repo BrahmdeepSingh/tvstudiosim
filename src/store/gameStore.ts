@@ -294,7 +294,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(s => ({
       network: { ...s.network, cashOnHand: s.network.cashOnHand - flatFee },
       talent: s.talent.map(t =>
-        t.id === talentID ? { ...t, available: false, bookedForSeasonID: season.id } : t,
+        t.id === talentID
+          ? { ...t, available: false, bookedForSeasonID: season.id, careerShowIDs: t.careerShowIDs.includes(showID) ? t.careerShowIDs : [...t.careerShowIDs, showID] }
+          : t,
       ),
       shows: s.shows.map(sh =>
         sh.id === showID
@@ -338,7 +340,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(s => ({
       network: { ...s.network, cashOnHand: s.network.cashOnHand - flatFee },
       talent: s.talent.map(t =>
-        t.id === talentID ? { ...t, available: false, bookedForSeasonID: season.id } : t,
+        t.id === talentID
+          ? { ...t, available: false, bookedForSeasonID: season.id, careerShowIDs: t.careerShowIDs.includes(showID) ? t.careerShowIDs : [...t.careerShowIDs, showID] }
+          : t,
       ),
       shows: s.shows.map(sh =>
         sh.id === showID
@@ -383,7 +387,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(s => ({
       network: { ...s.network, cashOnHand: s.network.cashOnHand - flatFee },
       talent: s.talent.map(t =>
-        t.id === talentID ? { ...t, available: false, bookedForSeasonID: season.id } : t,
+        t.id === talentID
+          ? { ...t, available: false, bookedForSeasonID: season.id, careerShowIDs: t.careerShowIDs.includes(showID) ? t.careerShowIDs : [...t.careerShowIDs, showID] }
+          : t,
       ),
       shows: s.shows.map(sh =>
         sh.id === showID
@@ -559,7 +565,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ),
       talent: s.talent.map(t =>
         t.id === pitch.showrunnerID
-          ? { ...t, available: false, bookedForSeasonID: seasonID }
+          ? { ...t, available: false, bookedForSeasonID: seasonID, careerShowIDs: t.careerShowIDs.includes(showID) ? t.careerShowIDs : [...t.careerShowIDs, showID] }
           : t,
       ),
       talentDeals: [...s.talentDeals, deal],
@@ -676,12 +682,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
             }
           : sh,
       ),
-      // Free previous season's cast/director (showrunner stays booked)
-      talent: s.talent.map(t =>
-        prevCast.includes(t.id) && t.bookedForSeasonID === prevSeason.id
-          ? { ...t, available: true, bookedForSeasonID: null }
-          : t,
-      ),
+      // Free previous season's cast/director; re-point showrunner to new season
+      talent: s.talent.map(t => {
+        if (prevCast.includes(t.id) && t.bookedForSeasonID === prevSeason.id) {
+          return { ...t, available: true, bookedForSeasonID: null };
+        }
+        if (t.id === prevSeason.showrunnerID) {
+          return { ...t, bookedForSeasonID: newSeasonID };
+        }
+        return t;
+      }),
       newsItems: [...s.newsItems, renewalNews].slice(-150),
     }));
   },
