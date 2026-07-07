@@ -264,6 +264,7 @@ export default function MediaScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={{ flexGrow: 0 }}
             contentContainerStyle={s.filterRow}
           >
             {NEWS_FILTERS.map(f => (
@@ -280,7 +281,7 @@ export default function MediaScreen() {
             ))}
           </ScrollView>
 
-          <ScrollView contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
             {filteredNews.length === 0 ? (
               <View style={s.emptyState}>
                 <Text style={s.emptyText}>No stories yet. Advance the week to generate news.</Text>
@@ -314,6 +315,7 @@ export default function MediaScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={{ flexGrow: 0 }}
             contentContainerStyle={s.filterRow}
           >
             <TouchableOpacity
@@ -337,7 +339,7 @@ export default function MediaScreen() {
             ))}
           </ScrollView>
 
-          <ScrollView contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
             {filteredReactions.length === 0 ? (
               <View style={s.emptyState}>
                 <Text style={s.emptyText}>
