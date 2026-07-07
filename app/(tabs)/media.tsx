@@ -236,7 +236,7 @@ export default function MediaScreen() {
       <View style={s.tabRow}>
         <TouchableOpacity style={s.tabBtn} onPress={() => setTab('news')} activeOpacity={0.9}>
           {tab === 'news' ? (
-            <LinearGradient colors={[C.goldMid, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.tabInner}>
+            <LinearGradient colors={[C.goldMid, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.tabInner}>
               <Text style={[s.tabText, s.tabTextActive]}>NEWS</Text>
             </LinearGradient>
           ) : (
@@ -247,7 +247,7 @@ export default function MediaScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={s.tabBtn} onPress={() => setTab('social')} activeOpacity={0.9}>
           {tab === 'social' ? (
-            <LinearGradient colors={[C.goldMid, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.tabInner}>
+            <LinearGradient colors={[C.goldMid, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.tabInner}>
               <Text style={[s.tabText, s.tabTextActive]}>SOCIAL BUZZ</Text>
             </LinearGradient>
           ) : (
@@ -377,15 +377,15 @@ const s = StyleSheet.create({
   dot:    { width: 5, height: 5, borderRadius: 999, backgroundColor: C.gold, opacity: 0.3 },
 
   // Tab switcher
-  tabRow:       { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+  tabRow:       { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, backgroundColor: '#0a0c18', borderRadius: 12, borderWidth: 1, borderColor: C.gold + '33', padding: 4 },
   tabBtn:       { flex: 1 },
-  tabInner:     { paddingVertical: 13, alignItems: 'center' },
+  tabInner:     { paddingVertical: 11, alignItems: 'center', borderRadius: 9 },
   tabText:      { fontFamily: 'BebasNeue_400Regular', fontSize: 17, letterSpacing: 1.5, color: C.muted },
   tabTextActive:{ color: C.goldBtnText },
 
   // Filter chips
   filterRow: { paddingHorizontal: 14, paddingBottom: 12, gap: 8, flexDirection: 'row' },
-  chip:         { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
+  chip:         { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg, flexShrink: 0 },
   chipActive:   { borderColor: C.gold, backgroundColor: C.goldDim },
   chipText:     { fontFamily: 'Manrope_600SemiBold', fontSize: 13, color: C.muted },
   chipTextActive:{ color: C.gold },
@@ -404,9 +404,9 @@ const s = StyleSheet.create({
   newsByline:   { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 11 },
 
   // Trending banner
-  trendingBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 14, marginBottom: 10, backgroundColor: '#2a0f18', borderWidth: 1, borderColor: '#c4382055', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
-  trendingArrow:  { color: '#e05070', fontFamily: 'Manrope_800ExtraBold', fontSize: 14 },
-  trendingText:   { flex: 1, color: '#e05070', fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
+  trendingBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 14, marginBottom: 10, backgroundColor: '#1e1508', borderWidth: 1, borderColor: C.amber + '55', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
+  trendingArrow:  { color: C.amber, fontFamily: 'Manrope_800ExtraBold', fontSize: 14 },
+  trendingText:   { flex: 1, color: C.amber, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
 
   // Reaction cards
   reactionCard:    { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16 },
