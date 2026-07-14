@@ -52,6 +52,44 @@ export function makeCompetitorGreenlitNews(
   };
 }
 
+export function makeCompetitorPremiereNews(
+  studio: CompetitorStudio,
+  show: CompetitorShow,
+  ctx: Ctx,
+): NewsItem {
+  return {
+    id: nanoid(),
+    week: ctx.week,
+    year: ctx.year,
+    type: 'competitor',
+    read: false,
+    headline: `"${show.title}" premieres on ${studio.name}`,
+    body: `The ${show.genre} series, ${show.seasonNumber > 1 ? `now in its ${ordinal(show.seasonNumber)} season, ` : ''}kicks off its run this week. Early numbers will set the tone for the rest of the season.`,
+  };
+}
+
+export function makeCompetitorCompletedNews(
+  studio: CompetitorStudio,
+  show: CompetitorShow,
+  ctx: Ctx,
+): NewsItem {
+  return {
+    id: nanoid(),
+    week: ctx.week,
+    year: ctx.year,
+    type: 'competitor',
+    read: false,
+    headline: `"${show.title}" wraps ${ordinal(show.seasonNumber)} season on ${studio.name} — no renewal`,
+    body: `The ${show.genre} series has aired its season finale. The network has decided not to renew, bringing the show's run to a close after ${show.episodesAired} episodes.`,
+  };
+}
+
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
+}
+
 const INDUSTRY_STORIES = [
   {
     headline: 'Prestige drama continues to dominate awards conversation',

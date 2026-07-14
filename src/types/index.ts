@@ -242,13 +242,19 @@ export interface CompetitorShow {
   studioID: string;
   title: string;
   genre: Genre;
-  status: 'airing' | 'completed' | 'cancelled';
+  status: 'pre-production' | 'filming' | 'airing' | 'completed' | 'cancelled';
   currentRating: number;
   weeklyViewers: number;
   seasonNumber: number;
   episodesAired: number;
   totalEpisodes: number;
-  bookedTalentIDs: string[];
+  // Pipeline counters
+  preProductionWeeksRemaining: number;
+  filmingWeeksRemaining: number;
+  // Booked talent split by role for staged release
+  bookedShowrunnerID: string | null;
+  bookedDirectorID: string | null;
+  bookedActorIDs: string[];
 }
 
 export interface CompetitorStudio {

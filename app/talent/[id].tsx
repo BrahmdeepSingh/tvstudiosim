@@ -288,8 +288,12 @@ export default function TalentDetailScreen() {
           <Text style={[s.statusText, { color: person.available ? C.green : C.amber }]}>
             {person.available
               ? 'Available for hire'
-              : competitorStudio
-                ? `Filming for ${competitorStudio.name}`
+              : competitorStudio && competitorShow
+                ? competitorShow.status === 'pre-production'
+                  ? `In pre-production with ${competitorStudio.name}`
+                  : competitorShow.status === 'filming'
+                  ? `Filming "${competitorShow.title}" for ${competitorStudio.name}`
+                  : `Airing on ${competitorStudio.name} — "${competitorShow.title}"`
                 : currentShow
                   ? `On: ${currentShow.title}`
                   : 'Currently booked'}
