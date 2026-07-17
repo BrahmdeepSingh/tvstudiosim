@@ -63,7 +63,37 @@ export type InboxItemType =
   | 'emmy-nominations'
   | 'emmy-ceremony'
   | 'revenue-share-payout'
-  | 'news';
+  | 'news'
+  | 'studio-event';
+
+// ─── Studio Events ────────────────────────────────────────────────────────────
+
+export interface EventConsequence {
+  prestigeDelta?: number;
+  cashDelta?: number;
+  newsHeadline?: string;
+  newsBody?: string;
+}
+
+export interface EventChoice {
+  label: string;
+  description: string;
+  consequence: EventConsequence;
+}
+
+export interface StudioEvent {
+  id: string;
+  week: number;
+  year: number;
+  type: 'production' | 'talent' | 'industry' | 'legacy';
+  showID?: string;
+  talentID?: string;
+  title: string;
+  body: string;
+  choices: EventChoice[];
+  resolved: boolean;
+  chosenOptionIndex?: number;
+}
 
 // ─── Talent Stats (discriminated union) ──────────────────────────────────────
 
@@ -360,6 +390,7 @@ export interface GameState {
   newsItems: NewsItem[];
   inboxItems: InboxItem[];
   awards: Award[];
+  studioEvents: StudioEvent[];
   saveSlot: number;
   lastSaved: string;
   initialized: boolean;

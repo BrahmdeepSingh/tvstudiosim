@@ -15,6 +15,7 @@ import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
 import { tryGenerateStreamingOffer, scheduleNextOfferCheck } from './streaming';
 import { generatePitch } from './pitches';
 import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews } from './news';
+import { tryGenerateStudioEvent } from './events';
 import { nanoid } from '../utils/nanoid';
 import { randomChance, randomBetween } from '../utils/random';
 
@@ -324,6 +325,34 @@ export function advanceWeek(state: GameState): GameState {
   const bookedTalentIDs = new Set(talent.filter(t => !t.available).map(t => t.id));
   const prunedDeals = state.talentDeals.filter(d => bookedTalentIDs.has(d.talentID));
 
+  // ─── Studio events ────────────────────────────────────────────────────────
+  const partialState = {
+    ...state,
+    network,
+    shows: updatedShows,
+    talent,
+    pitches,
+    competitors: finalCompetitors,
+    awards,
+    studioEvents: state.studioEvents ?? [],
+  };
+  const newStudioEvent = tryGenerateStudioEvent(partialState, newWeek, newYear);
+  const studioEvents = newStudioEvent
+    ? [...partialState.studioEvents, newStudioEvent]
+    : partialState.studioEvents;
+  if (newStudioEvent) {
+    newInboxItems.push({
+      id: nanoid(),
+      type: 'studio-event',
+      week: newWeek,
+      year: newYear,
+      read: false,
+      refID: newStudioEvent.id,
+      title: newStudioEvent.title,
+      preview: newStudioEvent.body.slice(0, 90) + (newStudioEvent.body.length > 90 ? '…' : ''),
+    });
+  }
+
   return {
     ...state,
     network,
@@ -333,6 +362,7 @@ export function advanceWeek(state: GameState): GameState {
     talentDeals: prunedDeals,
     competitors: finalCompetitors,
     awards,
+    studioEvents,
     newsItems: newNewsItems.slice(-150),
     inboxItems: [...state.inboxItems, ...newInboxItems],
     lastSaved: state.lastSaved,
