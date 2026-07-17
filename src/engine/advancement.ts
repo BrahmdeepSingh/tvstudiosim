@@ -340,18 +340,6 @@ export function advanceWeek(state: GameState): GameState {
   const studioEvents = newStudioEvent
     ? [...partialState.studioEvents, newStudioEvent]
     : partialState.studioEvents;
-  if (newStudioEvent) {
-    newInboxItems.push({
-      id: nanoid(),
-      type: 'studio-event',
-      week: newWeek,
-      year: newYear,
-      read: false,
-      refID: newStudioEvent.id,
-      title: newStudioEvent.title,
-      preview: newStudioEvent.body.slice(0, 90) + (newStudioEvent.body.length > 90 ? '…' : ''),
-    });
-  }
 
   return {
     ...state,

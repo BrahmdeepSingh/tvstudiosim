@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
-import { InboxItem, StudioEvent } from '../../src/types';
+import { InboxItem } from '../../src/types';
 import { EMMY_CATEGORY_LABELS } from '../../src/constants/game';
 
 const C = {
@@ -42,7 +42,6 @@ const TYPE_META: Record<string, { label: string; color: string }> = {
   'emmy-ceremony':       { label: 'EMMYS',    color: C.amber },
   'revenue-share-payout':{ label: 'PAYOUT',   color: C.green },
   'news':                { label: 'NEWS',      color: C.blue },
-  'studio-event':        { label: 'EVENT',     color: '#a06ee8' },
 };
 
 // ─── Detail views ─────────────────────────────────────────────────────────────
@@ -286,132 +285,6 @@ function PayoutDetail({ item }: { item: InboxItem }) {
   );
 }
 
-const EVENT_TYPE_COLORS: Record<string, string> = {
-  production: C.amber,
-  talent:     C.blue,
-  industry:   C.teal,
-  legacy:     C.gold,
-};
-
-function StudioEventDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) {
-  const { studioEvents, resolveStudioEvent, markInboxRead } = useGameStore();
-  const [pendingChoice, setPendingChoice] = useState<number | null>(null);
-  const ev: StudioEvent | undefined = studioEvents.find(e => e.id === item.refID);
-
-  if (!ev) {
-    return (
-      <View style={d.emptyNote}>
-        <Text style={d.emptyNoteText}>This event is no longer available.</Text>
-      </View>
-    );
-  }
-
-  function handleChoice(index: number) {
-    setPendingChoice(index);
-  }
-
-  function confirmChoice() {
-    if (pendingChoice === null) return;
-    resolveStudioEvent(ev!.id, pendingChoice);
-    markInboxRead(item.id);
-  }
-
-  const typeColor = EVENT_TYPE_COLORS[ev.type] ?? C.muted;
-  const chosen = ev.resolved && ev.chosenOptionIndex !== undefined ? ev.choices[ev.chosenOptionIndex] : null;
-
-  if (ev.resolved && chosen) {
-    const { prestigeDelta = 0, cashDelta = 0 } = chosen.consequence;
-    return (
-      <View>
-        <View style={d.eventBodyCard}>
-          <Text style={d.eventBody}>{ev.body}</Text>
-        </View>
-        <View style={[d.eventResolvedBanner, { borderColor: typeColor + '55', backgroundColor: typeColor + '15' }]}>
-          <Text style={[d.eventResolvedLabel, { color: typeColor }]}>You chose: {chosen.label}</Text>
-          <Text style={d.eventResolvedDesc}>{chosen.description}</Text>
-          {(prestigeDelta !== 0 || cashDelta !== 0) && (
-            <View style={d.eventConsequenceRow}>
-              {prestigeDelta !== 0 && (
-                <Text style={[d.eventConsequenceStat, { color: prestigeDelta > 0 ? C.green : C.red }]}>
-                  {prestigeDelta > 0 ? '+' : ''}{prestigeDelta} Prestige
-                </Text>
-              )}
-              {cashDelta !== 0 && (
-                <Text style={[d.eventConsequenceStat, { color: cashDelta > 0 ? C.green : C.red }]}>
-                  {cashDelta > 0 ? '+' : ''}{fmt(cashDelta)}
-                </Text>
-              )}
-            </View>
-          )}
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View>
-      <View style={d.eventBodyCard}>
-        <Text style={d.eventBody}>{ev.body}</Text>
-      </View>
-
-      {pendingChoice !== null ? (
-        <View>
-          <View style={[d.eventSelectedChoice, { borderColor: typeColor + '66' }]}>
-            <Text style={[d.eventSelectedLabel, { color: typeColor }]}>{ev.choices[pendingChoice].label}</Text>
-            <Text style={d.eventSelectedDesc}>{ev.choices[pendingChoice].description}</Text>
-            {(ev.choices[pendingChoice].consequence.prestigeDelta !== 0 || ev.choices[pendingChoice].consequence.cashDelta !== 0) && (
-              <View style={d.eventConsequenceRow}>
-                {(ev.choices[pendingChoice].consequence.prestigeDelta ?? 0) !== 0 && (
-                  <Text style={[d.eventConsequenceStat, { color: (ev.choices[pendingChoice].consequence.prestigeDelta ?? 0) > 0 ? C.green : C.red }]}>
-                    {(ev.choices[pendingChoice].consequence.prestigeDelta ?? 0) > 0 ? '+' : ''}{ev.choices[pendingChoice].consequence.prestigeDelta} Prestige
-                  </Text>
-                )}
-                {(ev.choices[pendingChoice].consequence.cashDelta ?? 0) !== 0 && (
-                  <Text style={[d.eventConsequenceStat, { color: (ev.choices[pendingChoice].consequence.cashDelta ?? 0) > 0 ? C.green : C.red }]}>
-                    {(ev.choices[pendingChoice].consequence.cashDelta ?? 0) > 0 ? '+' : ''}{fmt(ev.choices[pendingChoice].consequence.cashDelta ?? 0)}
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
-          <View style={d.actionRow}>
-            <TouchableOpacity style={d.passBtn} onPress={() => setPendingChoice(null)}>
-              <Text style={d.passBtnText}>Back</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={d.primaryBtn} onPress={confirmChoice}>
-              <LinearGradient
-                colors={[typeColor + 'cc', typeColor]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={d.primaryBtnGrad}
-              >
-                <Text style={d.primaryBtnText}>Confirm</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-        <View style={d.eventChoicesCol}>
-          {ev.choices.map((choice, i) => (
-            <TouchableOpacity
-              key={i}
-              style={d.eventChoiceCard}
-              onPress={() => handleChoice(i)}
-              activeOpacity={0.75}
-            >
-              <View style={d.eventChoiceTop}>
-                <Text style={d.eventChoiceLabel}>{choice.label}</Text>
-                <Text style={[d.eventChoiceArrow, { color: typeColor }]}>›</Text>
-              </View>
-              <Text style={d.eventChoiceDesc}>{choice.description}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
-
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <View style={d.row}>
@@ -498,9 +371,6 @@ export default function InboxScreen() {
             )}
             {selected.type === 'revenue-share-payout' && (
               <PayoutDetail item={selected} />
-            )}
-            {selected.type === 'studio-event' && (
-              <StudioEventDetail item={selected} onDone={closeDetail} />
             )}
           </View>
 
@@ -615,22 +485,6 @@ const d = StyleSheet.create({
   newsCardHeadline: { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 6 },
   newsCardBody:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 19 },
 
-  eventBodyCard:         { backgroundColor: C.cardBg2, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 16 },
-  eventBody:             { color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 15, lineHeight: 23 },
-  eventChoicesCol:       { gap: 10 },
-  eventChoiceCard:       { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14 },
-  eventChoiceTop:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  eventChoiceLabel:      { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 15, flex: 1 },
-  eventChoiceArrow:      { fontSize: 22, marginLeft: 8 },
-  eventChoiceDesc:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 19 },
-  eventSelectedChoice:   { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 14 },
-  eventSelectedLabel:    { fontFamily: 'Manrope_700Bold', fontSize: 15, marginBottom: 4 },
-  eventSelectedDesc:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 19 },
-  eventConsequenceRow:   { flexDirection: 'row', gap: 12, marginTop: 8 },
-  eventConsequenceStat:  { fontFamily: 'Manrope_700Bold', fontSize: 13 },
-  eventResolvedBanner:   { borderRadius: 12, borderWidth: 1, padding: 14 },
-  eventResolvedLabel:    { fontFamily: 'Manrope_700Bold', fontSize: 15, marginBottom: 4 },
-  eventResolvedDesc:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 19 },
 });
 
 // ─── List styles ──────────────────────────────────────────────────────────────

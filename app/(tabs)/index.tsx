@@ -1,12 +1,12 @@
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, Animated, Image,
+  SafeAreaView, Animated, Image, Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Show, NewsItem } from '../../src/types';
+import { Show, NewsItem, StudioEvent } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -254,17 +254,129 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
   );
 }
 
+// ── Studio Event Modal ────────────────────────────────────────────────────────
+const EVENT_COLORS: Record<string, string> = {
+  production: '#d4753a',
+  talent:     '#5b8dee',
+  industry:   '#3db8a8',
+  legacy:     '#e6b254',
+};
+
+function fmtDelta(n: number): string {
+  const sign = n < 0 ? '-' : '+';
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+  return `${sign}$${abs}`;
+}
+
+function StudioEventModal({ event: ev, onDismiss }: { event: StudioEvent; onDismiss: () => void }) {
+  const { resolveStudioEvent } = useGameStore();
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const typeColor = EVENT_COLORS[ev.type] ?? '#9a958e';
+
+  function handleConfirm() {
+    if (selectedIndex === null) return;
+    resolveStudioEvent(ev.id, selectedIndex);
+    onDismiss();
+  }
+
+  const chosen = selectedIndex !== null ? ev.choices[selectedIndex] : null;
+
+  return (
+    <Modal transparent animationType="fade" statusBarTranslucent>
+      <View style={m.overlay}>
+        <View style={m.card}>
+          {/* Event type badge + type label */}
+          <View style={m.topRow}>
+            <View style={[m.typeBadge, { backgroundColor: typeColor + '22', borderColor: typeColor + '88' }]}>
+              <Text style={[m.typeBadgeText, { color: typeColor }]}>{ev.type.toUpperCase()}</Text>
+            </View>
+          </View>
+
+          {/* Title */}
+          <Text style={m.title}>{ev.title.toUpperCase()}</Text>
+
+          {/* Situation body */}
+          <Text style={m.body}>{ev.body}</Text>
+
+          {/* Divider */}
+          <View style={m.divider} />
+
+          {/* Choices or confirm */}
+          {selectedIndex === null ? (
+            <View style={m.choicesCol}>
+              {ev.choices.map((choice, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={m.choiceCard}
+                  onPress={() => setSelectedIndex(i)}
+                  activeOpacity={0.75}
+                >
+                  <View style={m.choiceRow}>
+                    <Text style={m.choiceLabel}>{choice.label}</Text>
+                    <Text style={[m.choiceArrow, { color: typeColor }]}>›</Text>
+                  </View>
+                  <Text style={m.choiceDesc}>{choice.description}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View>
+              <View style={[m.selectedCard, { borderColor: typeColor + '66' }]}>
+                <Text style={[m.selectedLabel, { color: typeColor }]}>{chosen!.label}</Text>
+                <Text style={m.selectedDesc}>{chosen!.description}</Text>
+                {((chosen!.consequence.prestigeDelta ?? 0) !== 0 || (chosen!.consequence.cashDelta ?? 0) !== 0) && (
+                  <View style={m.consequenceRow}>
+                    {(chosen!.consequence.prestigeDelta ?? 0) !== 0 && (
+                      <Text style={[m.consequenceStat, { color: (chosen!.consequence.prestigeDelta ?? 0) > 0 ? '#4ec46e' : '#c43820' }]}>
+                        {(chosen!.consequence.prestigeDelta ?? 0) > 0 ? '+' : ''}{chosen!.consequence.prestigeDelta} Prestige
+                      </Text>
+                    )}
+                    {(chosen!.consequence.cashDelta ?? 0) !== 0 && (
+                      <Text style={[m.consequenceStat, { color: (chosen!.consequence.cashDelta ?? 0) > 0 ? '#4ec46e' : '#c43820' }]}>
+                        {fmtDelta(chosen!.consequence.cashDelta ?? 0)}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+              <View style={m.confirmRow}>
+                <TouchableOpacity style={m.backBtn} onPress={() => setSelectedIndex(null)}>
+                  <Text style={m.backBtnText}>Back</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={m.confirmBtn} onPress={handleConfirm}>
+                  <LinearGradient
+                    colors={[typeColor + 'cc', typeColor]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={m.confirmBtnGrad}
+                  >
+                    <Text style={m.confirmBtnText}>Confirm</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const router = useRouter();
   const {
-    network, shows, inboxItems, newsItems, pitches,
+    network, shows, inboxItems, newsItems, pitches, studioEvents,
     advanceWeek, initialized, initializeGame,
   } = useGameStore();
 
   const [fadedIds, setFadedIds]   = useState<Set<string>>(new Set());
+  const [activeEvent, setActiveEvent] = useState<StudioEvent | null>(null);
   const fadeAnims   = useRef<Record<string, Animated.Value>>({});
   const expiringRef = useRef<Set<string>>(new Set());
+  const seenEventIDs = useRef<Set<string>>(new Set());
   const glowAnim    = useRef(new Animated.Value(0)).current;
 
   // Advance button ripple — one-way pulse: expands out and fades, instant reset
@@ -279,6 +391,18 @@ export default function Dashboard() {
   function itemAgeWeeks(item: { week: number; year: number }) {
     return (network.currentYear - item.year) * WEEKS_PER_YEAR + (network.currentWeek - item.week);
   }
+
+  // Detect newly generated studio events and show popup
+  useEffect(() => {
+    if (!initialized || !studioEvents) return;
+    for (const ev of studioEvents) {
+      if (!ev.resolved && !seenEventIDs.current.has(ev.id) && !activeEvent) {
+        seenEventIDs.current.add(ev.id);
+        setActiveEvent(ev);
+        break;
+      }
+    }
+  }, [studioEvents, initialized]);
 
   useEffect(() => {
     if (!initialized) return;
@@ -582,6 +706,13 @@ export default function Dashboard() {
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+
+      {activeEvent && (
+        <StudioEventModal
+          event={activeEvent}
+          onDismiss={() => setActiveEvent(null)}
+        />
+      )}
     </LinearGradient>
   );
 }
@@ -692,4 +823,38 @@ const s = StyleSheet.create({
   advanceBtn:         { borderRadius: 999, overflow: 'hidden' },
   advanceBtnGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
   advanceBtnText:     { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
+});
+
+// ── Studio Event Modal styles ─────────────────────────────────────────────────
+const m = StyleSheet.create({
+  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  card:           { backgroundColor: '#191c2a', borderRadius: 20, borderWidth: 1, borderColor: '#252840', padding: 20, width: '100%', maxWidth: 420 },
+
+  topRow:         { flexDirection: 'row', marginBottom: 10 },
+  typeBadge:      { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  typeBadgeText:  { fontFamily: 'Manrope_800ExtraBold', fontSize: 10, letterSpacing: 1 },
+
+  title:          { fontFamily: 'BebasNeue_400Regular', color: '#f0ede8', fontSize: 24, letterSpacing: 0.5, lineHeight: 28, marginBottom: 10 },
+  body:           { fontFamily: 'Manrope_400Regular', color: '#9a958e', fontSize: 14, lineHeight: 21, marginBottom: 14 },
+  divider:        { height: 1, backgroundColor: '#252840', marginBottom: 14 },
+
+  choicesCol:     { gap: 8 },
+  choiceCard:     { backgroundColor: '#0f1220', borderRadius: 12, borderWidth: 1, borderColor: '#252840', padding: 12 },
+  choiceRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
+  choiceLabel:    { fontFamily: 'Manrope_700Bold', color: '#f0ede8', fontSize: 14, flex: 1 },
+  choiceArrow:    { fontSize: 20, marginLeft: 8 },
+  choiceDesc:     { fontFamily: 'Manrope_400Regular', color: '#6b6880', fontSize: 12, lineHeight: 17 },
+
+  selectedCard:   { backgroundColor: '#0f1220', borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 12 },
+  selectedLabel:  { fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 4 },
+  selectedDesc:   { fontFamily: 'Manrope_400Regular', color: '#6b6880', fontSize: 12, lineHeight: 17 },
+  consequenceRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  consequenceStat:{ fontFamily: 'Manrope_700Bold', fontSize: 12 },
+
+  confirmRow:     { flexDirection: 'row', gap: 10 },
+  backBtn:        { flex: 1, borderWidth: 1, borderColor: '#252840', borderRadius: 12, padding: 13, alignItems: 'center' },
+  backBtnText:    { fontFamily: 'Manrope_600SemiBold', color: '#9a958e', fontSize: 14 },
+  confirmBtn:     { flex: 2, borderRadius: 12, overflow: 'hidden' },
+  confirmBtnGrad: { padding: 13, alignItems: 'center' },
+  confirmBtnText: { fontFamily: 'Manrope_800ExtraBold', color: '#0f1220', fontSize: 14 },
 });
