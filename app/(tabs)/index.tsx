@@ -270,7 +270,7 @@ function fmtDelta(n: number): string {
   return `${sign}$${abs}`;
 }
 
-function StudioEventModal({ event: ev, onDismiss }: { event: StudioEvent; onDismiss: () => void }) {
+function StudioEventModal({ event: ev }: { event: StudioEvent }) {
   const { resolveStudioEvent } = useGameStore();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const typeColor = EVENT_COLORS[ev.type] ?? '#9a958e';
@@ -278,7 +278,8 @@ function StudioEventModal({ event: ev, onDismiss }: { event: StudioEvent; onDism
   function handleConfirm() {
     if (selectedIndex === null) return;
     resolveStudioEvent(ev.id, selectedIndex);
-    onDismiss();
+    // Modal disappears automatically when the store marks the event resolved
+    // and pendingEvent becomes null in the parent — no manual dismiss needed.
   }
 
   const chosen = selectedIndex !== null ? ev.choices[selectedIndex] : null;
@@ -373,11 +374,13 @@ export default function Dashboard() {
   } = useGameStore();
 
   const [fadedIds, setFadedIds]   = useState<Set<string>>(new Set());
-  const [activeEvent, setActiveEvent] = useState<StudioEvent | null>(null);
   const fadeAnims   = useRef<Record<string, Animated.Value>>({});
   const expiringRef = useRef<Set<string>>(new Set());
-  const seenEventIDs = useRef<Set<string>>(new Set());
   const glowAnim    = useRef(new Animated.Value(0)).current;
+
+  // Derive the current pending event directly — when it's resolved in the store
+  // this becomes null and the modal disappears automatically with no stale-closure issues.
+  const pendingEvent = (studioEvents ?? []).find(e => !e.resolved) ?? null;
 
   // Advance button ripple — one-way pulse: expands out and fades, instant reset
   useEffect(() => {
@@ -391,18 +394,6 @@ export default function Dashboard() {
   function itemAgeWeeks(item: { week: number; year: number }) {
     return (network.currentYear - item.year) * WEEKS_PER_YEAR + (network.currentWeek - item.week);
   }
-
-  // Detect newly generated studio events and show popup
-  useEffect(() => {
-    if (!initialized || !studioEvents) return;
-    for (const ev of studioEvents) {
-      if (!ev.resolved && !seenEventIDs.current.has(ev.id) && !activeEvent) {
-        seenEventIDs.current.add(ev.id);
-        setActiveEvent(ev);
-        break;
-      }
-    }
-  }, [studioEvents, initialized]);
 
   useEffect(() => {
     if (!initialized) return;
@@ -707,11 +698,8 @@ export default function Dashboard() {
         </View>
       </SafeAreaView>
 
-      {activeEvent && (
-        <StudioEventModal
-          event={activeEvent}
-          onDismiss={() => setActiveEvent(null)}
-        />
+      {pendingEvent && (
+        <StudioEventModal event={pendingEvent} />
       )}
     </LinearGradient>
   );
