@@ -71,6 +71,7 @@ export type InboxItemType =
 export interface EventConsequence {
   prestigeDelta?: number;
   cashDelta?: number;
+  delayWeeks?: number; // adds weeks to the show's current production phase
   newsHeadline?: string;
   newsBody?: string;
 }
@@ -86,6 +87,7 @@ export interface StudioEvent {
   week: number;
   year: number;
   type: 'production' | 'talent' | 'industry' | 'legacy';
+  templateKey: string; // which template fired, used for cooldown dedup
   showID?: string;
   talentID?: string;
   title: string;

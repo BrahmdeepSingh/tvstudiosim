@@ -827,7 +827,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const choice = ev.choices[choiceIndex];
     if (!choice) return;
 
-    const { prestigeDelta = 0, cashDelta = 0, newsHeadline, newsBody } = choice.consequence;
+    const { prestigeDelta = 0, cashDelta = 0, delayWeeks = 0, newsHeadline, newsBody } = choice.consequence;
 
     const newNews = newsHeadline && newsBody
       ? [{
@@ -841,18 +841,42 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }]
       : [];
 
-    set(s => ({
-      network: {
-        ...s.network,
-        prestige: Math.max(0, Math.min(100, s.network.prestige + prestigeDelta)),
-        cashOnHand: s.network.cashOnHand + cashDelta,
-        careerEarnings: cashDelta > 0 ? s.network.careerEarnings + cashDelta : s.network.careerEarnings,
-      },
-      studioEvents: s.studioEvents.map(e =>
-        e.id === eventID ? { ...e, resolved: true, chosenOptionIndex: choiceIndex } : e,
-      ),
-      newsItems: newNews.length > 0 ? [...s.newsItems, ...newNews].slice(-150) : s.newsItems,
-    }));
+    set(s => {
+      // Apply delayWeeks to the show's current season if applicable
+      let updatedShows = s.shows;
+      if (delayWeeks > 0 && ev.showID) {
+        updatedShows = s.shows.map(sh => {
+          if (sh.id !== ev.showID) return sh;
+          return {
+            ...sh,
+            seasons: sh.seasons.map((se, idx) => {
+              if (idx !== sh.currentSeasonIndex) return se;
+              if (sh.status === 'writing') {
+                return { ...se, writingWeeksTotal: se.writingWeeksTotal + delayWeeks };
+              }
+              if (sh.status === 'filming') {
+                return { ...se, filmingWeeksTotal: se.filmingWeeksTotal + delayWeeks };
+              }
+              return se;
+            }),
+          };
+        });
+      }
+
+      return {
+        shows: updatedShows,
+        network: {
+          ...s.network,
+          prestige: Math.max(0, Math.min(100, s.network.prestige + prestigeDelta)),
+          cashOnHand: s.network.cashOnHand + cashDelta,
+          careerEarnings: cashDelta > 0 ? s.network.careerEarnings + cashDelta : s.network.careerEarnings,
+        },
+        studioEvents: s.studioEvents.map(e =>
+          e.id === eventID ? { ...e, resolved: true, chosenOptionIndex: choiceIndex } : e,
+        ),
+        newsItems: newNews.length > 0 ? [...s.newsItems, ...newNews].slice(-150) : s.newsItems,
+      };
+    });
   },
 
   // ── Persistence ───────────────────────────────────────────────────────────
