@@ -87,13 +87,14 @@ export function EmmyCeremonyModal() {
   const [revealIdx, setRevealIdx]   = useState(0);  // index currently on reveal screen
 
   // ── Animation refs ────────────────────────────────────────────────────────────
-  const screenFade  = useRef(new Animated.Value(1)).current;
-  const winnerY     = useRef(new Animated.Value(28)).current;
-  const winnerOp    = useRef(new Animated.Value(0)).current;
-  const pill1Op     = useRef(new Animated.Value(0)).current;
-  const pill2Op     = useRef(new Animated.Value(0)).current;
-  const starGlow    = useRef(new Animated.Value(0)).current;
-  const starGlowRef = useRef<Animated.CompositeAnimation | null>(null);
+  const screenFade   = useRef(new Animated.Value(1)).current;
+  const winnerY      = useRef(new Animated.Value(28)).current;
+  const winnerOp     = useRef(new Animated.Value(0)).current;
+  const andWinnerOp  = useRef(new Animated.Value(0)).current;
+  const pill1Op      = useRef(new Animated.Value(0)).current;
+  const pill2Op      = useRef(new Animated.Value(0)).current;
+  const starGlow     = useRef(new Animated.Value(0)).current;
+  const starGlowRef  = useRef<Animated.CompositeAnimation | null>(null);
   const confetti    = useRef(CONFETTI.map(() => ({
     op: new Animated.Value(0),
     ty: new Animated.Value(-14),
@@ -132,11 +133,19 @@ export function EmmyCeremonyModal() {
       }
       return { primary: show?.title ?? '—', sub: network.name };
     }
+    // Competitor — find show title + studio name
+    let compShowTitle = '—';
+    let compStudioName = 'Competitor';
     for (const comp of competitors) {
       const cs = comp.activeShows.find(s => s.id === award.showID);
-      if (cs) return { primary: cs.title, sub: comp.name };
+      if (cs) { compShowTitle = cs.title; compStudioName = comp.name; break; }
     }
-    return { primary: '—', sub: 'Competitor' };
+    // For talent categories, resolve the real talent name when available
+    if (TALENT_CATS.has(award.category) && award.talentID && !award.talentID.startsWith('comp-')) {
+      const t = talent.find(ta => ta.id === award.talentID);
+      if (t) return { primary: t.name, sub: compShowTitle };
+    }
+    return { primary: compShowTitle, sub: compStudioName };
   }, [shows, talent, competitors, network.name]);
 
   const calledWinner = useCallback((cat: EmmyCategory) => {
@@ -157,6 +166,7 @@ export function EmmyCeremonyModal() {
   function resetRevealAnims() {
     winnerY.setValue(28);
     winnerOp.setValue(0);
+    andWinnerOp.setValue(0);
     pill1Op.setValue(0);
     pill2Op.setValue(0);
     starGlow.setValue(0);
@@ -164,25 +174,30 @@ export function EmmyCeremonyModal() {
   }
 
   function startRevealAnims(isPlayerWin: boolean) {
-    // Winner title slides up and fades in after a brief delay
+    // Phase 1: Star glow starts immediately
+    starGlowRef.current?.stop();
+    starGlowRef.current = Animated.loop(
+      Animated.sequence([
+        Animated.timing(starGlow, { toValue: 1,    duration: 1150, useNativeDriver: true }),
+        Animated.timing(starGlow, { toValue: 0.15, duration: 1150, useNativeDriver: true }),
+      ]),
+    );
+    starGlowRef.current.start();
+
+    // Phase 2: "AND THE WINNER IS" fades in after a short beat
+    setTimeout(() => {
+      Animated.timing(andWinnerOp, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+    }, 350);
+
+    // Phase 3: Winner slides up after tension pause
     setTimeout(() => {
       Animated.parallel([
         Animated.timing(winnerY,  { toValue: 0, duration: 420, useNativeDriver: true }),
         Animated.timing(winnerOp, { toValue: 1, duration: 420, useNativeDriver: true }),
       ]).start();
 
-      // Star glow pulses continuously
-      starGlowRef.current?.stop();
-      starGlowRef.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(starGlow, { toValue: 1,   duration: 1150, useNativeDriver: true }),
-          Animated.timing(starGlow, { toValue: 0.15, duration: 1150, useNativeDriver: true }),
-        ]),
-      );
-      starGlowRef.current.start();
-
       if (isPlayerWin) {
-        // Confetti rains in, staggered
+        // Confetti bursts the moment the winner name starts appearing
         confetti.forEach((c, i) => {
           setTimeout(() => {
             Animated.parallel([
@@ -191,15 +206,18 @@ export function EmmyCeremonyModal() {
             ]).start();
           }, i * 65);
         });
-        // Stat pills stagger in after winner appears
-        setTimeout(() => {
-          Animated.timing(pill1Op, { toValue: 1, duration: 340, useNativeDriver: true }).start();
-        }, 520);
-        setTimeout(() => {
-          Animated.timing(pill2Op, { toValue: 1, duration: 340, useNativeDriver: true }).start();
-        }, 700);
       }
-    }, 140);
+    }, 1500);
+
+    // Phase 4: Stat pills stagger in after winner has fully arrived (player win only)
+    if (isPlayerWin) {
+      setTimeout(() => {
+        Animated.timing(pill1Op, { toValue: 1, duration: 340, useNativeDriver: true }).start();
+      }, 2100);
+      setTimeout(() => {
+        Animated.timing(pill2Op, { toValue: 1, duration: 340, useNativeDriver: true }).start();
+      }, 2280);
+    }
   }
 
   function openEnvelope() {
@@ -422,8 +440,10 @@ export function EmmyCeremonyModal() {
               <Text style={s.starChar}>★</Text>
             </Animated.View>
 
-            {/* "AND THE WINNER IS" */}
-            <Text style={s.andWinner}>AND THE WINNER IS</Text>
+            {/* "AND THE WINNER IS" — fades in first for tension */}
+            <Animated.View style={{ opacity: andWinnerOp }}>
+              <Text style={s.andWinner}>AND THE WINNER IS</Text>
+            </Animated.View>
 
             {/* Winner — animated entrance */}
             <Animated.View style={[s.winnerBlock, { transform: [{ translateY: winnerY }], opacity: winnerOp }]}>

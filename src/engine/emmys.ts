@@ -16,7 +16,7 @@ export function calculateEmmyNominations(
     const playerCandidates = eligible.length > 0
       ? getCandidatesForCategory(category as EmmyCategory, eligible, talent)
       : [];
-    const competitorCandidates = getCompetitorCandidates(category as EmmyCategory, competitors);
+    const competitorCandidates = getCompetitorCandidates(category as EmmyCategory, competitors, talent);
 
     const allCandidates = [...playerCandidates, ...competitorCandidates];
     if (allCandidates.length === 0) continue;
@@ -157,6 +157,7 @@ function getCandidatesForCategory(
 function getCompetitorCandidates(
   category: EmmyCategory,
   competitors: CompetitorStudio[],
+  talent: Talent[],
 ): Candidate[] {
   const candidates: Candidate[] = [];
   const dramaGenres = ['drama', 'sci-fi', 'procedural'];
@@ -174,15 +175,65 @@ function getCompetitorCandidates(
         candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });
       } else if (category === 'best-limited-series' && show.genre === 'limited-series') {
         candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });
+
+      } else if (category === 'best-director') {
+        // Use bookedDirectorID if still set, otherwise look up by careerShowIDs (post-filming)
+        const director = talent.find(t =>
+          t.role === 'director' && (
+            t.id === show.bookedDirectorID ||
+            t.careerShowIDs.includes(show.id)
+          ),
+        );
+        if (director) {
+          candidates.push({ showID: show.id, seasonID: show.id, talentID: director.id, score: base, isPlayerAward: false });
+        }
+
+      } else if (category === 'best-writing') {
+        // Showrunner stays booked during airing; fall back to careerShowIDs lookup
+        const showrunner = talent.find(t =>
+          t.role === 'showrunner' && (
+            t.id === show.bookedShowrunnerID ||
+            t.careerShowIDs.includes(show.id)
+          ),
+        );
+        if (showrunner) {
+          candidates.push({ showID: show.id, seasonID: show.id, talentID: showrunner.id, score: base, isPlayerAward: false });
+        }
+
       } else if (['best-drama-actor', 'best-drama-actress'].includes(category) && dramaGenres.includes(show.genre)) {
-        candidates.push({ showID: show.id, seasonID: show.id, talentID: `comp-${show.id}`, score: base, isPlayerAward: false });
+        const expectedGender = category === 'best-drama-actor' ? 'male' : 'female';
+        // Actors are released at filming end — look up by careerShowIDs + gender
+        const actor = talent.find(t =>
+          t.role === 'actor' &&
+          t.gender === expectedGender &&
+          t.careerShowIDs.includes(show.id),
+        );
+        if (actor) {
+          candidates.push({ showID: show.id, seasonID: show.id, talentID: actor.id, score: base, isPlayerAward: false });
+        }
+
       } else if (['best-comedy-actor', 'best-comedy-actress'].includes(category) && show.genre === 'comedy') {
-        candidates.push({ showID: show.id, seasonID: show.id, talentID: `comp-${show.id}`, score: base, isPlayerAward: false });
+        const expectedGender = category === 'best-comedy-actor' ? 'male' : 'female';
+        const actor = talent.find(t =>
+          t.role === 'actor' &&
+          t.gender === expectedGender &&
+          t.careerShowIDs.includes(show.id),
+        );
+        if (actor) {
+          candidates.push({ showID: show.id, seasonID: show.id, talentID: actor.id, score: base, isPlayerAward: false });
+        }
       }
     }
   }
 
-  return candidates;
+  // Deduplicate talent nominees — same person can't appear twice in one category
+  const seen = new Map<string, Candidate>();
+  for (const c of candidates) {
+    const key = c.talentID ?? c.showID;
+    const existing = seen.get(key);
+    if (!existing || c.score > existing.score) seen.set(key, c);
+  }
+  return [...seen.values()];
 }
 
 function weightedSelect(candidates: Candidate[], count: number): Candidate[] {
