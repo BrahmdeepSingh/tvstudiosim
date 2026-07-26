@@ -165,68 +165,80 @@ function getCompetitorCandidates(
   for (const studio of competitors) {
     for (const show of studio.activeShows) {
       if (show.status !== 'airing' || show.episodesAired < 4) continue;
-      if (show.currentRating < 6.5) continue;
+      // Low threshold so most qualifying shows appear — cancelled shows clear via status check
+      if (show.currentRating < 5.0) continue;
 
       const base = show.currentRating + randomFloat(0, 1.5);
 
       if (category === 'best-drama-series' && dramaGenres.includes(show.genre)) {
         candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });
+
       } else if (category === 'best-comedy-series' && show.genre === 'comedy') {
         candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });
+
       } else if (category === 'best-limited-series' && show.genre === 'limited-series') {
         candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });
 
       } else if (category === 'best-director') {
-        // Use bookedDirectorID if still set, otherwise look up by careerShowIDs (post-filming)
+        // Directors are released from bookedDirectorID when filming ends; look up via careerShowIDs
         const director = talent.find(t =>
           t.role === 'director' && (
             t.id === show.bookedDirectorID ||
             t.careerShowIDs.includes(show.id)
           ),
         );
-        if (director) {
-          candidates.push({ showID: show.id, seasonID: show.id, talentID: director.id, score: base, isPlayerAward: false });
-        }
+        // Always include — fall back to show-linked placeholder when real talent unavailable
+        candidates.push({
+          showID: show.id, seasonID: show.id,
+          talentID: director?.id ?? `comp-${show.id}`,
+          score: base, isPlayerAward: false,
+        });
 
       } else if (category === 'best-writing') {
-        // Showrunner stays booked during airing; fall back to careerShowIDs lookup
+        // bookedShowrunnerID stays set during airing, so this is the most reliable source
         const showrunner = talent.find(t =>
           t.role === 'showrunner' && (
             t.id === show.bookedShowrunnerID ||
             t.careerShowIDs.includes(show.id)
           ),
         );
-        if (showrunner) {
-          candidates.push({ showID: show.id, seasonID: show.id, talentID: showrunner.id, score: base, isPlayerAward: false });
-        }
+        candidates.push({
+          showID: show.id, seasonID: show.id,
+          talentID: showrunner?.id ?? `comp-${show.id}`,
+          score: base, isPlayerAward: false,
+        });
 
       } else if (['best-drama-actor', 'best-drama-actress'].includes(category) && dramaGenres.includes(show.genre)) {
         const expectedGender = category === 'best-drama-actor' ? 'male' : 'female';
-        // Actors are released at filming end — look up by careerShowIDs + gender
+        // Actors are released after filming; careerShowIDs persists their association
         const actor = talent.find(t =>
           t.role === 'actor' &&
           t.gender === expectedGender &&
-          t.careerShowIDs.includes(show.id),
+          (t.careerShowIDs.includes(show.id) || t.id === show.bookedActorIDs?.[0]),
         );
-        if (actor) {
-          candidates.push({ showID: show.id, seasonID: show.id, talentID: actor.id, score: base, isPlayerAward: false });
-        }
+        candidates.push({
+          showID: show.id, seasonID: show.id,
+          talentID: actor?.id ?? `comp-${show.id}`,
+          score: base, isPlayerAward: false,
+        });
 
       } else if (['best-comedy-actor', 'best-comedy-actress'].includes(category) && show.genre === 'comedy') {
         const expectedGender = category === 'best-comedy-actor' ? 'male' : 'female';
         const actor = talent.find(t =>
           t.role === 'actor' &&
           t.gender === expectedGender &&
-          t.careerShowIDs.includes(show.id),
+          (t.careerShowIDs.includes(show.id) || t.id === show.bookedActorIDs?.[0]),
         );
-        if (actor) {
-          candidates.push({ showID: show.id, seasonID: show.id, talentID: actor.id, score: base, isPlayerAward: false });
-        }
+        candidates.push({
+          showID: show.id, seasonID: show.id,
+          talentID: actor?.id ?? `comp-${show.id}`,
+          score: base, isPlayerAward: false,
+        });
       }
     }
   }
 
-  // Deduplicate talent nominees — same person can't appear twice in one category
+  // Deduplicate: same talent can't appear twice in the same category
   const seen = new Map<string, Candidate>();
   for (const c of candidates) {
     const key = c.talentID ?? c.showID;
