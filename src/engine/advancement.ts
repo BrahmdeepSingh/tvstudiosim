@@ -15,6 +15,7 @@ import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
 import { tryGenerateStreamingOffer, scheduleNextOfferCheck } from './streaming';
 import { generatePitch } from './pitches';
 import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews } from './news';
+import { tryGenerateStudioEvent } from './events';
 import { nanoid } from '../utils/nanoid';
 import { randomChance, randomBetween } from '../utils/random';
 
@@ -199,6 +200,7 @@ export function advanceWeek(state: GameState): GameState {
     advanceCompetitors(state.competitors, talent, newWeek, newYear);
   talent = talentAfterCompetitors;
   newNewsItems.push(...competitorNews);
+  let finalCompetitors = updatedCompetitors;
 
   // ─── Industry news (occasional) ───────────────────────────────────────────
   if (randomChance(0.12)) {
@@ -250,6 +252,47 @@ export function advanceWeek(state: GameState): GameState {
       a => a.won && updatedShows.some(s => s.id === a.showID),
     );
 
+    // Propagate competitor Emmy wins → studio stats
+    const competitorWinsByStudio = new Map<string, number>();
+    for (const win of withWinners.filter(a => a.won && !a.isPlayerAward)) {
+      for (const studio of finalCompetitors) {
+        if (studio.activeShows.some(sh => sh.id === win.showID)) {
+          competitorWinsByStudio.set(studio.id, (competitorWinsByStudio.get(studio.id) ?? 0) + 1);
+        }
+      }
+    }
+    if (competitorWinsByStudio.size > 0) {
+      finalCompetitors = finalCompetitors.map(studio => {
+        const wins = competitorWinsByStudio.get(studio.id) ?? 0;
+        if (wins === 0) return studio;
+        return {
+          ...studio,
+          emmysWon: studio.emmysWon + wins,
+          prestige: Math.min(100, studio.prestige + wins * 3),
+        };
+      });
+    }
+
+    // Find top competitor winner for news
+    let topCompetitor: { studioName: string; wins: number } | null = null;
+    if (competitorWinsByStudio.size > 0) {
+      const topEntry = [...competitorWinsByStudio.entries()].sort((a, b) => b[1] - a[1])[0];
+      const topStudio = finalCompetitors.find(s => s.id === topEntry[0]);
+      if (topStudio) topCompetitor = { studioName: topStudio.name, wins: topEntry[1] };
+    }
+
+    // Propagate Emmy wins into individual talent award records
+    const talentWins = withWinners.filter(
+      a => a.won && a.talentID && !a.talentID.startsWith('comp-'),
+    );
+    if (talentWins.length > 0) {
+      talent = talent.map(t => {
+        const wins = talentWins.filter(a => a.talentID === t.id);
+        if (wins.length === 0) return t;
+        return { ...t, awards: [...t.awards, ...wins] };
+      });
+    }
+
     newInboxItems.push({
       id: nanoid(),
       type: 'emmy-ceremony',
@@ -266,7 +309,7 @@ export function advanceWeek(state: GameState): GameState {
     });
 
     newNewsItems.push(
-      makeEmmyCeremonyNews(playerWins.length, { week: newWeek, year: newYear }),
+      makeEmmyCeremonyNews(playerWins.length, topCompetitor, { week: newWeek, year: newYear }),
     );
 
     if (playerWins.length > 0) {
@@ -278,14 +321,36 @@ export function advanceWeek(state: GameState): GameState {
     }
   }
 
+  // Prune TalentDeal records for talent that is no longer booked
+  const bookedTalentIDs = new Set(talent.filter(t => !t.available).map(t => t.id));
+  const prunedDeals = state.talentDeals.filter(d => bookedTalentIDs.has(d.talentID));
+
+  // ─── Studio events ────────────────────────────────────────────────────────
+  const partialState = {
+    ...state,
+    network,
+    shows: updatedShows,
+    talent,
+    pitches,
+    competitors: finalCompetitors,
+    awards,
+    studioEvents: state.studioEvents ?? [],
+  };
+  const newStudioEvent = tryGenerateStudioEvent(partialState, newWeek, newYear);
+  const studioEvents = newStudioEvent
+    ? [...partialState.studioEvents, newStudioEvent]
+    : partialState.studioEvents;
+
   return {
     ...state,
     network,
     shows: updatedShows,
     talent,
     pitches,
-    competitors: updatedCompetitors,
+    talentDeals: prunedDeals,
+    competitors: finalCompetitors,
     awards,
+    studioEvents,
     newsItems: newNewsItems.slice(-150),
     inboxItems: [...state.inboxItems, ...newInboxItems],
     lastSaved: state.lastSaved,

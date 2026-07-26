@@ -1,23 +1,27 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, FlatList,
-  StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Modal,
+  StyleSheet, SafeAreaView, Image,
 } from 'react-native';
 import { useState, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { Talent, TalentRole } from '../src/types';
 import { TALENT_FEES } from '../src/constants/game';
+import { AVATAR_MAP } from '../src/utils/avatars';
 
 const C = {
-  bg: '#0f0f17', card: '#16161f', border: '#1e1e2e',
-  text: '#e8e8f0', muted: '#6b6b82', accent: '#7c6af7',
-  green: '#4caf82', red: '#e85d5d', amber: '#f5a623',
+  pageBg: '#0f1220', cardBg: '#191c2a', cardBg2: '#1d2035',
+  border: '#252840',
+  text: '#f0ede8', muted: '#9a958e',
+  gold: '#e6b254', goldDim: '#e6b25420', goldBtnText: '#161008',
+  green: '#4ec46e', greenBg: '#1a3325', amber: '#d4753a', red: '#c43820', redBg: '#2a130f',
 };
 
 const CHEM_COLORS = {
-  green: '#4caf82',
+  green: '#4ec46e',
   blue:  '#5b8dee',
-  red:   '#e85d5d',
+  red:   '#c43820',
 };
 
 const ROLE_LABELS: Record<TalentRole, string> = {
@@ -31,6 +35,17 @@ const ROLE_STAT_LABEL: Record<TalentRole, string> = {
   director:   'Direction',
   actor:      'Acting',
 };
+
+function FilmRibbonAmbient() {
+  return (
+    <Image
+      source={require('../assets/tvbg.png')}
+      style={[StyleSheet.absoluteFill, { tintColor: C.gold, opacity: 0.06 }]}
+      resizeMode="repeat"
+      pointerEvents="none"
+    />
+  );
+}
 
 function getPrimaryStatValue(talent: Talent): number {
   if (talent.stats.role === 'showrunner') return talent.stats.writing;
@@ -63,20 +78,17 @@ function popularityLabel(p: number): string {
   return 'Star';
 }
 
-function feeHint(role: TalentRole, popularity: number): string {
-  const tier = popularity < 40 ? 'low' : popularity < 70 ? 'mid' : 'high';
-  const range = role === 'actor' ? TALENT_FEES.actor[tier] : TALENT_FEES[role][tier];
-  const lo = (range[0] / 1_000_000).toFixed(1);
-  const hi = (range[1] / 1_000_000).toFixed(1);
-  return `$${lo}M – $${hi}M`;
-}
-
 function StatBar({ value, label }: { value: number; label: string }) {
   return (
     <View style={s.statBarRow}>
       <Text style={s.statBarLabel}>{label}</Text>
       <View style={s.statBarTrack}>
-        <View style={[s.statBarFill, { width: `${value}%` }]} />
+        <LinearGradient
+          colors={['#c49440', '#e6b254']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[s.statBarFill, { width: `${value}%` as any }]}
+        />
       </View>
       <Text style={s.statBarValue}>{value}</Text>
     </View>
@@ -95,7 +107,10 @@ function TalentCard({
   return (
     <TouchableOpacity style={s.talentCard} onPress={() => onSelect(talent)}>
       <View style={s.talentCardLeft}>
-        <View style={[s.chemDot, { backgroundColor: CHEM_COLORS[talent.chemistryColor] }]} />
+        <View style={s.avatarWrap}>
+          <Image source={AVATAR_MAP[talent.avatarId]} style={s.avatarThumb} />
+          <View style={[s.chemPip, { backgroundColor: CHEM_COLORS[talent.chemistryColor] }]} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={s.talentName}>{talent.name}</Text>
           <Text style={s.talentMeta}>
@@ -163,7 +178,6 @@ function OfferModal({
   return (
     <View style={s.modalOverlay}>
       <View style={s.modalCard}>
-        {/* Talent header */}
         <View style={s.modalHeader}>
           <View style={[s.modalChemBadge, { backgroundColor: CHEM_COLORS[talent.chemistryColor] + '33', borderColor: CHEM_COLORS[talent.chemistryColor] }]}>
             <Text style={[s.modalChemText, { color: CHEM_COLORS[talent.chemistryColor] }]}>
@@ -175,10 +189,12 @@ function OfferModal({
           </TouchableOpacity>
         </View>
 
-        <Text style={s.modalName}>{talent.name}</Text>
+        <View style={s.modalNameRow}>
+          <Image source={AVATAR_MAP[talent.avatarId]} style={s.modalAvatar} />
+          <Text style={s.modalName}>{talent.name}</Text>
+        </View>
         <Text style={s.modalRole}>{ROLE_LABELS[role]} · {popularityLabel(talent.popularity)}</Text>
 
-        {/* Stats */}
         <View style={s.statsBlock}>
           <StatBar value={getPrimaryStatValue(talent)} label={ROLE_STAT_LABEL[role]} />
           {secondary.map(st => (
@@ -186,7 +202,6 @@ function OfferModal({
           ))}
         </View>
 
-        {/* Offer input */}
         {status === 'accepted' ? (
           <View style={s.acceptedBanner}>
             <Text style={s.acceptedText}>✓ Deal signed — ${(offered / 1_000_000).toFixed(2)}M</Text>
@@ -223,9 +238,20 @@ function OfferModal({
                 onPress={handleOffer}
                 disabled={!validOffer}
               >
-                <Text style={[s.offerBtnText, !validOffer && s.offerBtnTextDisabled]}>
-                  Make Offer
-                </Text>
+                {validOffer ? (
+                  <LinearGradient
+                    colors={['#c49440', '#e6b254']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={s.offerBtnGrad}
+                  >
+                    <Text style={s.offerBtnText}>Make Offer</Text>
+                  </LinearGradient>
+                ) : (
+                  <View style={s.offerBtnGrad}>
+                    <Text style={s.offerBtnTextDisabled}>Make Offer</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             )}
           </>
@@ -246,7 +272,6 @@ export default function HireTalentScreen() {
   const { talent, network, shows } = useGameStore();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Pre-select talent if navigated here from talent modal (initial mount only)
   const preselected = params.talentID ? talent.find(t => t.id === params.talentID) ?? null : null;
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(preselected);
 
@@ -261,7 +286,6 @@ export default function HireTalentScreen() {
     ).sort((a, b) => b.popularity - a.popularity);
   }, [talent, role, searchQuery]);
 
-  // For actors: current count and max for the active slot type
   const filledLeads = season?.leadActorIDs.length ?? 0;
   const filledSupporting = season?.supportingActorIDs.length ?? 0;
   const leadSlots = season?.leadActorSlots ?? 0;
@@ -272,14 +296,13 @@ export default function HireTalentScreen() {
 
   function handleSuccess() {
     setSelectedTalent(null);
-    // After last slot for this type is filled, go back; otherwise stay
     const newFilled = filledCount + 1;
     if (role === 'showrunner') {
       router.replace('/(tabs)/');
     } else if (role === 'actor' && newFilled >= totalSlots) {
       router.back();
     } else {
-      setSelectedTalent(null); // stay to hire more
+      setSelectedTalent(null);
     }
   }
 
@@ -299,6 +322,9 @@ export default function HireTalentScreen() {
 
   return (
     <SafeAreaView style={s.container}>
+      <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
+      <FilmRibbonAmbient />
+
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backText}>← Back</Text>
@@ -350,21 +376,26 @@ export default function HireTalentScreen() {
         />
       )}
 
-      {/* Done button for actors */}
       {role === 'actor' && season && filledCount > 0 && (
         <View style={s.footer}>
           <Text style={s.castCount}>
             {actorType === 'lead' ? 'Lead' : 'Supporting'}: {filledCount}/{totalSlots} hired
           </Text>
           <TouchableOpacity style={s.doneBtn} onPress={() => router.back()}>
-            <Text style={s.doneBtnText}>Done →</Text>
+            <LinearGradient
+              colors={['#c49440', '#e6b254']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={s.doneBtnGrad}
+            >
+              <Text style={s.doneBtnText}>Done →</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Offer modal */}
       {selectedTalent && (
-        <Modal transparent animationType="fade">
+        <View style={[StyleSheet.absoluteFill, { zIndex: 50 }]} pointerEvents="box-none">
           <OfferModal
             talent={selectedTalent}
             showID={showID}
@@ -373,80 +404,85 @@ export default function HireTalentScreen() {
             onSuccess={handleSuccess}
             onClose={() => setSelectedTalent(null)}
           />
-        </Modal>
+        </View>
       )}
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  container:     { flex: 1, backgroundColor: C.bg },
-  header:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn:       { width: 60 },
-  backText:      { color: C.accent, fontSize: 15 },
-  headerTitle:   { color: C.text, fontSize: 17, fontWeight: '600' },
+  container:      { flex: 1, backgroundColor: C.pageBg },
+  header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
+  backBtn:        { width: 60 },
+  backText:       { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+  headerTitle:    { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 22, letterSpacing: 0.5 },
 
-  showBanner:    { backgroundColor: C.card, borderBottomWidth: 1, borderBottomColor: C.border, paddingHorizontal: 16, paddingVertical: 10 },
-  showBannerText:{ color: C.text, fontSize: 14, fontWeight: '500' },
-  slotCount:     { color: C.accent, fontSize: 12, marginTop: 4 },
+  showBanner:     { backgroundColor: C.cardBg, borderBottomWidth: 1, borderBottomColor: C.border, paddingHorizontal: 16, paddingVertical: 10 },
+  showBannerText: { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14 },
+  slotCount:      { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 12, marginTop: 4 },
 
-  descRow:       { paddingHorizontal: 16, paddingVertical: 12 },
-  descText:      { color: C.muted, fontSize: 13, lineHeight: 19 },
+  descRow:        { paddingHorizontal: 16, paddingVertical: 12 },
+  descText:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 19 },
 
-  searchRow:     { paddingHorizontal: 16, paddingBottom: 8 },
-  searchInput:   { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: C.text, fontSize: 15 },
+  searchRow:      { paddingHorizontal: 16, paddingBottom: 8 },
+  searchInput:    { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 15 },
 
-  talentCard:    { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
-  talentCardLeft:{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  chemDot:       { width: 12, height: 12, borderRadius: 6 },
-  talentName:    { color: C.text, fontSize: 15, fontWeight: '500' },
-  talentMeta:    { color: C.muted, fontSize: 12, marginTop: 2 },
+  talentCard:       { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
+  talentCardLeft:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatarWrap:       { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
+  avatarThumb:      { width: 44, height: 52 },
+  chemPip:          { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
+  talentName:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+  talentMeta:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
   talentCardRight:{ alignItems: 'flex-end' },
-  talentStat:    { color: C.text, fontSize: 22, fontWeight: '700' },
-  talentStatLabel:{ color: C.muted, fontSize: 11 },
+  talentStat:     { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
+  talentStatLabel:{ color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11 },
 
-  emptyState:    { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyText:     { color: C.muted, fontSize: 15, textAlign: 'center' },
-  emptyHint:     { color: C.muted, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 19 },
+  emptyState:     { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  emptyText:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 15, textAlign: 'center' },
 
-  footer:        { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
-  castCount:     { color: C.muted, fontSize: 13, textAlign: 'center' },
-  doneBtn:       { backgroundColor: C.accent, borderRadius: 12, padding: 16, alignItems: 'center' },
-  doneBtnText:   { color: '#fff', fontSize: 16, fontWeight: '600' },
+  footer:         { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
+  castCount:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, textAlign: 'center' },
+  doneBtn:        { borderRadius: 14, overflow: 'hidden' },
+  doneBtnGrad:    { padding: 16, alignItems: 'center' },
+  doneBtnText:    { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
 
   // Modal
-  modalOverlay:  { flex: 1, backgroundColor: '#000000bb', justifyContent: 'flex-end' },
-  modalCard:     { backgroundColor: '#1a1a26', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: C.border, padding: 24 },
-  modalHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  modalChemBadge:{ borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
-  modalChemText: { fontSize: 12, fontWeight: '600' },
-  modalClose:    { padding: 4 },
-  modalCloseText:{ color: C.muted, fontSize: 18 },
-  modalName:     { color: C.text, fontSize: 22, fontWeight: '700', marginBottom: 4 },
-  modalRole:     { color: C.muted, fontSize: 14, marginBottom: 20 },
+  modalOverlay:   { flex: 1, backgroundColor: '#000000cc', justifyContent: 'flex-end' },
+  modalCard:      { backgroundColor: '#16192a', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: C.border, padding: 24, maxHeight: '88%' },
+  modalHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  modalChemBadge: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  modalChemText:  { fontFamily: 'Manrope_700Bold', fontSize: 12 },
+  modalClose:     { padding: 4 },
+  modalCloseText: { color: C.muted, fontSize: 18 },
+  modalNameRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  modalAvatar:    { width: 30, height: 36, borderRadius: 5 },
+  modalName:      { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 30, letterSpacing: 0.5 },
+  modalRole:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14, marginBottom: 20 },
 
-  statsBlock:    { gap: 10, marginBottom: 24 },
-  statBarRow:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  statBarLabel:  { color: C.muted, fontSize: 12, width: 80 },
-  statBarTrack:  { flex: 1, height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
-  statBarFill:   { height: '100%', backgroundColor: C.accent, borderRadius: 3 },
-  statBarValue:  { color: C.text, fontSize: 13, width: 28, textAlign: 'right' },
+  statsBlock:     { gap: 10, marginBottom: 24 },
+  statBarRow:     { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  statBarLabel:   { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 12, width: 80 },
+  statBarTrack:   { flex: 1, height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
+  statBarFill:    { height: '100%', borderRadius: 3 },
+  statBarValue:   { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 13, width: 28, textAlign: 'right' },
 
-  offerLabel:    { color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 8 },
-  rejectedHint:  { color: C.amber, fontSize: 12, marginBottom: 10 },
-  offerRow:      { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14, marginBottom: 8 },
-  dollarSign:    { color: C.muted, fontSize: 20, marginRight: 4 },
-  offerInput:    { flex: 1, color: C.text, fontSize: 24, fontWeight: '600', paddingVertical: 14 },
-  millionLabel:  { color: C.muted, fontSize: 18 },
-  cashAvail:     { color: C.muted, fontSize: 12, marginBottom: 16 },
+  offerLabel:     { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 8 },
+  rejectedHint:   { color: C.amber, fontFamily: 'Manrope_600SemiBold', fontSize: 12, marginBottom: 10 },
+  offerRow:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, marginBottom: 8 },
+  dollarSign:     { color: C.muted, fontSize: 20, marginRight: 4 },
+  offerInput:     { flex: 1, color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 24, paddingVertical: 14 },
+  millionLabel:   { color: C.muted, fontSize: 18 },
+  cashAvail:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginBottom: 16 },
 
-  offerBtn:      { backgroundColor: C.accent, borderRadius: 12, padding: 16, alignItems: 'center' },
-  offerBtnDisabled:{ backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
-  offerBtnText:  { color: '#fff', fontSize: 16, fontWeight: '600' },
-  offerBtnTextDisabled: { color: C.muted },
+  offerBtn:       { borderRadius: 14, overflow: 'hidden' },
+  offerBtnDisabled:{ backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 14 },
+  offerBtnGrad:   { padding: 16, alignItems: 'center' },
+  offerBtnText:   { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
+  offerBtnTextDisabled: { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 16 },
 
-  acceptedBanner:{ backgroundColor: '#1e3a2f', borderRadius: 10, padding: 16, alignItems: 'center' },
-  acceptedText:  { color: C.green, fontSize: 16, fontWeight: '600' },
-  rejectedBanner:{ backgroundColor: '#3a1e1e', borderRadius: 10, padding: 16, alignItems: 'center' },
-  rejectedText:  { color: C.red, fontSize: 16, fontWeight: '600' },
+  acceptedBanner: { backgroundColor: C.greenBg, borderRadius: 12, padding: 16, alignItems: 'center' },
+  acceptedText:   { color: C.green, fontFamily: 'Manrope_700Bold', fontSize: 16 },
+  rejectedBanner: { backgroundColor: C.redBg, borderRadius: 12, padding: 16, alignItems: 'center' },
+  rejectedText:   { color: C.red, fontFamily: 'Manrope_700Bold', fontSize: 16 },
 });

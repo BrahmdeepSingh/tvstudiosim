@@ -52,6 +52,44 @@ export function makeCompetitorGreenlitNews(
   };
 }
 
+export function makeCompetitorPremiereNews(
+  studio: CompetitorStudio,
+  show: CompetitorShow,
+  ctx: Ctx,
+): NewsItem {
+  return {
+    id: nanoid(),
+    week: ctx.week,
+    year: ctx.year,
+    type: 'competitor',
+    read: false,
+    headline: `"${show.title}" premieres on ${studio.name}`,
+    body: `The ${show.genre} series, ${show.seasonNumber > 1 ? `now in its ${ordinal(show.seasonNumber)} season, ` : ''}kicks off its run this week. Early numbers will set the tone for the rest of the season.`,
+  };
+}
+
+export function makeCompetitorCompletedNews(
+  studio: CompetitorStudio,
+  show: CompetitorShow,
+  ctx: Ctx,
+): NewsItem {
+  return {
+    id: nanoid(),
+    week: ctx.week,
+    year: ctx.year,
+    type: 'competitor',
+    read: false,
+    headline: `"${show.title}" wraps ${ordinal(show.seasonNumber)} season on ${studio.name} — no renewal`,
+    body: `The ${show.genre} series has aired its season finale. The network has decided not to renew, bringing the show's run to a close after ${show.episodesAired} episodes.`,
+  };
+}
+
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
+}
+
 const INDUSTRY_STORIES = [
   {
     headline: 'Prestige drama continues to dominate awards conversation',
@@ -162,17 +200,27 @@ export function makeFinaleNews(showTitle: string, seasonNumber: number, ctx: Ctx
   };
 }
 
-export function makeEmmyCeremonyNews(playerWins: number, ctx: Ctx): NewsItem {
-  return {
-    id: nanoid(),
-    week: ctx.week,
-    year: ctx.year,
-    type: 'emmy',
-    read: false,
-    headline: playerWins > 0 ? `Emmy night: your network wins ${playerWins}` : 'Emmy ceremony concludes',
-    body:
-      playerWins > 0
-        ? `A strong night at the Emmys. Winners are celebrating and the industry is taking note of your network's growing prestige.`
-        : `The ceremony is over. The industry moves on, and so does the competition for next year's slate.`,
-  };
+export function makeEmmyCeremonyNews(
+  playerWins: number,
+  topCompetitor: { studioName: string; wins: number } | null,
+  ctx: Ctx,
+): NewsItem {
+  let headline: string;
+  let body: string;
+
+  if (playerWins > 0 && topCompetitor) {
+    headline = `Emmy night: your network wins ${playerWins} — ${topCompetitor.studioName} also takes home ${topCompetitor.wins}`;
+    body = `A competitive Emmy night. Your network earned recognition while ${topCompetitor.studioName} made a statement of their own. The industry is watching both.`;
+  } else if (playerWins > 0) {
+    headline = `Emmy night: your network wins ${playerWins}`;
+    body = `A strong night at the Emmys. Winners are celebrating and the industry is taking note of your network's growing prestige.`;
+  } else if (topCompetitor) {
+    headline = `${topCompetitor.studioName} dominates Emmy night with ${topCompetitor.wins} win${topCompetitor.wins > 1 ? 's' : ''}`;
+    body = `${topCompetitor.studioName} had a dominant night at the Emmys. The competition is heating up across the industry.`;
+  } else {
+    headline = 'Emmy ceremony concludes';
+    body = `The ceremony is over. The industry moves on, and so does the competition for next year's slate.`;
+  }
+
+  return { id: nanoid(), week: ctx.week, year: ctx.year, type: 'emmy', read: false, headline, body };
 }

@@ -63,7 +63,39 @@ export type InboxItemType =
   | 'emmy-nominations'
   | 'emmy-ceremony'
   | 'revenue-share-payout'
-  | 'news';
+  | 'news'
+  | 'studio-event';
+
+// ─── Studio Events ────────────────────────────────────────────────────────────
+
+export interface EventConsequence {
+  prestigeDelta?: number;
+  cashDelta?: number;
+  delayWeeks?: number; // adds weeks to the show's current production phase
+  newsHeadline?: string;
+  newsBody?: string;
+}
+
+export interface EventChoice {
+  label: string;
+  description: string;
+  consequence: EventConsequence;
+}
+
+export interface StudioEvent {
+  id: string;
+  week: number;
+  year: number;
+  type: 'production' | 'talent' | 'industry' | 'legacy';
+  templateKey: string; // which template fired, used for cooldown dedup
+  showID?: string;
+  talentID?: string;
+  title: string;
+  body: string;
+  choices: EventChoice[];
+  resolved: boolean;
+  chosenOptionIndex?: number;
+}
 
 // ─── Talent Stats (discriminated union) ──────────────────────────────────────
 
@@ -77,6 +109,8 @@ export type TalentStats =
 export interface Talent {
   id: string;
   name: string;
+  gender: 'male' | 'female';
+  avatarId: string; // e.g. "03_c" → assets/avatars/avatar_03_c.png
   role: TalentRole;
   age: number;
   popularity: number; // 0–100, drives negotiation difficulty
@@ -240,13 +274,19 @@ export interface CompetitorShow {
   studioID: string;
   title: string;
   genre: Genre;
-  status: 'airing' | 'completed' | 'cancelled';
+  status: 'pre-production' | 'filming' | 'airing' | 'completed' | 'cancelled';
   currentRating: number;
   weeklyViewers: number;
   seasonNumber: number;
   episodesAired: number;
   totalEpisodes: number;
-  bookedTalentIDs: string[];
+  // Pipeline counters
+  preProductionWeeksRemaining: number;
+  filmingWeeksRemaining: number;
+  // Booked talent split by role for staged release
+  bookedShowrunnerID: string | null;
+  bookedDirectorID: string | null;
+  bookedActorIDs: string[];
 }
 
 export interface CompetitorStudio {
@@ -352,6 +392,7 @@ export interface GameState {
   newsItems: NewsItem[];
   inboxItems: InboxItem[];
   awards: Award[];
+  studioEvents: StudioEvent[];
   saveSlot: number;
   lastSaved: string;
   initialized: boolean;

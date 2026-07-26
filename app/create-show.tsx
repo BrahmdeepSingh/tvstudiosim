@@ -1,18 +1,44 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform,
+  StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../src/store/gameStore';
 import { Genre, Theme } from '../src/types';
 import { MIN_EPISODES, MAX_EPISODES } from '../src/constants/game';
 
+// ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
-  bg: '#0f0f17', card: '#16161f', border: '#1e1e2e',
-  text: '#e8e8f0', muted: '#6b6b82', accent: '#7c6af7',
-  green: '#4caf82', red: '#e85d5d',
+  pageBg:      '#0f1220',
+  cardBg:      '#191c2a',
+  cardBg2:     '#1d2035',
+  border:      '#252840',
+  borderGold:  '#e6b25430',
+  text:        '#f0ede8',
+  muted:       '#9a958e',
+  mutedMid:    '#6b6880',
+  gold:        '#e6b254',
+  goldDim:     '#e6b25420',
+  goldMid:     '#c49440',
+  goldBtnText: '#161008',
+  green:       '#4ec46e',
 };
+
+const F = {
+  display: 'BebasNeue_400Regular',
+  body:    'Manrope_400Regular',
+  bodyMd:  'Manrope_600SemiBold',
+  bodyBd:  'Manrope_700Bold',
+  bodyXBd: 'Manrope_800ExtraBold',
+};
+
+function fmt(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n}`;
+}
 
 const GENRES: { value: Genre; label: string }[] = [
   { value: 'drama',          label: 'Drama' },
@@ -47,16 +73,61 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: 'fantasy',       label: 'Fantasy' },
 ];
 
+// ── Film ribbon ambient texture ───────────────────────────────────────────────
+function FilmRibbonAmbient() {
+  return (
+    <Image
+      source={require('../assets/tvbg.png')}
+      style={[StyleSheet.absoluteFill, { tintColor: C.gold, opacity: 0.06 }]}
+      resizeMode="repeat"
+      pointerEvents="none"
+    />
+  );
+}
+
+// ── Section label ─────────────────────────────────────────────────────────────
+function SectionLabel({ children }: { children: string }) {
+  return <Text style={s.label}>{children}</Text>;
+}
+
+// ── Stepper ───────────────────────────────────────────────────────────────────
+function Stepper({
+  value, onDec, onInc, disableDec, disableInc, large,
+}: {
+  value: number; onDec: () => void; onInc: () => void;
+  disableDec: boolean; disableInc: boolean; large?: boolean;
+}) {
+  return (
+    <View style={s.stepperRow}>
+      <TouchableOpacity
+        style={[s.stepBtn, disableDec && s.stepBtnDisabled]}
+        onPress={onDec} disabled={disableDec}
+      >
+        <Text style={s.stepBtnText}>−</Text>
+      </TouchableOpacity>
+      <Text style={large ? s.stepValueLarge : s.stepValueSm}>{value}</Text>
+      <TouchableOpacity
+        style={[s.stepBtn, disableInc && s.stepBtnDisabled]}
+        onPress={onInc} disabled={disableInc}
+      >
+        <Text style={s.stepBtnText}>+</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ── Screen ────────────────────────────────────────────────────────────────────
 export default function CreateShowScreen() {
   const router = useRouter();
   const { createShow, network } = useGameStore();
 
-  const [title, setTitle] = useState('');
-  const [genre, setGenre] = useState<Genre | null>(null);
-  const [theme, setTheme] = useState<Theme | null>(null);
-  const [episodes, setEpisodes] = useState(10);
-  const [leadSlots, setLeadSlots] = useState(2);
+  const [title, setTitle]               = useState('');
+  const [genre, setGenre]               = useState<Genre | null>(null);
+  const [theme, setTheme]               = useState<Theme | null>(null);
+  const [episodes, setEpisodes]         = useState(10);
+  const [leadSlots, setLeadSlots]       = useState(2);
   const [supportingSlots, setSupportingSlots] = useState(3);
+  const [titleFocused, setTitleFocused] = useState(false);
 
   const canProceed = title.trim().length > 0 && genre !== null && theme !== null;
 
@@ -67,210 +138,228 @@ export default function CreateShowScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        {/* Header */}
-        <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-            <Text style={s.backText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>New Show</Text>
-          <View style={{ width: 60 }} />
-        </View>
+    <LinearGradient
+      colors={['#141726', '#0c0f1a', '#070a12']}
+      locations={[0, 0.55, 1]}
+      style={{ flex: 1 }}
+    >
+      <FilmRibbonAmbient />
+      <SafeAreaView style={s.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+        >
 
-        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
-
-          {/* Title */}
-          <Text style={s.label}>SHOW TITLE</Text>
-          <TextInput
-            style={s.input}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Enter a title..."
-            placeholderTextColor={C.muted}
-            maxLength={60}
-          />
-
-          {/* Genre */}
-          <Text style={s.label}>GENRE</Text>
-          <View style={s.pillGrid}>
-            {GENRES.map(g => (
-              <TouchableOpacity
-                key={g.value}
-                style={[s.pill, genre === g.value && s.pillActive]}
-                onPress={() => setGenre(g.value)}
-              >
-                <Text style={[s.pillText, genre === g.value && s.pillTextActive]}>
-                  {g.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Theme */}
-          <Text style={s.label}>THEME</Text>
-          <View style={s.themeGrid}>
-            {THEMES.map(t => (
-              <TouchableOpacity
-                key={t.value}
-                style={[s.themePill, theme === t.value && s.themePillActive]}
-                onPress={() => setTheme(t.value)}
-              >
-                <Text style={[s.themePillText, theme === t.value && s.themePillTextActive]}>
-                  {t.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Episode count */}
-          <Text style={s.label}>EPISODE COUNT</Text>
-          <View style={s.episodeRow}>
-            <TouchableOpacity
-              style={[s.episodeBtn, episodes <= MIN_EPISODES && s.episodeBtnDisabled]}
-              onPress={() => setEpisodes(e => Math.max(MIN_EPISODES, e - 1))}
-            >
-              <Text style={s.episodeBtnText}>−</Text>
+          {/* ── Header ── */}
+          <View style={s.header}>
+            <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+              <Text style={s.backText}>← BACK</Text>
             </TouchableOpacity>
-            <View style={s.episodeDisplay}>
-              <Text style={s.episodeCount}>{episodes}</Text>
-              <Text style={s.episodeLabel}>episodes</Text>
-            </View>
-            <TouchableOpacity
-              style={[s.episodeBtn, episodes >= MAX_EPISODES && s.episodeBtnDisabled]}
-              onPress={() => setEpisodes(e => Math.min(MAX_EPISODES, e + 1))}
-            >
-              <Text style={s.episodeBtnText}>+</Text>
-            </TouchableOpacity>
+            <Text style={s.headerTitle}>NEW SHOW</Text>
+            <View style={{ width: 70 }} />
           </View>
 
-          <View style={s.hint}>
-            <Text style={s.hintText}>
-              More episodes = more potential ad revenue, but higher upfront cost and longer production time.
-            </Text>
-          </View>
-
-          {/* Cast slots */}
-          <Text style={s.label}>CAST SLOTS</Text>
-          <View style={s.castSlotSection}>
-            <View style={s.castSlotRow}>
-              <Text style={s.castSlotLabel}>Lead Actors</Text>
-              <View style={s.stepperCompact}>
-                <TouchableOpacity
-                  style={[s.stepBtnSm, leadSlots <= 1 && s.episodeBtnDisabled]}
-                  onPress={() => setLeadSlots(n => Math.max(1, n - 1))}
-                >
-                  <Text style={s.stepBtnSmText}>−</Text>
-                </TouchableOpacity>
-                <Text style={s.stepValueSm}>{leadSlots}</Text>
-                <TouchableOpacity
-                  style={[s.stepBtnSm, leadSlots >= 6 && s.episodeBtnDisabled]}
-                  onPress={() => setLeadSlots(n => Math.min(6, n + 1))}
-                >
-                  <Text style={s.stepBtnSmText}>+</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <View style={[s.castSlotRow, s.castSlotRowBorder]}>
-              <Text style={s.castSlotLabel}>Supporting Actors</Text>
-              <View style={s.stepperCompact}>
-                <TouchableOpacity
-                  style={[s.stepBtnSm, supportingSlots <= 1 && s.episodeBtnDisabled]}
-                  onPress={() => setSupportingSlots(n => Math.max(1, n - 1))}
-                >
-                  <Text style={s.stepBtnSmText}>−</Text>
-                </TouchableOpacity>
-                <Text style={s.stepValueSm}>{supportingSlots}</Text>
-                <TouchableOpacity
-                  style={[s.stepBtnSm, supportingSlots >= 8 && s.episodeBtnDisabled]}
-                  onPress={() => setSupportingSlots(n => Math.min(8, n + 1))}
-                >
-                  <Text style={s.stepBtnSmText}>+</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-          <View style={s.hint}>
-            <Text style={s.hintText}>
-              Filming begins automatically once all cast slots are filled and a director is hired. More cast = higher production cost.
-            </Text>
-          </View>
-
-          <View style={{ height: 32 }} />
-        </ScrollView>
-
-        {/* Footer */}
-        <View style={s.footer}>
-          <Text style={s.cashNote}>
-            Cash on hand: <Text style={{ color: C.green }}>${(network.cashOnHand / 1_000_000).toFixed(1)}M</Text>
-          </Text>
-          <TouchableOpacity
-            style={[s.nextBtn, !canProceed && s.nextBtnDisabled]}
-            onPress={handleCreate}
-            disabled={!canProceed}
+          <ScrollView
+            style={s.scroll}
+            contentContainerStyle={s.scrollContent}
+            showsVerticalScrollIndicator={false}
           >
-            <Text style={[s.nextBtnText, !canProceed && s.nextBtnTextDisabled]}>
-              Next: Hire Showrunner →
+
+            {/* ── Show title ── */}
+            <SectionLabel>SHOW TITLE</SectionLabel>
+            <TextInput
+              style={[s.input, titleFocused && s.inputFocused]}
+              value={title}
+              onChangeText={setTitle}
+              onFocus={() => setTitleFocused(true)}
+              onBlur={() => setTitleFocused(false)}
+              placeholder="Enter a title..."
+              placeholderTextColor={C.mutedMid}
+              maxLength={60}
+            />
+
+            {/* ── Genre ── */}
+            <SectionLabel>GENRE</SectionLabel>
+            <View style={s.pillGrid}>
+              {GENRES.map(g => (
+                <TouchableOpacity
+                  key={g.value}
+                  style={[s.pill, genre === g.value && s.pillActive]}
+                  onPress={() => setGenre(g.value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.pillText, genre === g.value && s.pillTextActive]}>
+                    {g.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* ── Theme ── */}
+            <SectionLabel>THEME</SectionLabel>
+            <View style={s.pillGrid}>
+              {THEMES.map(t => (
+                <TouchableOpacity
+                  key={t.value}
+                  style={[s.pill, theme === t.value && s.pillActive]}
+                  onPress={() => setTheme(t.value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.pillText, theme === t.value && s.pillTextActive]}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* ── Episode count ── */}
+            <SectionLabel>EPISODE COUNT</SectionLabel>
+            <View style={s.episodeCard}>
+              <Stepper
+                value={episodes}
+                onDec={() => setEpisodes(e => Math.max(MIN_EPISODES, e - 1))}
+                onInc={() => setEpisodes(e => Math.min(MAX_EPISODES, e + 1))}
+                disableDec={episodes <= MIN_EPISODES}
+                disableInc={episodes >= MAX_EPISODES}
+                large
+              />
+              <Text style={s.episodeUnit}>episodes</Text>
+            </View>
+            <View style={s.hint}>
+              <Text style={s.hintText}>
+                More episodes = more potential ad revenue, but higher upfront cost and longer production time.
+              </Text>
+            </View>
+
+            {/* ── Cast slots ── */}
+            <SectionLabel>CAST SLOTS</SectionLabel>
+            <View style={s.castCard}>
+              <View style={s.castRow}>
+                <View>
+                  <Text style={s.castRowLabel}>Lead Actors</Text>
+                  <Text style={s.castRowSub}>Higher salary, bigger impact on ratings</Text>
+                </View>
+                <Stepper
+                  value={leadSlots}
+                  onDec={() => setLeadSlots(n => Math.max(1, n - 1))}
+                  onInc={() => setLeadSlots(n => Math.min(6, n + 1))}
+                  disableDec={leadSlots <= 1}
+                  disableInc={leadSlots >= 6}
+                />
+              </View>
+              <View style={[s.castRow, s.castRowBorder]}>
+                <View>
+                  <Text style={s.castRowLabel}>Supporting Cast</Text>
+                  <Text style={s.castRowSub}>Adds depth, lower cost per actor</Text>
+                </View>
+                <Stepper
+                  value={supportingSlots}
+                  onDec={() => setSupportingSlots(n => Math.max(1, n - 1))}
+                  onInc={() => setSupportingSlots(n => Math.min(8, n + 1))}
+                  disableDec={supportingSlots <= 1}
+                  disableInc={supportingSlots >= 8}
+                />
+              </View>
+            </View>
+            <View style={s.hint}>
+              <Text style={s.hintText}>
+                Filming begins once all cast slots are filled and a director is hired.
+              </Text>
+            </View>
+
+            <View style={{ height: 32 }} />
+          </ScrollView>
+
+          {/* ── Footer ── */}
+          <View style={s.footer}>
+            <Text style={s.cashNote}>
+              Cash on hand:{' '}
+              <Text style={{ fontFamily: F.bodyBd, color: C.green }}>{fmt(network.cashOnHand)}</Text>
             </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            <TouchableOpacity
+              style={s.nextBtn}
+              onPress={handleCreate}
+              disabled={!canProceed}
+              activeOpacity={0.88}
+            >
+              {canProceed ? (
+                <LinearGradient
+                  colors={['#f0c060', '#c49440']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={s.nextBtnGradient}
+                >
+                  <Text style={s.nextBtnTextActive}>NEXT: HIRE SHOWRUNNER  ▶</Text>
+                </LinearGradient>
+              ) : (
+                <View style={s.nextBtnInactive}>
+                  <Text style={s.nextBtnTextInactive}>NEXT: HIRE SHOWRUNNER  ▶</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  container:         { flex: 1, backgroundColor: C.bg },
-  header:            { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn:           { width: 60 },
-  backText:          { color: C.accent, fontSize: 15 },
-  headerTitle:       { color: C.text, fontSize: 17, fontWeight: '600' },
-  scroll:            { flex: 1 },
-  scrollContent:     { padding: 20 },
+  container:    { flex: 1 },
+  scroll:       { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 8 },
 
-  label:             { color: C.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 10, marginTop: 20 },
+  // ── Header ──────────────────────────────────────────────────────────────────
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+  backBtn:     { width: 70 },
+  backText:    { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 11, letterSpacing: 1 },
+  headerTitle: { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 26, letterSpacing: 2 },
 
-  input:             { backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 14, color: C.text, fontSize: 16 },
+  // ── Section label ────────────────────────────────────────────────────────────
+  label: { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 9, letterSpacing: 2, marginTop: 22, marginBottom: 10 },
 
-  pillGrid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill:              { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
-  pillActive:        { borderColor: C.accent, backgroundColor: C.accent + '22' },
-  pillText:          { color: C.muted, fontSize: 14 },
-  pillTextActive:    { color: C.accent, fontWeight: '600' },
+  // ── Text input ───────────────────────────────────────────────────────────────
+  input:        { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontFamily: 'Manrope_400Regular', color: C.text, fontSize: 15 },
+  inputFocused: { borderColor: C.gold + '80' },
 
-  themeGrid:         { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  themePill:         { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
-  themePillActive:   { borderColor: C.accent, backgroundColor: C.accent + '22' },
-  themePillText:     { color: C.muted, fontSize: 13 },
-  themePillTextActive: { color: C.accent, fontWeight: '600' },
+  // ── Pill grids ───────────────────────────────────────────────────────────────
+  pillGrid:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pill:            { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
+  pillActive:      { borderColor: C.gold, backgroundColor: C.goldDim },
+  pillText:        { fontFamily: 'Manrope_600SemiBold', color: C.muted, fontSize: 13 },
+  pillTextActive:  { fontFamily: 'Manrope_700Bold', color: C.gold },
 
-  episodeRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24 },
-  episodeBtn:        { width: 48, height: 48, borderRadius: 12, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
-  episodeBtnDisabled:{ opacity: 0.3 },
-  episodeBtnText:    { color: C.text, fontSize: 24, lineHeight: 28 },
-  episodeDisplay:    { alignItems: 'center', minWidth: 80 },
-  episodeCount:      { color: C.text, fontSize: 42, fontWeight: '700', lineHeight: 48 },
-  episodeLabel:      { color: C.muted, fontSize: 13 },
+  // ── Episode card ─────────────────────────────────────────────────────────────
+  episodeCard: { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.borderGold, paddingVertical: 20, alignItems: 'center', gap: 4 },
+  episodeUnit: { fontFamily: 'Manrope_600SemiBold', color: C.muted, fontSize: 12, letterSpacing: 0.5 },
 
-  hint:              { backgroundColor: C.card, borderRadius: 8, padding: 12, marginTop: 16, borderWidth: 1, borderColor: C.border },
-  hintText:          { color: C.muted, fontSize: 13, lineHeight: 19 },
+  // ── Stepper ──────────────────────────────────────────────────────────────────
+  stepperRow:     { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  stepBtn:        { width: 40, height: 40, borderRadius: 10, backgroundColor: C.cardBg2, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
+  stepBtnDisabled:{ opacity: 0.25 },
+  stepBtnText:    { fontFamily: 'Manrope_400Regular', color: C.text, fontSize: 22, lineHeight: 26 },
+  stepValueLarge: { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 52, lineHeight: 56, minWidth: 56, textAlign: 'center' },
+  stepValueSm:    { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 28, lineHeight: 32, minWidth: 36, textAlign: 'center' },
 
-  castSlotSection:   { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-  castSlotRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
-  castSlotRowBorder: { borderTopWidth: 1, borderTopColor: C.border },
-  castSlotLabel:     { color: C.text, fontSize: 15, fontWeight: '500' },
-  stepperCompact:    { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  stepBtnSm:         { width: 36, height: 36, borderRadius: 8, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
-  stepBtnSmText:     { color: C.text, fontSize: 20, lineHeight: 24 },
-  stepValueSm:       { color: C.text, fontSize: 22, fontWeight: '700', minWidth: 32, textAlign: 'center' },
+  // ── Hint ─────────────────────────────────────────────────────────────────────
+  hint:     { backgroundColor: C.cardBg, borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: C.border },
+  hintText: { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, lineHeight: 19 },
 
-  footer:            { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
-  cashNote:          { color: C.muted, fontSize: 13, textAlign: 'center' },
-  nextBtn:           { backgroundColor: C.accent, borderRadius: 12, padding: 16, alignItems: 'center' },
-  nextBtnDisabled:   { backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
-  nextBtnText:       { color: '#fff', fontSize: 16, fontWeight: '600' },
-  nextBtnTextDisabled: { color: C.muted },
+  // ── Cast card ────────────────────────────────────────────────────────────────
+  castCard:      { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.borderGold, overflow: 'hidden' },
+  castRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16 },
+  castRowBorder: { borderTopWidth: 1, borderTopColor: C.border },
+  castRowLabel:  { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 14 },
+  castRowSub:    { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 11, marginTop: 3 },
+
+  // ── Footer ───────────────────────────────────────────────────────────────────
+  footer:              { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
+  cashNote:            { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, textAlign: 'center' },
+  nextBtn:             { borderRadius: 999, overflow: 'hidden' },
+  nextBtnGradient:     { paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  nextBtnInactive:     { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 999 },
+  nextBtnTextActive:   { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
+  nextBtnTextInactive: { fontFamily: 'BebasNeue_400Regular', color: C.mutedMid, fontSize: 16, letterSpacing: 3 },
 });
