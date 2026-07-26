@@ -73,6 +73,9 @@ interface GameStore extends GameState {
   // Studio events
   resolveStudioEvent: (eventID: string, choiceIndex: number) => void;
 
+  // Emmy ceremony
+  dismissEmmyCeremony: () => void;
+
   // Persistence
   saveGame: () => Promise<void>;
   loadGame: (slot: number) => Promise<boolean>;
@@ -104,6 +107,7 @@ const EMPTY_STATE: GameState = {
   inboxItems: [],
   awards: [],
   studioEvents: [],
+  emmyCeremonyPendingYear: null,
   saveSlot: 1,
   lastSaved: '',
   initialized: false,
@@ -879,6 +883,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
+  // ── Emmy Ceremony ─────────────────────────────────────────────────────────
+
+  dismissEmmyCeremony: () => set({ emmyCeremonyPendingYear: null }),
+
   // ── Persistence ───────────────────────────────────────────────────────────
 
   saveGame: async () => {
@@ -914,7 +922,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }),
     }));
 
-    set({ ...loaded, shows: migratedShows, studioEvents: loaded.studioEvents ?? [], saveSlot: slot });
+    set({
+      ...loaded,
+      shows: migratedShows,
+      studioEvents: loaded.studioEvents ?? [],
+      emmyCeremonyPendingYear: loaded.emmyCeremonyPendingYear ?? null,
+      saveSlot: slot,
+    });
     return true;
   },
 }));

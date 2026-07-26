@@ -393,6 +393,7 @@ export interface GameState {
   inboxItems: InboxItem[];
   awards: Award[];
   studioEvents: StudioEvent[];
+  emmyCeremonyPendingYear: number | null;
   saveSlot: number;
   lastSaved: string;
   initialized: boolean;

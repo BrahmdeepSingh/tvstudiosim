@@ -31,6 +31,7 @@ export function advanceWeek(state: GameState): GameState {
   const newNewsItems = [...state.newsItems];
   let awards = [...state.awards];
   let pitches = [...state.pitches];
+  let emmyCeremonyPendingYear: number | null = state.emmyCeremonyPendingYear ?? null;
 
   // ─── Advance shows ─────────────────────────────────────────────────────────
   const shows = state.shows.map(show => {
@@ -319,6 +320,8 @@ export function advanceWeek(state: GameState): GameState {
         prestige: Math.min(100, network.prestige + playerWins.length * 3),
       };
     }
+
+    emmyCeremonyPendingYear = newYear;
   }
 
   // Prune TalentDeal records for talent that is no longer booked
@@ -354,6 +357,7 @@ export function advanceWeek(state: GameState): GameState {
     newsItems: newNewsItems.slice(-150),
     inboxItems: [...state.inboxItems, ...newInboxItems],
     lastSaved: state.lastSaved,
+    emmyCeremonyPendingYear,
   };
 }
 

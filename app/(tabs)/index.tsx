@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Show, NewsItem, StudioEvent } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
+import { EmmyCeremonyModal } from '../components/EmmyCeremonyModal';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -370,6 +371,7 @@ export default function Dashboard() {
   const router = useRouter();
   const {
     network, shows, inboxItems, newsItems, pitches, studioEvents,
+    emmyCeremonyPendingYear,
     advanceWeek, initialized, initializeGame,
   } = useGameStore();
 
@@ -700,6 +702,10 @@ export default function Dashboard() {
 
       {pendingEvent && (
         <StudioEventModal event={pendingEvent} />
+      )}
+
+      {emmyCeremonyPendingYear !== null && (
+        <EmmyCeremonyModal />
       )}
     </LinearGradient>
   );
