@@ -2,6 +2,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Alert, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
 
 const C = {
@@ -62,6 +63,7 @@ function StatRow({ label, value, color }: { label: string; value: string; color?
 }
 
 export default function StudioScreen() {
+  const router = useRouter();
   const { network, shows, saveGame, initializeGame } = useGameStore();
 
   const totalSeasons = shows.reduce((sum, sh) => sum + sh.seasons.length, 0);
@@ -111,6 +113,9 @@ export default function StudioScreen() {
             <Text style={s.networkName}>{network.name}</Text>
             <Text style={s.networkSub}>Independent · Founded Year {network.foundedYear}</Text>
           </View>
+          <TouchableOpacity style={s.allStudiosBtn} onPress={() => router.push('/all-studios')}>
+            <Text style={s.allStudiosBtnText}>ALL STUDIOS</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Prestige */}
@@ -182,7 +187,9 @@ const s = StyleSheet.create({
   sectionLabel:    { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 10, marginTop: 20 },
 
   identityCard:    { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16, marginBottom: 4 },
-  networkBadge:    { width: 52, height: 52, borderRadius: 12, backgroundColor: C.gold, justifyContent: 'center', alignItems: 'center' },
+  networkBadge:        { width: 52, height: 52, borderRadius: 12, backgroundColor: C.gold, justifyContent: 'center', alignItems: 'center' },
+  allStudiosBtn:       { backgroundColor: '#e6b25418', borderWidth: 1, borderColor: '#e6b25440', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  allStudiosBtnText:   { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 10, letterSpacing: 1.2 },
   networkInitials: { color: C.goldBtnText, fontFamily: 'BebasNeue_400Regular', fontSize: 24, letterSpacing: 1 },
   networkName:     { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 18, marginBottom: 3 },
   networkSub:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13 },
