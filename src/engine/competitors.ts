@@ -147,7 +147,10 @@ export function generateInitialCompetitors(
   return { competitors, updatedTalent: mutableTalent };
 }
 
-// Creates a show already mid-airing with a booked showrunner (initial game state only)
+// Creates a show already mid-airing with a booked showrunner (initial game state only).
+// Also ghost-links a director and 2 actors via careerShowIDs so Emmy lookups resolve
+// to real names rather than comp-${showID} placeholders. Those talent stay available
+// since filming is already over.
 function generateAiringShow(
   studioID: string,
   genre: Genre,
@@ -159,7 +162,28 @@ function generateAiringShow(
   const totalEpisodes = randomBetween(8, 12);
   const showID = nanoid();
 
-  const { updatedTalent, showrunnerID } = bookShowrunnerForTier(talent, showID, 'powerhouse');
+  const { updatedTalent: t1, showrunnerID } = bookShowrunnerForTier(talent, showID, 'powerhouse');
+
+  // Ghost-link director and 2 actors — sets careerShowIDs without marking them busy
+  let updatedTalent = [...t1];
+  const availDirectors = updatedTalent.filter(t => t.available && t.role === 'director');
+  const director = pickTalentForTier(availDirectors, 'powerhouse');
+  if (director) {
+    updatedTalent = updatedTalent.map(t =>
+      t.id === director.id
+        ? { ...t, careerShowIDs: t.careerShowIDs.includes(showID) ? t.careerShowIDs : [...t.careerShowIDs, showID] }
+        : t,
+    );
+  }
+  const availActors = updatedTalent.filter(t => t.available && t.role === 'actor');
+  const shuffled = [...availActors].sort(() => Math.random() - 0.5).slice(0, 2);
+  for (const actor of shuffled) {
+    updatedTalent = updatedTalent.map(t =>
+      t.id === actor.id
+        ? { ...t, careerShowIDs: t.careerShowIDs.includes(showID) ? t.careerShowIDs : [...t.careerShowIDs, showID] }
+        : t,
+    );
+  }
 
   const show: CompetitorShow = {
     id: showID,
@@ -186,6 +210,7 @@ function generateAiringShow(
 }
 
 // Creates a new show entering the full pipeline at pre-production
+
 function createShowInPipeline(studioID: string, genre: Genre): CompetitorShow {
   const config = GENRE_CONFIG[genre];
   const baseRating = randomFloat(4.0, 7.5);
