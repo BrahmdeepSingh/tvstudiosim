@@ -35,6 +35,7 @@ export function calculateEmmyNominations(
         seasonID: c.seasonID,
         talentID: c.talentID,
         isPlayerAward: c.isPlayerAward,
+        nominationScore: c.score,
       });
     }
   }
@@ -51,12 +52,21 @@ export function determineEmmyWinners(nominations: Award[]): Award[] {
     byCategory.set(nom.category, list);
   }
 
-  return nominations.map(nom => {
-    const categoryNoms = byCategory.get(nom.category) ?? [];
-    // First entry after sort = winner (score-weighted during nomination)
-    const winnerID = categoryNoms[0]?.id;
-    return { ...nom, won: nom.id === winnerID };
+  const winnerIDs = new Set<string>();
+  byCategory.forEach(noms => {
+    // Weight by score^1.8 — concentrates on top nominees but allows upsets
+    const weights = noms.map(n => Math.pow(Math.max(0.1, n.nominationScore), 1.8));
+    const total = weights.reduce((s, w) => s + w, 0);
+    let rand = Math.random() * total;
+    let winner = noms[noms.length - 1];
+    for (let i = 0; i < noms.length; i++) {
+      rand -= weights[i];
+      if (rand <= 0) { winner = noms[i]; break; }
+    }
+    winnerIDs.add(winner.id);
   });
+
+  return nominations.map(nom => ({ ...nom, won: winnerIDs.has(nom.id) }));
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

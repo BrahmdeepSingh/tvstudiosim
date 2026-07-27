@@ -922,19 +922,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }),
     }));
 
-    // Migrate old saves: add new CompetitorStudio fields
+    // Migrate old saves: add new CompetitorStudio and CompetitorShow fields
     const migratedCompetitors = (loaded.competitors ?? []).map((c: any) => ({
       tier: 'established' as const,
       capital: 25_000_000,
       showsGreenlitThisYear: 0,
       preferredGenres: [],
       ...c,
+      activeShows: (c.activeShows ?? []).map((s: any) => ({
+        marketingWeeksRemaining: 0,
+        baseRating: s.currentRating ?? 5.0,
+        marketingViewerBoost: 1.0,
+        ...s,
+      })),
+    }));
+
+    // Migrate awards: add nominationScore
+    const migrateAward = (a: any) => ({ nominationScore: 5.0, ...a });
+    const migratedAwards = (loaded.awards ?? []).map(migrateAward);
+    const migratedTalent = (loaded.talent ?? []).map((t: any) => ({
+      ...t,
+      awards: (t.awards ?? []).map(migrateAward),
     }));
 
     set({
       ...loaded,
       shows: migratedShows,
       competitors: migratedCompetitors,
+      awards: migratedAwards,
+      talent: migratedTalent,
       studioEvents: loaded.studioEvents ?? [],
       emmyCeremonyPendingYear: loaded.emmyCeremonyPendingYear ?? null,
       saveSlot: slot,

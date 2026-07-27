@@ -47,14 +47,14 @@ export interface CompetitorStudioConfig {
 }
 
 export const COMPETITOR_STUDIO_CONFIGS: CompetitorStudioConfig[] = [
-  { name: 'Apex Entertainment',     tier: 'powerhouse',    startingCapital: 65_000_000, preferredGenres: ['drama', 'limited-series'],  startingPrestige: 52 },
-  { name: 'Crown Media Group',      tier: 'powerhouse',    startingCapital: 60_000_000, preferredGenres: ['drama', 'sci-fi'],           startingPrestige: 48 },
-  { name: 'Meridian Studios',       tier: 'established',   startingCapital: 32_000_000, preferredGenres: ['comedy', 'drama'],           startingPrestige: 35 },
-  { name: 'Harbor Network',         tier: 'established',   startingCapital: 28_000_000, preferredGenres: ['procedural', 'reality'],     startingPrestige: 30 },
-  { name: 'Solstice Entertainment', tier: 'established',   startingCapital: 25_000_000, preferredGenres: ['sci-fi', 'limited-series'],  startingPrestige: 28 },
-  { name: 'Ironwood Pictures',      tier: 'independent',   startingCapital: 14_000_000, preferredGenres: ['comedy', 'drama'],           startingPrestige: 18 },
-  { name: 'Pinnacle TV',            tier: 'independent',   startingCapital: 12_000_000, preferredGenres: ['reality', 'procedural'],     startingPrestige: 16 },
-  { name: 'Westbrook Media',        tier: 'independent',   startingCapital: 10_000_000, preferredGenres: ['drama', 'comedy'],           startingPrestige: 14 },
+  { name: 'Magic Castle Studios',   tier: 'powerhouse',    startingCapital: 65_000_000, preferredGenres: ['drama', 'limited-series'],  startingPrestige: 52 },
+  { name: 'Globe Pictures',         tier: 'powerhouse',    startingCapital: 60_000_000, preferredGenres: ['drama', 'sci-fi'],           startingPrestige: 48 },
+  { name: 'Shield Bros.',           tier: 'established',   startingCapital: 32_000_000, preferredGenres: ['comedy', 'drama'],           startingPrestige: 35 },
+  { name: 'Eyeconic Network',       tier: 'established',   startingCapital: 28_000_000, preferredGenres: ['procedural', 'reality'],     startingPrestige: 30 },
+  { name: 'LionClub Entertainment', tier: 'established',   startingCapital: 25_000_000, preferredGenres: ['sci-fi', 'limited-series'],  startingPrestige: 28 },
+  { name: 'Ironwood TV',            tier: 'independent',   startingCapital: 14_000_000, preferredGenres: ['comedy', 'drama'],           startingPrestige: 18 },
+  { name: 'Smooth House Pictures',  tier: 'independent',   startingCapital: 12_000_000, preferredGenres: ['reality', 'procedural'],     startingPrestige: 16 },
+  { name: 'Green Grass Studios',    tier: 'independent',   startingCapital: 10_000_000, preferredGenres: ['drama', 'comedy'],           startingPrestige: 14 },
 ];
 
 // ─── Streaming ────────────────────────────────────────────────────────────────
