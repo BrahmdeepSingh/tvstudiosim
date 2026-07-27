@@ -74,13 +74,39 @@ function computeBaseRating(
   return Math.round((quality / 100) * config.ratingCeiling * 10) / 10;
 }
 
-// ─── Revenue calculation ──────────────────────────────────────────────────────
+// ─── Revenue & prestige ───────────────────────────────────────────────────────
 
-function computeShowRevenue(tier: StudioTier, rating: number, partial = false): number {
+// Tier multiplier on ad CPM — powerhouses negotiate better rates
+const TIER_AD_MULTIPLIER: Record<StudioTier, number> = {
+  powerhouse:  1.30,
+  established: 1.00,
+  independent: 0.80,
+};
+
+// Minimum capital floor — studios have parent-company credit lines
+const CAPITAL_FLOOR: Record<StudioTier, number> = {
+  powerhouse:   10_000_000,
+  established:   4_000_000,
+  independent:   2_000_000,
+};
+
+function computeWeeklyAdRevenue(tier: StudioTier, viewers: number, genre: Genre, rating: number): number {
+  const config = GENRE_CONFIG[genre];
+  const effectiveCPM = config.cpm * (1 + (rating - 5) / 10) * TIER_AD_MULTIPLIER[tier];
+  return Math.round((viewers / 1000) * effectiveCPM);
+}
+
+// One-time streaming/syndication bonus on natural season completion for high-rated shows
+function computeCompletionBonus(tier: StudioTier, avgRating: number): number {
+  if (avgRating < 7.0) return 0;
   const cost = COMPETITOR_PRODUCTION_COSTS[tier];
-  const factor = clamp(rating / 5.0, 0.3, 2.0);
-  const revenue = Math.round(cost * factor);
-  return partial ? Math.round(revenue * 0.4) : revenue;
+  return Math.round(cost * ((avgRating - 7.0) / 10)); // 0 at 7.0, 30% of cost at 10.0
+}
+
+// Prestige delta at season end — reflects critical reception
+function computePrestigeDelta(avgRating: number, cancelled: boolean): number {
+  if (cancelled) return -2;
+  return Math.round(avgRating - 5.5); // +2.5 at 8.0, 0 at ~5.5, -1.5 at 4.0
 }
 
 // ─── Initial generation ───────────────────────────────────────────────────────
@@ -218,6 +244,7 @@ export function advanceCompetitors(
     const updatedShows: CompetitorShow[] = [];
     let showsProducedDelta = 0;
     let capitalDelta = 0;
+    let prestigeDelta = 0;
     const showsGreenlitThisYear = week === 1 ? 0 : studio.showsGreenlitThisYear;
 
     for (const show of studio.activeShows) {
@@ -313,11 +340,14 @@ export function advanceCompetitors(
         const config = GENRE_CONFIG[show.genre];
         const newViewers = Math.round(config.baseViewers * (newRating / 5) * show.marketingViewerBoost);
 
+        // Weekly ad revenue every episode
+        capitalDelta += computeWeeklyAdRevenue(studio.tier, newViewers, show.genre, newRating);
+
         // Mid-season cancellation
         if (newEpisodesAired >= 3 && newRating < COMPETITOR_CANCEL_THRESHOLD) {
           mutableTalent = releaseAllTalent(mutableTalent, show);
           showsProducedDelta++;
-          capitalDelta += computeShowRevenue(studio.tier, newRating, true);
+          prestigeDelta += computePrestigeDelta(newRating, true);
           updatedShows.push({
             ...show,
             status: 'cancelled',
@@ -334,9 +364,11 @@ export function advanceCompetitors(
         // Season complete
         if (newEpisodesAired >= show.totalEpisodes) {
           showsProducedDelta++;
+          // Completion bonus for high-rated shows (streaming/syndication interest)
+          capitalDelta += computeCompletionBonus(studio.tier, newRating);
+          prestigeDelta += computePrestigeDelta(newRating, false);
 
           if (newRating >= 5.5 && show.seasonNumber < 5) {
-            capitalDelta += computeShowRevenue(studio.tier, newRating);
             const newTotalEpisodes = randomBetween(8, 12);
             updatedShows.push({
               ...show,
@@ -348,13 +380,12 @@ export function advanceCompetitors(
               preProductionWeeksRemaining: 3,
               filmingWeeksRemaining: newTotalEpisodes,
               marketingWeeksRemaining: 0,
-              baseRating: 0, // will recompute when next filming ends
+              baseRating: 0, // recomputed when next filming ends
               bookedDirectorID: null,
               bookedActorIDs: [],
             });
             newsItems.push(makeCompetitorRenewedNews(studio, show, ctx));
           } else {
-            capitalDelta += computeShowRevenue(studio.tier, newRating);
             mutableTalent = releaseAllTalent(mutableTalent, show);
             updatedShows.push({
               ...show,
@@ -408,11 +439,13 @@ export function advanceCompetitors(
       finalGreenlitCount++;
     }
 
+    const floor = CAPITAL_FLOOR[studio.tier];
     return {
       ...studio,
       activeShows: updatedShows,
       totalShowsProduced: studio.totalShowsProduced + showsProducedDelta,
-      capital: finalCapital,
+      capital: Math.max(floor, finalCapital),
+      prestige: clamp(studio.prestige + prestigeDelta, 0, 100),
       showsGreenlitThisYear: finalGreenlitCount,
     };
   });
