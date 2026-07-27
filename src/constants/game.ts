@@ -1,5 +1,7 @@
 import { Genre, TalentRole } from '../types';
 
+type StudioTier = 'powerhouse' | 'established' | 'independent';
+
 // ─── Timing ───────────────────────────────────────────────────────────────────
 
 export const WEEKS_PER_YEAR = 52;
@@ -19,17 +21,40 @@ export const STARTING_YEAR = 1;
 
 // ─── Competitors ──────────────────────────────────────────────────────────────
 
-export const COMPETITOR_STUDIO_COUNT = 5;
-export const MAX_COMPETITOR_ACTIVE_SHOWS = 3;
+export const COMPETITOR_STUDIO_COUNT = 8;
+export const MAX_COMPETITOR_ACTIVE_SHOWS = 2;
+export const MAX_COMPETITOR_SHOWS_PER_YEAR = 2;
 export const COMPETITOR_CANCEL_THRESHOLD = 4.5;
-export const COMPETITOR_GREENLIGHT_CHANCE = 0.08; // per week
 
-export const COMPETITOR_NAMES = [
-  'Pinnacle TV',
-  'Meridian Studios',
-  'Harbor Network',
-  'Solstice Entertainment',
-  'Ironwood Pictures',
+export const COMPETITOR_GREENLIGHT_CHANCES: Record<StudioTier, number> = {
+  powerhouse:  0.12,
+  established: 0.10,
+  independent: 0.08,
+};
+
+export const COMPETITOR_PRODUCTION_COSTS: Record<StudioTier, number> = {
+  powerhouse:  30_000_000,
+  established: 15_000_000,
+  independent:  8_000_000,
+};
+
+export interface CompetitorStudioConfig {
+  name: string;
+  tier: StudioTier;
+  startingCapital: number;
+  preferredGenres: Genre[];
+  startingPrestige: number;
+}
+
+export const COMPETITOR_STUDIO_CONFIGS: CompetitorStudioConfig[] = [
+  { name: 'Apex Entertainment',     tier: 'powerhouse',    startingCapital: 65_000_000, preferredGenres: ['drama', 'limited-series'],  startingPrestige: 52 },
+  { name: 'Crown Media Group',      tier: 'powerhouse',    startingCapital: 60_000_000, preferredGenres: ['drama', 'sci-fi'],           startingPrestige: 48 },
+  { name: 'Meridian Studios',       tier: 'established',   startingCapital: 32_000_000, preferredGenres: ['comedy', 'drama'],           startingPrestige: 35 },
+  { name: 'Harbor Network',         tier: 'established',   startingCapital: 28_000_000, preferredGenres: ['procedural', 'reality'],     startingPrestige: 30 },
+  { name: 'Solstice Entertainment', tier: 'established',   startingCapital: 25_000_000, preferredGenres: ['sci-fi', 'limited-series'],  startingPrestige: 28 },
+  { name: 'Ironwood Pictures',      tier: 'independent',   startingCapital: 14_000_000, preferredGenres: ['comedy', 'drama'],           startingPrestige: 18 },
+  { name: 'Pinnacle TV',            tier: 'independent',   startingCapital: 12_000_000, preferredGenres: ['reality', 'procedural'],     startingPrestige: 16 },
+  { name: 'Westbrook Media',        tier: 'independent',   startingCapital: 10_000_000, preferredGenres: ['drama', 'comedy'],           startingPrestige: 14 },
 ];
 
 // ─── Streaming ────────────────────────────────────────────────────────────────

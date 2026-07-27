@@ -121,8 +121,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // ── Setup ────────────────────────────────────────────────────────────────
 
   initializeGame: (networkName, initials) => {
-    const talent = generateInitialTalentPool();
-    const competitors = generateInitialCompetitors();
+    const initialTalent = generateInitialTalentPool();
+    const { competitors, updatedTalent: talent } = generateInitialCompetitors(initialTalent);
 
     // Generate one starter pitch so inbox isn't empty
     const showrunners = talent.filter(t => t.role === 'showrunner' && t.available);
@@ -922,9 +922,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }),
     }));
 
+    // Migrate old saves: add new CompetitorStudio fields
+    const migratedCompetitors = (loaded.competitors ?? []).map((c: any) => ({
+      tier: 'established' as const,
+      capital: 25_000_000,
+      showsGreenlitThisYear: 0,
+      preferredGenres: [],
+      ...c,
+    }));
+
     set({
       ...loaded,
       shows: migratedShows,
+      competitors: migratedCompetitors,
       studioEvents: loaded.studioEvents ?? [],
       emmyCeremonyPendingYear: loaded.emmyCeremonyPendingYear ?? null,
       saveSlot: slot,

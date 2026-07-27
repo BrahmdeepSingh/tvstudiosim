@@ -296,6 +296,10 @@ export interface CompetitorStudio {
   activeShows: CompetitorShow[];
   emmysWon: number;
   totalShowsProduced: number;
+  tier: 'powerhouse' | 'established' | 'independent';
+  capital: number;
+  showsGreenlitThisYear: number;
+  preferredGenres: Genre[];
 }
 
 // ─── Streaming ───────────────────────────────────────────────────────────────
