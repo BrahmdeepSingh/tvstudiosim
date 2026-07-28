@@ -205,8 +205,7 @@ export default function StudioProfileScreen() {
   // Recent history: news items mentioning this studio
   const studioNewsItems = newsItems
     .filter(n => n.type === 'competitor' && n.headline.includes(studioName))
-    .sort((a, b) => b.year !== a.year ? b.year - a.year : b.week - a.week)
-    .slice(0, 6);
+    .sort((a, b) => b.year !== a.year ? b.year - a.year : b.week - a.week);
 
   return (
     <SafeAreaView style={s.container}>
@@ -288,7 +287,7 @@ export default function StudioProfileScreen() {
             <Text style={s.emptyText}>No news yet.</Text>
           </View>
         ) : (
-          <View style={s.historyCard}>
+          <ScrollView style={s.historyCard} nestedScrollEnabled scrollIndicatorInsets={{ right: 1 }}>
             {studioNewsItems.map((item, idx) => (
               <View key={item.id}>
                 <View style={s.historyRow}>
@@ -298,7 +297,7 @@ export default function StudioProfileScreen() {
                 {idx < studioNewsItems.length - 1 && <View style={s.historyDivider} />}
               </View>
             ))}
-          </View>
+          </ScrollView>
         )}
 
         <View style={{ height: 32 }} />
@@ -340,7 +339,7 @@ const s = StyleSheet.create({
   emptyCard:     { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: 'center', marginBottom: 20 },
   emptyText:     { color: C.muted, fontFamily: F.body, fontSize: 13 },
 
-  historyCard:   { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 20 },
+  historyCard:   { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 20, maxHeight: 280 },
   historyRow:    { padding: 14 },
   historyTimestamp: { color: C.muted, fontFamily: F.bodyMd, fontSize: 11, letterSpacing: 0.5, marginBottom: 4 },
   historyHeadline:  { color: C.text, fontFamily: F.body, fontSize: 13, lineHeight: 19 },
