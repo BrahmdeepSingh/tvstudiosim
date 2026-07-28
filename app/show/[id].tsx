@@ -151,9 +151,10 @@ function ScoreCard({ label, score, sublabel, highlight }: {
 const CHEM_COLORS = { green: C.green, blue: C.blue, red: C.red };
 
 function CrewRow({ label, talent }: { label: string; talent: any }) {
+  const router = useRouter();
   const chemColor = CHEM_COLORS[talent.chemistryColor as keyof typeof CHEM_COLORS] ?? C.muted;
   return (
-    <View style={sd.crewRow}>
+    <TouchableOpacity style={sd.crewRow} onPress={() => router.push(`/talent/${talent.id}`)}>
       <View style={sd.crewAvatarWrap}>
         <Image source={AVATAR_MAP[talent.avatarId]} style={sd.crewAvatar} />
         <View style={[sd.crewChemPip, { backgroundColor: chemColor }]} />
@@ -162,7 +163,8 @@ function CrewRow({ label, talent }: { label: string; talent: any }) {
         <Text style={sd.crewName}>{talent.name}</Text>
         <Text style={sd.crewRole}>{label}</Text>
       </View>
-    </View>
+      <Text style={{ color: C.muted, fontSize: 16 }}>›</Text>
+    </TouchableOpacity>
   );
 }
 

@@ -294,6 +294,43 @@ export function advanceWeek(state: GameState): GameState {
       });
     }
 
+    // Emmy stat boosts: wins get full boost, nominations get half
+    const INDIVIDUAL_CATEGORIES = new Set([
+      'best-drama-actor', 'best-drama-actress',
+      'best-comedy-actor', 'best-comedy-actress',
+      'best-director', 'best-writing',
+    ]);
+    const playerIndividualNoms = withWinners.filter(
+      a => a.isPlayerAward && a.talentID && !a.talentID.startsWith('comp-') &&
+           INDIVIDUAL_CATEGORIES.has(a.category),
+    );
+    if (playerIndividualNoms.length > 0) {
+      talent = talent.map(t => {
+        const relatedNoms = playerIndividualNoms.filter(a => a.talentID === t.id);
+        if (relatedNoms.length === 0) return t;
+        let updatedStats = { ...t.stats };
+        for (const nom of relatedNoms) {
+          const multiplier = nom.won ? 1.0 : 0.5;
+          if (['best-drama-actor', 'best-drama-actress', 'best-comedy-actor', 'best-comedy-actress'].includes(nom.category) &&
+              updatedStats.role === 'actor') {
+            const cur = updatedStats.acting;
+            const delta = (cur < 60 ? 4 : cur < 75 ? 3 : cur < 85 ? 2 : 1) * multiplier;
+            updatedStats = { ...updatedStats, acting: Math.min(100, cur + delta) };
+          } else if (nom.category === 'best-director' && updatedStats.role === 'director') {
+            const cur = updatedStats.directing;
+            const delta = (cur < 60 ? 4 : cur < 75 ? 3 : cur < 85 ? 2 : 1) * multiplier;
+            updatedStats = { ...updatedStats, directing: Math.min(100, cur + delta) };
+          } else if (nom.category === 'best-writing' && updatedStats.role === 'showrunner') {
+            const cur = updatedStats.writing;
+            const delta = (cur < 60 ? 4 : cur < 75 ? 3 : cur < 85 ? 2 : 1) * multiplier;
+            updatedStats = { ...updatedStats, writing: Math.min(100, cur + delta) };
+          }
+        }
+        if (updatedStats === t.stats) return t;
+        return { ...t, stats: updatedStats };
+      });
+    }
+
     newInboxItems.push({
       id: nanoid(),
       type: 'emmy-ceremony',
