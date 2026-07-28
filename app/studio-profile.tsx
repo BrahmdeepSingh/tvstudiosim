@@ -193,11 +193,14 @@ export default function StudioProfileScreen() {
     ? shows.filter(s => ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(s.status)).length
     : studio!.activeShows.filter(s => ['pre-production', 'filming', 'marketing', 'airing'].includes(s.status)).length;
 
-  // Their slate (for competitors only)
-  const slate: CompetitorShow[] = isPlayer ? [] : [...studio!.activeShows].sort((a, b) => {
-    const order = ['airing', 'filming', 'marketing', 'pre-production', 'completed', 'cancelled'];
-    return order.indexOf(a.status) - order.indexOf(b.status);
-  });
+  // Their slate: only shows currently in production or on air (not dead shows)
+  const LIVE_STATUSES = ['airing', 'filming', 'marketing', 'pre-production'];
+  const slate: CompetitorShow[] = isPlayer ? [] : studio!.activeShows
+    .filter(s => LIVE_STATUSES.includes(s.status))
+    .sort((a, b) => {
+      const order = ['airing', 'filming', 'marketing', 'pre-production'];
+      return order.indexOf(a.status) - order.indexOf(b.status);
+    });
 
   // Recent history: news items mentioning this studio
   const studioNewsItems = newsItems

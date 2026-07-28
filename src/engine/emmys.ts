@@ -16,7 +16,7 @@ export function calculateEmmyNominations(
     const playerCandidates = eligible.length > 0
       ? getCandidatesForCategory(category as EmmyCategory, eligible, talent)
       : [];
-    const competitorCandidates = getCompetitorCandidates(category as EmmyCategory, competitors, talent);
+    const competitorCandidates = getCompetitorCandidates(category as EmmyCategory, competitors, talent, year);
 
     const allCandidates = [...playerCandidates, ...competitorCandidates];
     if (allCandidates.length === 0) continue;
@@ -168,17 +168,27 @@ function getCompetitorCandidates(
   category: EmmyCategory,
   competitors: CompetitorStudio[],
   talent: Talent[],
+  year: number,
 ): Candidate[] {
   const candidates: Candidate[] = [];
   const dramaGenres = ['drama', 'sci-fi', 'procedural'];
 
   for (const studio of competitors) {
     for (const show of studio.activeShows) {
-      if (show.status !== 'airing' || show.episodesAired < 4) continue;
-      // Low threshold so most qualifying shows appear — cancelled shows clear via status check
-      if (show.currentRating < 5.0) continue;
+      // Eligible if currently mid-airing (4+ episodes) OR completed a season this year
+      const isAiring = show.status === 'airing' && show.episodesAired >= 4;
+      const completedThisYear =
+        show.lastSeasonCompletedYear === year &&
+        show.lastSeasonFinalRating !== null &&
+        show.lastSeasonFinalRating >= 5.0;
+      if (!isAiring && !completedThisYear) continue;
 
-      const base = show.currentRating + randomFloat(0, 1.5);
+      const effectiveRating = completedThisYear
+        ? show.lastSeasonFinalRating!
+        : show.currentRating;
+      if (effectiveRating < 5.0) continue;
+
+      const base = effectiveRating + randomFloat(0, 1.5);
 
       if (category === 'best-drama-series' && dramaGenres.includes(show.genre)) {
         candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });

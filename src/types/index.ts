@@ -292,6 +292,9 @@ export interface CompetitorShow {
   bookedShowrunnerID: string | null;
   bookedDirectorID: string | null;
   bookedActorIDs: string[];
+  // Emmy eligibility tracking — set when a season finishes airing
+  lastSeasonCompletedYear: number | null;
+  lastSeasonFinalRating: number | null;
 }
 
 export interface CompetitorStudio {

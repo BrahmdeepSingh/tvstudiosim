@@ -30,13 +30,61 @@ const MARKETING_VIEWER_BOOST: Record<StudioTier, [number, number]> = {
 };
 
 const COMPETITOR_TITLES: Record<Genre, string[]> = {
-  drama:            ['Cold Harbor', 'Ash & Iron', 'The Quiet War', 'Crown Heights', 'The Weight', 'Broken Meridian', 'Dark Current', 'Hollow Ground'],
-  comedy:           ['Perfectly Fine', 'Wild Pitch', 'Good Enough', 'The Arrangement', 'Damage Control', 'Off Script', 'Second Draft', 'Easy Does It'],
-  'sci-fi':         ['The Fold', 'Static', 'Null Space', 'Threshold', 'Event Protocol', 'Outer Signal', 'Deep Axis', 'Phase Drift'],
-  procedural:       ['Case Pending', 'The Unit', 'District 7', 'Hard Evidence', 'Field Work', 'Chain of Evidence', 'Night Shift', 'Clear Record'],
-  reality:          ['The Compound', 'Last Standing', 'Open Floor', 'Final Draft', 'The Trade', 'All In', 'Raw Cut', 'The Circuit'],
-  'limited-series': ['Seventeen Days', 'The Last Summer', 'A Quiet Exit', 'Fractured', 'Point of Origin', 'Long Echo', 'The Hours After', 'Endgame'],
+  drama: [
+    'Cold Harbor', 'Ash & Iron', 'The Quiet War', 'Crown Heights', 'The Weight',
+    'Broken Meridian', 'Dark Current', 'Hollow Ground', 'The Last Bridge', 'Nightfall',
+    'Second Chance', 'Silver Falls', 'Pacific Standard', 'Ember Ridge', 'North Wall',
+    'Red Line', 'Stone House', 'Open Water', 'The Collapse', 'Black Sea',
+    'Iron Law', 'Pressure Point', 'The Reckoning', 'Deep Roots', 'Still Waters',
+    'Fault Lines', 'The Long Road', 'Under Fire', 'Lost Ground', 'Blind Eye',
+  ],
+  comedy: [
+    'Perfectly Fine', 'Wild Pitch', 'Good Enough', 'The Arrangement', 'Damage Control',
+    'Off Script', 'Second Draft', 'Easy Does It', 'Better Luck', 'Working Title',
+    'The Daily Grind', 'Side Effects', 'Plot Twist', 'Common Ground', 'Nice Try',
+    'Overtime', 'Moving Parts', 'The Good Job', 'Fresh Start', 'Weekend Plans',
+    'Out of Order', 'Side Hustle', 'No Big Deal', 'Almost There', 'Running Late',
+    'Best Intentions', 'Close Enough', 'Fair Warning', 'Mixed Signals', 'Soft Landing',
+  ],
+  'sci-fi': [
+    'The Fold', 'Static', 'Null Space', 'Threshold', 'Event Protocol',
+    'Outer Signal', 'Deep Axis', 'Phase Drift', 'Dark Matter', 'Singularity',
+    'Terminal Orbit', 'The Last Ship', 'Quantum State', 'Red Horizon', 'Zero Point',
+    'Cold Fusion', 'Iron Sky', 'The Shift', 'Cascade Effect', 'Solar Wind',
+    'Gravity Well', 'Echo Chamber', 'Dead Reckoning', 'Stellar', 'Void Protocol',
+    'Warp Signal', 'Event Horizon', 'Dark Frequency', 'The Anomaly', 'Core Collapse',
+  ],
+  procedural: [
+    'Case Pending', 'The Unit', 'District 7', 'Hard Evidence', 'Field Work',
+    'Chain of Evidence', 'Night Shift', 'Clear Record', 'The Beat', 'Final Verdict',
+    'Under Oath', 'Cold Case', 'The Lineup', 'Night Patrol', 'Sworn Statement',
+    'Reasonable Doubt', 'Open File', 'The Precinct', 'Full Disclosure', 'Witness Stand',
+    'Code of Silence', 'Internal Affairs', 'True Crime', 'By the Book', 'The Division',
+    'Last Resort', 'Strike Force', 'On the Record', 'The Watch', 'Blue Line',
+  ],
+  reality: [
+    'The Compound', 'Last Standing', 'Open Floor', 'Final Draft', 'The Trade',
+    'All In', 'Raw Cut', 'The Circuit', 'The Summit', 'Last One Out',
+    'Full Exposure', 'The Island', 'Pressure Test', 'On the Line', 'True Colors',
+    'Cut Throat', 'Head to Head', 'Winner Takes All', 'The Grind', 'High Stakes',
+    'Real Talk', 'Total Control', 'No Limits', 'The Drop', 'Stripped Back',
+    'First Cut', 'The Gauntlet', 'Dead Heat', 'Zero Hour', 'Final Round',
+  ],
+  'limited-series': [
+    'Seventeen Days', 'The Last Summer', 'A Quiet Exit', 'Fractured', 'Point of Origin',
+    'Long Echo', 'The Hours After', 'Endgame', 'One Last Thing', 'Final Chapter',
+    'The Quiet Season', 'Last Light', 'A Brief History', 'The Unraveling', 'Aftermath',
+    'Before It Ends', 'A Single Thread', 'Loose Ends', 'Remnants', 'The Long Goodbye',
+    'Closing Time', 'The Settlement', 'Last Rites', 'The Vanishing', 'Burning Season',
+    'End of Days', 'The Departure', 'Without a Trace', 'The Final Act', 'Dead of Winter',
+  ],
 };
+
+function pickTitle(genre: Genre, usedTitles: Set<string>): string {
+  const available = COMPETITOR_TITLES[genre].filter(t => !usedTitles.has(t));
+  const pool = available.length > 0 ? available : COMPETITOR_TITLES[genre];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 // ─── Quality from talent stats ────────────────────────────────────────────────
 
@@ -188,7 +236,7 @@ function generateAiringShow(
   const show: CompetitorShow = {
     id: showID,
     studioID,
-    title: randomItem(COMPETITOR_TITLES[genre]),
+    title: pickTitle(genre, new Set()),
     genre,
     status: 'airing',
     currentRating: roundedRating,
@@ -204,6 +252,8 @@ function generateAiringShow(
     bookedShowrunnerID: showrunnerID,
     bookedDirectorID: null,
     bookedActorIDs: [],
+    lastSeasonCompletedYear: null,
+    lastSeasonFinalRating: null,
   };
 
   return { show, updatedTalent };
@@ -211,7 +261,7 @@ function generateAiringShow(
 
 // Creates a new show entering the full pipeline at pre-production
 
-function createShowInPipeline(studioID: string, genre: Genre): CompetitorShow {
+function createShowInPipeline(studioID: string, genre: Genre, usedTitles: Set<string>): CompetitorShow {
   const config = GENRE_CONFIG[genre];
   const baseRating = randomFloat(4.0, 7.5);
   const totalEpisodes = randomBetween(8, 12);
@@ -219,7 +269,7 @@ function createShowInPipeline(studioID: string, genre: Genre): CompetitorShow {
   return {
     id: nanoid(),
     studioID,
-    title: randomItem(COMPETITOR_TITLES[genre]),
+    title: pickTitle(genre, usedTitles),
     genre,
     status: 'pre-production',
     currentRating: Math.round(baseRating * 10) / 10,
@@ -235,6 +285,8 @@ function createShowInPipeline(studioID: string, genre: Genre): CompetitorShow {
     bookedShowrunnerID: null,
     bookedDirectorID: null,
     bookedActorIDs: [],
+    lastSeasonCompletedYear: null,
+    lastSeasonFinalRating: null,
   };
 }
 
@@ -265,6 +317,11 @@ export function advanceCompetitors(
   const ctx = { week, year };
   let mutableTalent = [...talent];
 
+  // All show titles currently in use across every studio — prevents duplicates on greenlight
+  const globalUsedTitles = new Set<string>(
+    competitors.flatMap(c => c.activeShows.map(s => s.title)),
+  );
+
   const updatedCompetitors = competitors.map(studio => {
     const updatedShows: CompetitorShow[] = [];
     let showsProducedDelta = 0;
@@ -273,6 +330,7 @@ export function advanceCompetitors(
     const showsGreenlitThisYear = week === 1 ? 0 : studio.showsGreenlitThisYear;
 
     for (const show of studio.activeShows) {
+      // Dead shows stay in the array for news/history reference but don't advance
       if (show.status === 'completed' || show.status === 'cancelled') {
         updatedShows.push(show);
         continue;
@@ -304,7 +362,6 @@ export function advanceCompetitors(
       if (show.status === 'filming') {
         const remaining = show.filmingWeeksRemaining - 1;
         if (remaining <= 0) {
-          // Compute quality-based rating from talent before releasing them
           const base = computeBaseRating(
             show.bookedShowrunnerID, show.bookedDirectorID, show.bookedActorIDs,
             show.genre, mutableTalent,
@@ -330,10 +387,16 @@ export function advanceCompetitors(
         continue;
       }
 
-      // ── Marketing (MARKETING_WEEKS, showrunner stays booked) ────────────
+      // ── Marketing (MARKETING_WEEKS) ─────────────────────────────────────
       if (show.status === 'marketing') {
         const remaining = show.marketingWeeksRemaining - 1;
         if (remaining <= 0) {
+          // One season per year guard: if this show already aired a season this
+          // calendar year, hold at 1 week remaining until the year rolls over.
+          if (show.lastSeasonCompletedYear === year) {
+            updatedShows.push({ ...show, marketingWeeksRemaining: 1 });
+            continue;
+          }
           const config = GENRE_CONFIG[show.genre];
           const initialViewers = Math.round(
             config.baseViewers * (show.baseRating / 5) * show.marketingViewerBoost,
@@ -351,10 +414,9 @@ export function advanceCompetitors(
         continue;
       }
 
-      // ── Airing (1 episode per week, showrunner booked) ──────────────────
+      // ── Airing (1 episode per week) ─────────────────────────────────────
       if (show.status === 'airing') {
         const newEpisodesAired = show.episodesAired + 1;
-        // Mean-revert 20% toward baseRating each week to anchor to talent quality
         const anchor = show.baseRating > 0 ? show.baseRating : show.currentRating;
         const reverted = show.currentRating + (anchor - show.currentRating) * 0.20;
         const newRating = clamp(
@@ -365,7 +427,6 @@ export function advanceCompetitors(
         const config = GENRE_CONFIG[show.genre];
         const newViewers = Math.round(config.baseViewers * (newRating / 5) * show.marketingViewerBoost);
 
-        // Weekly ad revenue every episode
         capitalDelta += computeWeeklyAdRevenue(studio.tier, newViewers, show.genre, newRating);
 
         // Mid-season cancellation
@@ -378,6 +439,8 @@ export function advanceCompetitors(
             status: 'cancelled',
             currentRating: newRating,
             episodesAired: newEpisodesAired,
+            lastSeasonCompletedYear: year,
+            lastSeasonFinalRating: newRating,
             bookedShowrunnerID: null,
             bookedDirectorID: null,
             bookedActorIDs: [],
@@ -389,7 +452,6 @@ export function advanceCompetitors(
         // Season complete
         if (newEpisodesAired >= show.totalEpisodes) {
           showsProducedDelta++;
-          // Completion bonus for high-rated shows (streaming/syndication interest)
           capitalDelta += computeCompletionBonus(studio.tier, newRating);
           prestigeDelta += computePrestigeDelta(newRating, false);
 
@@ -405,9 +467,11 @@ export function advanceCompetitors(
               preProductionWeeksRemaining: 3,
               filmingWeeksRemaining: newTotalEpisodes,
               marketingWeeksRemaining: 0,
-              baseRating: 0, // recomputed when next filming ends
+              baseRating: 0,
               bookedDirectorID: null,
               bookedActorIDs: [],
+              lastSeasonCompletedYear: year,
+              lastSeasonFinalRating: newRating,
             });
             newsItems.push(makeCompetitorRenewedNews(studio, show, ctx));
           } else {
@@ -417,6 +481,8 @@ export function advanceCompetitors(
               status: 'completed',
               episodesAired: newEpisodesAired,
               currentRating: newRating,
+              lastSeasonCompletedYear: year,
+              lastSeasonFinalRating: newRating,
               bookedShowrunnerID: null,
               bookedDirectorID: null,
               bookedActorIDs: [],
@@ -435,7 +501,7 @@ export function advanceCompetitors(
       }
     }
 
-    // Maybe greenlight a new show
+    // Greenlight check — only count shows that are genuinely in production/air
     const pipelineCount = updatedShows.filter(
       s => s.status === 'pre-production' || s.status === 'filming' ||
            s.status === 'marketing' || s.status === 'airing',
@@ -454,7 +520,8 @@ export function advanceCompetitors(
 
     if (greenlit) {
       const genre = pickGenreForStudio(studio.preferredGenres);
-      const newShow = createShowInPipeline(studio.id, genre);
+      const newShow = createShowInPipeline(studio.id, genre, globalUsedTitles);
+      globalUsedTitles.add(newShow.title);
       const { updatedTalent: t2, showrunnerID } = bookShowrunnerForTier(mutableTalent, newShow.id, studio.tier);
       mutableTalent = t2;
       const finalShow: CompetitorShow = { ...newShow, bookedShowrunnerID: showrunnerID };

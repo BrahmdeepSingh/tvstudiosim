@@ -933,6 +933,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         marketingWeeksRemaining: 0,
         baseRating: s.currentRating ?? 5.0,
         marketingViewerBoost: 1.0,
+        lastSeasonCompletedYear: null,
+        lastSeasonFinalRating: null,
         ...s,
       })),
     }));
