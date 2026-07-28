@@ -119,7 +119,7 @@ function TalentReturnCard({
 export default function RenewScreen() {
   const router = useRouter();
   const { showID } = useLocalSearchParams<{ showID: string }>();
-  const { shows, talent, network, renewShow, hireDirector, hireActor, hireShowrunner } = useGameStore();
+  const { shows, talent, network, renewShow, hireDirector, hireActor } = useGameStore();
 
   const show = shows.find(s => s.id === showID);
   const prevSeason = show?.seasons[show.currentSeasonIndex];
@@ -148,6 +148,10 @@ export default function RenewScreen() {
   const returningDirector   = prevSeason.directorID ? talent.find(t => t.id === prevSeason.directorID) ?? null : null;
   const returningLeads      = prevSeason.leadActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
   const returningSupporting = prevSeason.supportingActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
+
+  // Showrunner is never marked available mid-season (they work writing + filming).
+  // They're always returnable for their own show's renewal since they're not busy elsewhere.
+  const showrunnerReturnable = returningShowrunner != null;
 
   function toggleLeadResign(id: string) {
     setResignLeadIDs(prev => {
@@ -181,7 +185,7 @@ export default function RenewScreen() {
     }
   }
 
-  const showrunnerFee  = resignShowrunner && returningShowrunner && isReturnable(returningShowrunner) ? autoResignFee(returningShowrunner) : 0;
+  const showrunnerFee  = resignShowrunner && showrunnerReturnable ? autoResignFee(returningShowrunner!) : 0;
   const directorFee    = resignDirector && returningDirector ? autoResignFee(returningDirector) : 0;
   const leadFees       = resignLeadIDs.reduce((sum, id) => {
     const t = talent.find(x => x.id === id);
@@ -195,11 +199,9 @@ export default function RenewScreen() {
   const canAfford = network.cashOnHand >= totalResignCost;
 
   function handleStartPreProduction() {
-    renewShow(showID!, episodeCount, leadSlots, supportingSlots);
+    // Pass keepShowrunner: renewShow handles booking/freeing internally
+    renewShow(showID!, episodeCount, leadSlots, supportingSlots, resignShowrunner && showrunnerReturnable);
 
-    if (resignShowrunner && returningShowrunner && isReturnable(returningShowrunner)) {
-      hireShowrunner(showID!, returningShowrunner.id, autoResignFee(returningShowrunner), 0);
-    }
     if (resignDirector && returningDirector) {
       hireDirector(showID!, returningDirector.id, autoResignFee(returningDirector), 0);
     }
@@ -248,7 +250,7 @@ export default function RenewScreen() {
               talent={returningShowrunner}
               role="Showrunner"
               selected={resignShowrunner}
-              returnable={isReturnable(returningShowrunner)}
+              returnable={showrunnerReturnable}
               canSelect={true}
               onToggle={() => setResignShowrunner(v => !v)}
             />

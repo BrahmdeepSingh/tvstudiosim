@@ -60,7 +60,7 @@ interface GameStore extends GameState {
   passPitch: (pitchID: string) => void;
 
   // Renewal / cancellation
-  renewShow: (showID: string, newEpisodeCount: number, newLeadSlots?: number, newSupportingSlots?: number) => void;
+  renewShow: (showID: string, newEpisodeCount: number, newLeadSlots?: number, newSupportingSlots?: number, keepShowrunner?: boolean) => void;
   cancelShow: (showID: string) => void;
 
   // Streaming
@@ -592,7 +592,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Renewal ───────────────────────────────────────────────────────────────
 
-  renewShow: (showID, newEpisodeCount, newLeadSlots, newSupportingSlots) => {
+  renewShow: (showID, newEpisodeCount, newLeadSlots, newSupportingSlots, keepShowrunner = true) => {
     const state = get();
     const show = state.shows.find(s => s.id === showID);
     if (!show || show.status !== 'renewal-pending') return;
@@ -643,7 +643,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       leadActorIDs: [],
       supportingActorIDs: [],
       directorID: null,
-      showrunnerID: prevSeason.showrunnerID,
+      showrunnerID: keepShowrunner ? prevSeason.showrunnerID : '',
       scriptScore: 0,
       qualityScore: 50,
       suggestedDirectorID: prevSeason.directorID,
@@ -690,13 +690,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
             }
           : sh,
       ),
-      // Free previous season's cast/director; re-point showrunner to new season
+      // Free previous season's cast/director; handle showrunner based on player choice
       talent: s.talent.map(t => {
         if (prevCast.includes(t.id) && t.bookedForSeasonID === prevSeason.id) {
           return { ...t, available: true, bookedForSeasonID: null };
         }
         if (t.id === prevSeason.showrunnerID) {
-          return { ...t, bookedForSeasonID: newSeasonID };
+          // keepShowrunner: re-point to new season (no fee, already decided in renew screen)
+          // !keepShowrunner: free them so player can hire someone else
+          return keepShowrunner
+            ? { ...t, bookedForSeasonID: newSeasonID }
+            : { ...t, available: true, bookedForSeasonID: null };
         }
         return t;
       }),
