@@ -102,7 +102,7 @@ export default function StudioScreen() {
         <Text style={s.headerTitle}>Studio</Text>
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* Network identity */}
         <View style={s.identityCard}>

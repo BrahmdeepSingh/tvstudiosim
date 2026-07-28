@@ -225,7 +225,7 @@ export default function RenewScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* Show banner */}
         <View style={s.showBanner}>

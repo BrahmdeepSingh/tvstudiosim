@@ -222,7 +222,7 @@ export default function StudioProfileScreen() {
         <View style={s.backBtn} />
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={s.dots}>· · · · · · · · · · · · · · · · · · · · · · · ·</Text>
 
         {/* Identity */}
@@ -287,7 +287,7 @@ export default function StudioProfileScreen() {
             <Text style={s.emptyText}>No news yet.</Text>
           </View>
         ) : (
-          <ScrollView style={s.historyCard} nestedScrollEnabled scrollIndicatorInsets={{ right: 1 }}>
+          <ScrollView style={s.historyCard} nestedScrollEnabled showsVerticalScrollIndicator={false}>
             {studioNewsItems.map((item, idx) => (
               <View key={item.id}>
                 <View style={s.historyRow}>

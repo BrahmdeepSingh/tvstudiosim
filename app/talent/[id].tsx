@@ -162,7 +162,7 @@ export default function TalentDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <View style={s.portraitWrap}>
           <Image source={AVATAR_MAP[person.avatarId]} style={s.portrait} />
         </View>

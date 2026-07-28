@@ -109,7 +109,7 @@ export default function AllStudiosScreen() {
         <View style={s.backBtn} />
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={s.subtitle}>Every network competing for the same audience</Text>
         <Text style={s.dots}>· · · · · · · · · · · · · · · · · · · · · · · ·</Text>
 
