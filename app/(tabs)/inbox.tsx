@@ -343,7 +343,7 @@ export default function InboxScreen() {
           <View style={{ width: 60 }} />
         </View>
 
-        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
+        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={s.detailMeta}>
             <View style={[s.typeBadge, { backgroundColor: meta.color + '22', borderColor: meta.color }]}>
               <Text style={[s.typeBadgeText, { color: meta.color }]}>{meta.label}</Text>
@@ -401,7 +401,7 @@ export default function InboxScreen() {
           <Text style={s.emptyHint}>Pitches, streaming offers, and Emmy news will appear here.</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 12, gap: 8 }}>
+        <ScrollView contentContainerStyle={{ padding: 12, gap: 8 }} showsVerticalScrollIndicator={false}>
           {sorted.map(item => {
             const meta = TYPE_META[item.type] ?? { label: 'MSG', color: C.muted };
             return (

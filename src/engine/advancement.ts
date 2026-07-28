@@ -31,6 +31,7 @@ export function advanceWeek(state: GameState): GameState {
   const newNewsItems = [...state.newsItems];
   let awards = [...state.awards];
   let pitches = [...state.pitches];
+  let emmyCeremonyPendingYear: number | null = state.emmyCeremonyPendingYear ?? null;
 
   // ─── Advance shows ─────────────────────────────────────────────────────────
   const shows = state.shows.map(show => {
@@ -80,10 +81,13 @@ export function advanceWeek(state: GameState): GameState {
   }
 
   // ─── Ad revenue: accumulate cash from episodes that aired this week ────────
+  // Include 'renewal-pending' shows: the last episode airs in the same tick that
+  // status flips, so filtering to 'airing' only causes the finale's revenue to
+  // be tracked in totalAdRevenue but never collected into cashOnHand.
   let revenueThisWeek = 0;
   for (const show of shows) {
     const season = show.seasons[show.currentSeasonIndex];
-    if (!season || show.status !== 'airing') continue;
+    if (!season || (show.status !== 'airing' && show.status !== 'renewal-pending')) continue;
     const latestEp = season.episodes[season.episodesAired - 1];
     if (latestEp?.weekAired === newWeek && latestEp?.yearAired === newYear) {
       revenueThisWeek += latestEp.adRevenue ?? 0;
@@ -229,7 +233,7 @@ export function advanceWeek(state: GameState): GameState {
         preview: `${playerNoms.length} nomination${playerNoms.length > 1 ? 's' : ''} for your shows`,
       });
       newNewsItems.push(
-        makeEmmyNominationsNews(playerNoms.length, topShow?.title ?? 'your show', {
+        makeEmmyNominationsNews(playerNoms.length, topShow?.title ?? 'your show', state.network.name, {
           week: newWeek,
           year: newYear,
         }),
@@ -293,6 +297,43 @@ export function advanceWeek(state: GameState): GameState {
       });
     }
 
+    // Emmy stat boosts: wins get full boost, nominations get half
+    const INDIVIDUAL_CATEGORIES = new Set([
+      'best-drama-actor', 'best-drama-actress',
+      'best-comedy-actor', 'best-comedy-actress',
+      'best-director', 'best-writing',
+    ]);
+    const playerIndividualNoms = withWinners.filter(
+      a => a.isPlayerAward && a.talentID && !a.talentID.startsWith('comp-') &&
+           INDIVIDUAL_CATEGORIES.has(a.category),
+    );
+    if (playerIndividualNoms.length > 0) {
+      talent = talent.map(t => {
+        const relatedNoms = playerIndividualNoms.filter(a => a.talentID === t.id);
+        if (relatedNoms.length === 0) return t;
+        let updatedStats = { ...t.stats };
+        for (const nom of relatedNoms) {
+          const multiplier = nom.won ? 1.0 : 0.5;
+          if (['best-drama-actor', 'best-drama-actress', 'best-comedy-actor', 'best-comedy-actress'].includes(nom.category) &&
+              updatedStats.role === 'actor') {
+            const cur = updatedStats.acting;
+            const delta = (cur < 60 ? 4 : cur < 75 ? 3 : cur < 85 ? 2 : 1) * multiplier;
+            updatedStats = { ...updatedStats, acting: Math.min(100, cur + delta) };
+          } else if (nom.category === 'best-director' && updatedStats.role === 'director') {
+            const cur = updatedStats.directing;
+            const delta = (cur < 60 ? 4 : cur < 75 ? 3 : cur < 85 ? 2 : 1) * multiplier;
+            updatedStats = { ...updatedStats, directing: Math.min(100, cur + delta) };
+          } else if (nom.category === 'best-writing' && updatedStats.role === 'showrunner') {
+            const cur = updatedStats.writing;
+            const delta = (cur < 60 ? 4 : cur < 75 ? 3 : cur < 85 ? 2 : 1) * multiplier;
+            updatedStats = { ...updatedStats, writing: Math.min(100, cur + delta) };
+          }
+        }
+        if (updatedStats === t.stats) return t;
+        return { ...t, stats: updatedStats };
+      });
+    }
+
     newInboxItems.push({
       id: nanoid(),
       type: 'emmy-ceremony',
@@ -309,7 +350,7 @@ export function advanceWeek(state: GameState): GameState {
     });
 
     newNewsItems.push(
-      makeEmmyCeremonyNews(playerWins.length, topCompetitor, { week: newWeek, year: newYear }),
+      makeEmmyCeremonyNews(playerWins.length, topCompetitor, state.network.name, { week: newWeek, year: newYear }),
     );
 
     if (playerWins.length > 0) {
@@ -319,6 +360,8 @@ export function advanceWeek(state: GameState): GameState {
         prestige: Math.min(100, network.prestige + playerWins.length * 3),
       };
     }
+
+    emmyCeremonyPendingYear = newYear;
   }
 
   // Prune TalentDeal records for talent that is no longer booked
@@ -354,6 +397,7 @@ export function advanceWeek(state: GameState): GameState {
     newsItems: newNewsItems.slice(-150),
     inboxItems: [...state.inboxItems, ...newInboxItems],
     lastSaved: state.lastSaved,
+    emmyCeremonyPendingYear,
   };
 }
 

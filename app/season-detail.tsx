@@ -117,7 +117,7 @@ export default function SeasonDetailScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.scrollContent}>
+      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
         <Text style={s.seasonHeading}>Season {season.seasonNumber}</Text>
         <Text style={s.seasonMeta}>

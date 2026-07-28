@@ -132,6 +132,7 @@ export function makeIndustryNews(ctx: Ctx): NewsItem {
 export function makeEmmyNominationsNews(
   playerNomCount: number,
   topShowTitle: string,
+  networkName: string,
   ctx: Ctx,
 ): NewsItem {
   return {
@@ -143,7 +144,7 @@ export function makeEmmyNominationsNews(
     headline: `Emmy nominations announced — "${topShowTitle}" leads the conversation`,
     body:
       playerNomCount > 0
-        ? `Your network received ${playerNomCount} nomination${playerNomCount > 1 ? 's' : ''} this year. The full nominees list has critics already picking frontrunners.`
+        ? `${networkName} received ${playerNomCount} nomination${playerNomCount > 1 ? 's' : ''} this year. The full nominees list has critics already picking frontrunners.`
         : `This year's nominees are in. Critics are debating which shows have the momentum heading into the ceremony.`,
   };
 }
@@ -203,17 +204,18 @@ export function makeFinaleNews(showTitle: string, seasonNumber: number, ctx: Ctx
 export function makeEmmyCeremonyNews(
   playerWins: number,
   topCompetitor: { studioName: string; wins: number } | null,
+  networkName: string,
   ctx: Ctx,
 ): NewsItem {
   let headline: string;
   let body: string;
 
   if (playerWins > 0 && topCompetitor) {
-    headline = `Emmy night: your network wins ${playerWins} — ${topCompetitor.studioName} also takes home ${topCompetitor.wins}`;
-    body = `A competitive Emmy night. Your network earned recognition while ${topCompetitor.studioName} made a statement of their own. The industry is watching both.`;
+    headline = `Emmy night: ${networkName} wins ${playerWins} — ${topCompetitor.studioName} also takes home ${topCompetitor.wins}`;
+    body = `A competitive Emmy night. ${networkName} earned recognition while ${topCompetitor.studioName} made a statement of their own. The industry is watching both.`;
   } else if (playerWins > 0) {
-    headline = `Emmy night: your network wins ${playerWins}`;
-    body = `A strong night at the Emmys. Winners are celebrating and the industry is taking note of your network's growing prestige.`;
+    headline = `Emmy night: ${networkName} wins ${playerWins}`;
+    body = `A strong night at the Emmys. Winners are celebrating and the industry is taking note of ${networkName}'s growing prestige.`;
   } else if (topCompetitor) {
     headline = `${topCompetitor.studioName} dominates Emmy night with ${topCompetitor.wins} win${topCompetitor.wins > 1 ? 's' : ''}`;
     body = `${topCompetitor.studioName} had a dominant night at the Emmys. The competition is heating up across the industry.`;

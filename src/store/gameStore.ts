@@ -60,7 +60,7 @@ interface GameStore extends GameState {
   passPitch: (pitchID: string) => void;
 
   // Renewal / cancellation
-  renewShow: (showID: string, newEpisodeCount: number, newLeadSlots?: number, newSupportingSlots?: number) => void;
+  renewShow: (showID: string, newEpisodeCount: number, newLeadSlots?: number, newSupportingSlots?: number, keepShowrunner?: boolean) => void;
   cancelShow: (showID: string) => void;
 
   // Streaming
@@ -72,6 +72,9 @@ interface GameStore extends GameState {
 
   // Studio events
   resolveStudioEvent: (eventID: string, choiceIndex: number) => void;
+
+  // Emmy ceremony
+  dismissEmmyCeremony: () => void;
 
   // Persistence
   saveGame: () => Promise<void>;
@@ -104,6 +107,7 @@ const EMPTY_STATE: GameState = {
   inboxItems: [],
   awards: [],
   studioEvents: [],
+  emmyCeremonyPendingYear: null,
   saveSlot: 1,
   lastSaved: '',
   initialized: false,
@@ -117,8 +121,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // ── Setup ────────────────────────────────────────────────────────────────
 
   initializeGame: (networkName, initials) => {
-    const talent = generateInitialTalentPool();
-    const competitors = generateInitialCompetitors();
+    const initialTalent = generateInitialTalentPool();
+    const { competitors, updatedTalent: talent } = generateInitialCompetitors(initialTalent);
 
     // Generate one starter pitch so inbox isn't empty
     const showrunners = talent.filter(t => t.role === 'showrunner' && t.available);
@@ -588,7 +592,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Renewal ───────────────────────────────────────────────────────────────
 
-  renewShow: (showID, newEpisodeCount, newLeadSlots, newSupportingSlots) => {
+  renewShow: (showID, newEpisodeCount, newLeadSlots, newSupportingSlots, keepShowrunner = true) => {
     const state = get();
     const show = state.shows.find(s => s.id === showID);
     if (!show || show.status !== 'renewal-pending') return;
@@ -639,7 +643,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       leadActorIDs: [],
       supportingActorIDs: [],
       directorID: null,
-      showrunnerID: prevSeason.showrunnerID,
+      showrunnerID: keepShowrunner ? prevSeason.showrunnerID : '',
       scriptScore: 0,
       qualityScore: 50,
       suggestedDirectorID: prevSeason.directorID,
@@ -686,13 +690,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
             }
           : sh,
       ),
-      // Free previous season's cast/director; re-point showrunner to new season
+      // Free previous season's cast/director; handle showrunner based on player choice
       talent: s.talent.map(t => {
         if (prevCast.includes(t.id) && t.bookedForSeasonID === prevSeason.id) {
           return { ...t, available: true, bookedForSeasonID: null };
         }
         if (t.id === prevSeason.showrunnerID) {
-          return { ...t, bookedForSeasonID: newSeasonID };
+          // keepShowrunner: re-point to new season (no fee, already decided in renew screen)
+          // !keepShowrunner: free them so player can hire someone else
+          return keepShowrunner
+            ? { ...t, bookedForSeasonID: newSeasonID }
+            : { ...t, available: true, bookedForSeasonID: null };
         }
         return t;
       }),
@@ -771,17 +779,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
               ...sh,
               pendingStreamingOffer: null,
               streamingDeals: [...sh.streamingDeals, deal],
-              // Attribute revenue to each included season
-              seasons: sh.seasons.map(se =>
-                offer.seasonsToInclude.includes(se.seasonNumber)
-                  ? {
-                      ...se,
-                      streamingRevenue:
-                        se.streamingRevenue +
-                        Math.round((amount * se.episodeCount) / Math.max(totalEps, 1) / 100_000) * 100_000,
-                    }
-                  : se,
-              ),
+              // Attribute revenue proportionally; last included season absorbs
+              // any rounding remainder so season totals always sum to deal amount.
+              seasons: (() => {
+                const lastIncluded = Math.max(...offer.seasonsToInclude);
+                let distributed = 0;
+                return sh.seasons.map(se => {
+                  if (!offer.seasonsToInclude.includes(se.seasonNumber)) return se;
+                  const isLast = se.seasonNumber === lastIncluded;
+                  const share = isLast
+                    ? amount - distributed
+                    : Math.round((amount * se.episodeCount) / Math.max(totalEps, 1) / 100_000) * 100_000;
+                  distributed += share;
+                  return { ...se, streamingRevenue: se.streamingRevenue + share };
+                });
+              })(),
             }
           : sh,
       ),
@@ -879,6 +891,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
+  // ── Emmy Ceremony ─────────────────────────────────────────────────────────
+
+  dismissEmmyCeremony: () => set({ emmyCeremonyPendingYear: null }),
+
   // ── Persistence ───────────────────────────────────────────────────────────
 
   saveGame: async () => {
@@ -914,7 +930,41 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }),
     }));
 
-    set({ ...loaded, shows: migratedShows, studioEvents: loaded.studioEvents ?? [], saveSlot: slot });
+    // Migrate old saves: add new CompetitorStudio and CompetitorShow fields
+    const migratedCompetitors = (loaded.competitors ?? []).map((c: any) => ({
+      tier: 'established' as const,
+      capital: 25_000_000,
+      showsGreenlitThisYear: 0,
+      preferredGenres: [],
+      ...c,
+      activeShows: (c.activeShows ?? []).map((s: any) => ({
+        marketingWeeksRemaining: 0,
+        baseRating: s.currentRating ?? 5.0,
+        marketingViewerBoost: 1.0,
+        lastSeasonCompletedYear: null,
+        lastSeasonFinalRating: null,
+        ...s,
+      })),
+    }));
+
+    // Migrate awards: add nominationScore
+    const migrateAward = (a: any) => ({ nominationScore: 5.0, ...a });
+    const migratedAwards = (loaded.awards ?? []).map(migrateAward);
+    const migratedTalent = (loaded.talent ?? []).map((t: any) => ({
+      ...t,
+      awards: (t.awards ?? []).map(migrateAward),
+    }));
+
+    set({
+      ...loaded,
+      shows: migratedShows,
+      competitors: migratedCompetitors,
+      awards: migratedAwards,
+      talent: migratedTalent,
+      studioEvents: loaded.studioEvents ?? [],
+      emmyCeremonyPendingYear: loaded.emmyCeremonyPendingYear ?? null,
+      saveSlot: slot,
+    });
     return true;
   },
 }));

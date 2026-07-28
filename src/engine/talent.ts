@@ -287,19 +287,19 @@ export function generateInitialTalentPool(): Talent[] {
   }
 
   // Low tier (available from the start)
-  for (let i = 0; i < 6; i++) pool.push(make('showrunner', 'low'));
-  for (let i = 0; i < 6; i++) pool.push(make('director', 'low'));
-  for (let i = 0; i < 14; i++) pool.push(make('actor', 'low'));
+  for (let i = 0; i < 8; i++) pool.push(make('showrunner', 'low'));
+  for (let i = 0; i < 8; i++) pool.push(make('director', 'low'));
+  for (let i = 0; i < 26; i++) pool.push(make('actor', 'low'));
 
   // Mid tier (unlocked at prestige 21)
-  for (let i = 0; i < 5; i++) pool.push(make('showrunner', 'mid'));
-  for (let i = 0; i < 5; i++) pool.push(make('director', 'mid'));
-  for (let i = 0; i < 10; i++) pool.push(make('actor', 'mid'));
+  for (let i = 0; i < 6; i++) pool.push(make('showrunner', 'mid'));
+  for (let i = 0; i < 6; i++) pool.push(make('director', 'mid'));
+  for (let i = 0; i < 16; i++) pool.push(make('actor', 'mid'));
 
   // High tier (unlocked at prestige 61)
-  for (let i = 0; i < 3; i++) pool.push(make('showrunner', 'high'));
-  for (let i = 0; i < 3; i++) pool.push(make('director', 'high'));
-  for (let i = 0; i < 6; i++) pool.push(make('actor', 'high'));
+  for (let i = 0; i < 4; i++) pool.push(make('showrunner', 'high'));
+  for (let i = 0; i < 4; i++) pool.push(make('director', 'high'));
+  for (let i = 0; i < 12; i++) pool.push(make('actor', 'high'));
 
   return pool;
 }

@@ -274,7 +274,7 @@ export interface CompetitorShow {
   studioID: string;
   title: string;
   genre: Genre;
-  status: 'pre-production' | 'filming' | 'airing' | 'completed' | 'cancelled';
+  status: 'pre-production' | 'filming' | 'marketing' | 'airing' | 'completed' | 'cancelled';
   currentRating: number;
   weeklyViewers: number;
   seasonNumber: number;
@@ -283,10 +283,18 @@ export interface CompetitorShow {
   // Pipeline counters
   preProductionWeeksRemaining: number;
   filmingWeeksRemaining: number;
+  marketingWeeksRemaining: number;
+  // Quality baseline computed from talent stats at end of filming
+  baseRating: number;
+  // Viewer multiplier from marketing spend
+  marketingViewerBoost: number;
   // Booked talent split by role for staged release
   bookedShowrunnerID: string | null;
   bookedDirectorID: string | null;
   bookedActorIDs: string[];
+  // Emmy eligibility tracking — set when a season finishes airing
+  lastSeasonCompletedYear: number | null;
+  lastSeasonFinalRating: number | null;
 }
 
 export interface CompetitorStudio {
@@ -296,6 +304,10 @@ export interface CompetitorStudio {
   activeShows: CompetitorShow[];
   emmysWon: number;
   totalShowsProduced: number;
+  tier: 'powerhouse' | 'established' | 'independent';
+  capital: number;
+  showsGreenlitThisYear: number;
+  preferredGenres: Genre[];
 }
 
 // ─── Streaming ───────────────────────────────────────────────────────────────
@@ -338,6 +350,7 @@ export interface Award {
   seasonID: string;
   talentID?: string;
   isPlayerAward: boolean;
+  nominationScore: number; // used to weight winner selection
 }
 
 // ─── News & Inbox ─────────────────────────────────────────────────────────────
@@ -393,6 +406,7 @@ export interface GameState {
   inboxItems: InboxItem[];
   awards: Award[];
   studioEvents: StudioEvent[];
+  emmyCeremonyPendingYear: number | null;
   saveSlot: number;
   lastSaved: string;
   initialized: boolean;

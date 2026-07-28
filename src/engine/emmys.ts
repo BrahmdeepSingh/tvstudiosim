@@ -16,7 +16,7 @@ export function calculateEmmyNominations(
     const playerCandidates = eligible.length > 0
       ? getCandidatesForCategory(category as EmmyCategory, eligible, talent)
       : [];
-    const competitorCandidates = getCompetitorCandidates(category as EmmyCategory, competitors);
+    const competitorCandidates = getCompetitorCandidates(category as EmmyCategory, competitors, talent, year);
 
     const allCandidates = [...playerCandidates, ...competitorCandidates];
     if (allCandidates.length === 0) continue;
@@ -35,6 +35,7 @@ export function calculateEmmyNominations(
         seasonID: c.seasonID,
         talentID: c.talentID,
         isPlayerAward: c.isPlayerAward,
+        nominationScore: c.score,
       });
     }
   }
@@ -51,12 +52,21 @@ export function determineEmmyWinners(nominations: Award[]): Award[] {
     byCategory.set(nom.category, list);
   }
 
-  return nominations.map(nom => {
-    const categoryNoms = byCategory.get(nom.category) ?? [];
-    // First entry after sort = winner (score-weighted during nomination)
-    const winnerID = categoryNoms[0]?.id;
-    return { ...nom, won: nom.id === winnerID };
+  const winnerIDs = new Set<string>();
+  byCategory.forEach(noms => {
+    // Weight by score^1.8 — concentrates on top nominees but allows upsets
+    const weights = noms.map(n => Math.pow(Math.max(0.1, n.nominationScore), 1.8));
+    const total = weights.reduce((s, w) => s + w, 0);
+    let rand = Math.random() * total;
+    let winner = noms[noms.length - 1];
+    for (let i = 0; i < noms.length; i++) {
+      rand -= weights[i];
+      if (rand <= 0) { winner = noms[i]; break; }
+    }
+    winnerIDs.add(winner.id);
   });
+
+  return nominations.map(nom => ({ ...nom, won: winnerIDs.has(nom.id) }));
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -157,32 +167,105 @@ function getCandidatesForCategory(
 function getCompetitorCandidates(
   category: EmmyCategory,
   competitors: CompetitorStudio[],
+  talent: Talent[],
+  year: number,
 ): Candidate[] {
   const candidates: Candidate[] = [];
   const dramaGenres = ['drama', 'sci-fi', 'procedural'];
 
   for (const studio of competitors) {
     for (const show of studio.activeShows) {
-      if (show.status !== 'airing' || show.episodesAired < 4) continue;
-      if (show.currentRating < 6.5) continue;
+      // Eligible if currently mid-airing (4+ episodes) OR completed a season this year
+      const isAiring = show.status === 'airing' && show.episodesAired >= 4;
+      const completedThisYear =
+        show.lastSeasonCompletedYear === year &&
+        show.lastSeasonFinalRating !== null &&
+        show.lastSeasonFinalRating >= 5.0;
+      if (!isAiring && !completedThisYear) continue;
 
-      const base = show.currentRating + randomFloat(0, 1.5);
+      const effectiveRating = completedThisYear
+        ? show.lastSeasonFinalRating!
+        : show.currentRating;
+      if (effectiveRating < 5.0) continue;
+
+      const base = effectiveRating + randomFloat(0, 1.5);
 
       if (category === 'best-drama-series' && dramaGenres.includes(show.genre)) {
         candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });
+
       } else if (category === 'best-comedy-series' && show.genre === 'comedy') {
         candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });
+
       } else if (category === 'best-limited-series' && show.genre === 'limited-series') {
         candidates.push({ showID: show.id, seasonID: show.id, score: base, isPlayerAward: false });
+
+      } else if (category === 'best-director') {
+        // Directors are released from bookedDirectorID when filming ends; look up via careerShowIDs
+        const director = talent.find(t =>
+          t.role === 'director' && (
+            t.id === show.bookedDirectorID ||
+            t.careerShowIDs.includes(show.id)
+          ),
+        );
+        // Always include — fall back to show-linked placeholder when real talent unavailable
+        candidates.push({
+          showID: show.id, seasonID: show.id,
+          talentID: director?.id ?? `comp-${show.id}`,
+          score: base, isPlayerAward: false,
+        });
+
+      } else if (category === 'best-writing') {
+        // bookedShowrunnerID stays set during airing, so this is the most reliable source
+        const showrunner = talent.find(t =>
+          t.role === 'showrunner' && (
+            t.id === show.bookedShowrunnerID ||
+            t.careerShowIDs.includes(show.id)
+          ),
+        );
+        candidates.push({
+          showID: show.id, seasonID: show.id,
+          talentID: showrunner?.id ?? `comp-${show.id}`,
+          score: base, isPlayerAward: false,
+        });
+
       } else if (['best-drama-actor', 'best-drama-actress'].includes(category) && dramaGenres.includes(show.genre)) {
-        candidates.push({ showID: show.id, seasonID: show.id, talentID: `comp-${show.id}`, score: base, isPlayerAward: false });
+        const expectedGender = category === 'best-drama-actor' ? 'male' : 'female';
+        // Actors are released after filming; careerShowIDs persists their association
+        const actor = talent.find(t =>
+          t.role === 'actor' &&
+          t.gender === expectedGender &&
+          (t.careerShowIDs.includes(show.id) || t.id === show.bookedActorIDs?.[0]),
+        );
+        candidates.push({
+          showID: show.id, seasonID: show.id,
+          talentID: actor?.id ?? `comp-${show.id}`,
+          score: base, isPlayerAward: false,
+        });
+
       } else if (['best-comedy-actor', 'best-comedy-actress'].includes(category) && show.genre === 'comedy') {
-        candidates.push({ showID: show.id, seasonID: show.id, talentID: `comp-${show.id}`, score: base, isPlayerAward: false });
+        const expectedGender = category === 'best-comedy-actor' ? 'male' : 'female';
+        const actor = talent.find(t =>
+          t.role === 'actor' &&
+          t.gender === expectedGender &&
+          (t.careerShowIDs.includes(show.id) || t.id === show.bookedActorIDs?.[0]),
+        );
+        candidates.push({
+          showID: show.id, seasonID: show.id,
+          talentID: actor?.id ?? `comp-${show.id}`,
+          score: base, isPlayerAward: false,
+        });
       }
     }
   }
 
-  return candidates;
+  // Deduplicate: same talent can't appear twice in the same category
+  const seen = new Map<string, Candidate>();
+  for (const c of candidates) {
+    const key = c.talentID ?? c.showID;
+    const existing = seen.get(key);
+    if (!existing || c.score > existing.score) seen.set(key, c);
+  }
+  return [...seen.values()];
 }
 
 function weightedSelect(candidates: Candidate[], count: number): Candidate[] {

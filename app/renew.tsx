@@ -127,6 +127,7 @@ export default function RenewScreen() {
   const [episodeCount, setEpisodeCount] = useState(prevSeason?.episodeCount ?? 10);
   const [leadSlots, setLeadSlots] = useState(prevSeason?.leadActorSlots ?? 2);
   const [supportingSlots, setSupportingSlots] = useState(prevSeason?.supportingActorSlots ?? 2);
+  const [resignShowrunner, setResignShowrunner] = useState(true);
   const [resignDirector, setResignDirector] = useState(false);
   const [resignLeadIDs, setResignLeadIDs] = useState<string[]>([]);
   const [resignSupportingIDs, setResignSupportingIDs] = useState<string[]>([]);
@@ -147,6 +148,10 @@ export default function RenewScreen() {
   const returningDirector   = prevSeason.directorID ? talent.find(t => t.id === prevSeason.directorID) ?? null : null;
   const returningLeads      = prevSeason.leadActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
   const returningSupporting = prevSeason.supportingActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
+
+  // Showrunner is never marked available mid-season (they work writing + filming).
+  // They're always returnable for their own show's renewal since they're not busy elsewhere.
+  const showrunnerReturnable = returningShowrunner != null;
 
   function toggleLeadResign(id: string) {
     setResignLeadIDs(prev => {
@@ -180,6 +185,7 @@ export default function RenewScreen() {
     }
   }
 
+  const showrunnerFee  = resignShowrunner && showrunnerReturnable ? autoResignFee(returningShowrunner!) : 0;
   const directorFee    = resignDirector && returningDirector ? autoResignFee(returningDirector) : 0;
   const leadFees       = resignLeadIDs.reduce((sum, id) => {
     const t = talent.find(x => x.id === id);
@@ -189,11 +195,12 @@ export default function RenewScreen() {
     const t = talent.find(x => x.id === id);
     return sum + (t ? autoResignFee(t) : 0);
   }, 0);
-  const totalResignCost = directorFee + leadFees + supportingFees;
+  const totalResignCost = showrunnerFee + directorFee + leadFees + supportingFees;
   const canAfford = network.cashOnHand >= totalResignCost;
 
   function handleStartPreProduction() {
-    renewShow(showID!, episodeCount, leadSlots, supportingSlots);
+    // Pass keepShowrunner: renewShow handles booking/freeing internally
+    renewShow(showID!, episodeCount, leadSlots, supportingSlots, resignShowrunner && showrunnerReturnable);
 
     if (resignDirector && returningDirector) {
       hireDirector(showID!, returningDirector.id, autoResignFee(returningDirector), 0);
@@ -225,7 +232,7 @@ export default function RenewScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* Show banner */}
         <View style={s.showBanner}>
@@ -238,23 +245,31 @@ export default function RenewScreen() {
         {/* Showrunner */}
         <Text style={s.sectionLabel}>SHOWRUNNER</Text>
         {returningShowrunner ? (
-          <View style={[s.talentCard, s.talentCardAuto]}>
-            <View style={s.talentLeft}>
-              <View style={s.avatarWrap}>
-                <Image source={AVATAR_MAP[returningShowrunner.avatarId]} style={s.avatarThumb} />
-                <View style={[s.chemPip, { backgroundColor: CHEM_COLORS[returningShowrunner.chemistryColor] }]} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.talentName}>{returningShowrunner.name}</Text>
-                <Text style={s.talentMeta}>Showrunner · Returning automatically</Text>
-              </View>
-            </View>
-            <View style={[s.toggleBtn, s.toggleBtnAuto]}>
-              <Text style={[s.toggleBtnText, s.toggleBtnTextAuto]}>Locked In</Text>
-            </View>
-          </View>
+          <>
+            <TalentReturnCard
+              talent={returningShowrunner}
+              role="Showrunner"
+              selected={resignShowrunner}
+              returnable={showrunnerReturnable}
+              canSelect={true}
+              onToggle={() => setResignShowrunner(v => !v)}
+            />
+            {!resignShowrunner && (
+              <TouchableOpacity
+                style={s.replaceBtn}
+                onPress={() => router.push(`/hire-talent?showID=${showID}&role=showrunner`)}
+              >
+                <Text style={s.replaceBtnText}>Hire New Showrunner →</Text>
+              </TouchableOpacity>
+            )}
+          </>
         ) : (
-          <Text style={s.emptyHint}>No showrunner data.</Text>
+          <TouchableOpacity
+            style={s.replaceBtn}
+            onPress={() => router.push(`/hire-talent?showID=${showID}&role=showrunner`)}
+          >
+            <Text style={s.replaceBtnText}>Hire Showrunner →</Text>
+          </TouchableOpacity>
         )}
 
         {/* Episode count */}
@@ -472,6 +487,9 @@ const s = StyleSheet.create({
   stepValue:           { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 40, letterSpacing: 0.5, lineHeight: 46 },
   stepUnit:            { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
   slotCount:           { flex: 1, color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 18, textAlign: 'center' },
+
+  replaceBtn:          { marginTop: 8, borderRadius: 10, borderWidth: 1, borderColor: C.gold + '55', backgroundColor: C.goldDim, padding: 12, alignItems: 'center' },
+  replaceBtnText:      { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 13 },
 
   costCard:            { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginTop: 20, gap: 4 },
   costRow:             { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
