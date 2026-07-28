@@ -18,7 +18,16 @@ export function calculateEmmyNominations(
       : [];
     const competitorCandidates = getCompetitorCandidates(category as EmmyCategory, competitors, talent, year);
 
-    const allCandidates = [...playerCandidates, ...competitorCandidates];
+    // Deduplicate: same show or talent can only appear once per category.
+    // For series categories talentID is undefined so the key falls back to showID.
+    // Player candidates are merged here; competitor candidates are already deduped internally.
+    const seen = new Map<string, Candidate>();
+    for (const c of [...playerCandidates, ...competitorCandidates]) {
+      const key = c.talentID ?? c.showID;
+      const existing = seen.get(key);
+      if (!existing || c.score > existing.score) seen.set(key, c);
+    }
+    const allCandidates = [...seen.values()];
     if (allCandidates.length === 0) continue;
 
     const nomineeCount = Math.min(5, allCandidates.length);
