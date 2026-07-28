@@ -230,7 +230,7 @@ export function advanceWeek(state: GameState): GameState {
         preview: `${playerNoms.length} nomination${playerNoms.length > 1 ? 's' : ''} for your shows`,
       });
       newNewsItems.push(
-        makeEmmyNominationsNews(playerNoms.length, topShow?.title ?? 'your show', {
+        makeEmmyNominationsNews(playerNoms.length, topShow?.title ?? 'your show', state.network.name, {
           week: newWeek,
           year: newYear,
         }),
@@ -347,7 +347,7 @@ export function advanceWeek(state: GameState): GameState {
     });
 
     newNewsItems.push(
-      makeEmmyCeremonyNews(playerWins.length, topCompetitor, { week: newWeek, year: newYear }),
+      makeEmmyCeremonyNews(playerWins.length, topCompetitor, state.network.name, { week: newWeek, year: newYear }),
     );
 
     if (playerWins.length > 0) {
