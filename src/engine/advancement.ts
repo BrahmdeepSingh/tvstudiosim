@@ -81,10 +81,13 @@ export function advanceWeek(state: GameState): GameState {
   }
 
   // ─── Ad revenue: accumulate cash from episodes that aired this week ────────
+  // Include 'renewal-pending' shows: the last episode airs in the same tick that
+  // status flips, so filtering to 'airing' only causes the finale's revenue to
+  // be tracked in totalAdRevenue but never collected into cashOnHand.
   let revenueThisWeek = 0;
   for (const show of shows) {
     const season = show.seasons[show.currentSeasonIndex];
-    if (!season || show.status !== 'airing') continue;
+    if (!season || (show.status !== 'airing' && show.status !== 'renewal-pending')) continue;
     const latestEp = season.episodes[season.episodesAired - 1];
     if (latestEp?.weekAired === newWeek && latestEp?.yearAired === newYear) {
       revenueThisWeek += latestEp.adRevenue ?? 0;

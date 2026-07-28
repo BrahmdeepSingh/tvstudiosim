@@ -775,17 +775,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
               ...sh,
               pendingStreamingOffer: null,
               streamingDeals: [...sh.streamingDeals, deal],
-              // Attribute revenue to each included season
-              seasons: sh.seasons.map(se =>
-                offer.seasonsToInclude.includes(se.seasonNumber)
-                  ? {
-                      ...se,
-                      streamingRevenue:
-                        se.streamingRevenue +
-                        Math.round((amount * se.episodeCount) / Math.max(totalEps, 1) / 100_000) * 100_000,
-                    }
-                  : se,
-              ),
+              // Attribute revenue proportionally; last included season absorbs
+              // any rounding remainder so season totals always sum to deal amount.
+              seasons: (() => {
+                const lastIncluded = Math.max(...offer.seasonsToInclude);
+                let distributed = 0;
+                return sh.seasons.map(se => {
+                  if (!offer.seasonsToInclude.includes(se.seasonNumber)) return se;
+                  const isLast = se.seasonNumber === lastIncluded;
+                  const share = isLast
+                    ? amount - distributed
+                    : Math.round((amount * se.episodeCount) / Math.max(totalEps, 1) / 100_000) * 100_000;
+                  distributed += share;
+                  return { ...se, streamingRevenue: se.streamingRevenue + share };
+                });
+              })(),
             }
           : sh,
       ),
