@@ -391,12 +391,6 @@ export function advanceCompetitors(
       if (show.status === 'marketing') {
         const remaining = show.marketingWeeksRemaining - 1;
         if (remaining <= 0) {
-          // One season per year guard: if this show already aired a season this
-          // calendar year, hold at 1 week remaining until the year rolls over.
-          if (show.lastSeasonCompletedYear === year) {
-            updatedShows.push({ ...show, marketingWeeksRemaining: 1 });
-            continue;
-          }
           const config = GENRE_CONFIG[show.genre];
           const initialViewers = Math.round(
             config.baseViewers * (show.baseRating / 5) * show.marketingViewerBoost,
