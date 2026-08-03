@@ -9,7 +9,9 @@ import {
 } from '../constants/game';
 import { calculateScriptScore, calculateQualityScore } from './quality';
 import { calculateEpisodeRating } from './ratings';
-import { generateSocialReactions } from './social';
+import { generateSocialReactions, SOCIAL_TEMPLATE_COOLDOWN } from './social';
+import { generateAmbientSocialPosts, AMBIENT_TEMPLATE_COOLDOWN, AmbientSocialPost } from './ambientsocial';
+import { generateEmmyNominationPosts, generateEmmyWinPosts } from './milestonesocial';
 import { advanceCompetitors } from './competitors';
 import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
 import { tryGenerateStreamingOffer, scheduleNextOfferCheck } from './streaming';
@@ -32,6 +34,8 @@ export function advanceWeek(state: GameState): GameState {
   let awards = [...state.awards];
   let pitches = [...state.pitches];
   let emmyCeremonyPendingYear: number | null = state.emmyCeremonyPendingYear ?? null;
+  const socialTemplateTracker = { ids: [...state.recentSocialTemplateIds] };
+  const milestoneAmbientPosts: AmbientSocialPost[] = [];
 
   // ─── Advance shows ─────────────────────────────────────────────────────────
   const shows = state.shows.map(show => {
@@ -42,7 +46,7 @@ export function advanceWeek(state: GameState): GameState {
       case 'writing':  return tickWriting(show, season, state);
       case 'filming':  return tickFilming(show, season, state);
       case 'marketing': return tickMarketing(show, season, newWeek, newYear);
-      case 'airing':   return tickAiring(show, season, newWeek, newYear);
+      case 'airing':   return tickAiring(show, season, newWeek, newYear, socialTemplateTracker);
       default:         return show;
     }
   });
@@ -239,6 +243,13 @@ export function advanceWeek(state: GameState): GameState {
         }),
       );
 
+      const nominatedShowTitles = playerNoms
+        .map(nom => updatedShows.find(sh => sh.id === nom.showID)?.title)
+        .filter((t): t is string => !!t);
+      milestoneAmbientPosts.push(
+        ...generateEmmyNominationPosts(nominatedShowTitles, newWeek, newYear),
+      );
+
       network = {
         ...network,
         emmyNominations: network.emmyNominations + playerNoms.length,
@@ -320,9 +331,9 @@ export function advanceWeek(state: GameState): GameState {
             const delta = (cur < 60 ? 4 : cur < 75 ? 3 : cur < 85 ? 2 : 1) * multiplier;
             updatedStats = { ...updatedStats, acting: Math.min(100, cur + delta) };
           } else if (nom.category === 'best-director' && updatedStats.role === 'director') {
-            const cur = updatedStats.directing;
+            const cur = updatedStats.direction;
             const delta = (cur < 60 ? 4 : cur < 75 ? 3 : cur < 85 ? 2 : 1) * multiplier;
-            updatedStats = { ...updatedStats, directing: Math.min(100, cur + delta) };
+            updatedStats = { ...updatedStats, direction: Math.min(100, cur + delta) };
           } else if (nom.category === 'best-writing' && updatedStats.role === 'showrunner') {
             const cur = updatedStats.writing;
             const delta = (cur < 60 ? 4 : cur < 75 ? 3 : cur < 85 ? 2 : 1) * multiplier;
@@ -351,6 +362,13 @@ export function advanceWeek(state: GameState): GameState {
 
     newNewsItems.push(
       makeEmmyCeremonyNews(playerWins.length, topCompetitor, state.network.name, { week: newWeek, year: newYear }),
+    );
+
+    const winningShowTitles = playerWins
+      .map(win => updatedShows.find(sh => sh.id === win.showID)?.title)
+      .filter((t): t is string => !!t);
+    milestoneAmbientPosts.push(
+      ...generateEmmyWinPosts(winningShowTitles, newWeek, newYear),
     );
 
     if (playerWins.length > 0) {
@@ -384,6 +402,19 @@ export function advanceWeek(state: GameState): GameState {
     ? [...partialState.studioEvents, newStudioEvent]
     : partialState.studioEvents;
 
+  const ambientResult = generateAmbientSocialPosts(
+    { playerShows: updatedShows, competitors: finalCompetitors, week: newWeek, year: newYear },
+    state.recentAmbientTemplateIds,
+  );
+  
+  const newAmbientSocialPosts = [...state.ambientSocialPosts, ...ambientResult.posts].slice(-300);
+  const recentAmbientTemplateIds = [...state.recentAmbientTemplateIds, ...ambientResult.usedTemplateIds]
+    .slice(-AMBIENT_TEMPLATE_COOLDOWN);
+  
+  // recentSocialTemplateIds is untouched here — it only gets updated up where
+  // the per-episode generateSocialReactions() call happens, separately.
+  const recentSocialTemplateIds = socialTemplateTracker.ids;   // ← ADD THIS LINE
+
   return {
     ...state,
     network,
@@ -398,6 +429,9 @@ export function advanceWeek(state: GameState): GameState {
     inboxItems: [...state.inboxItems, ...newInboxItems],
     lastSaved: state.lastSaved,
     emmyCeremonyPendingYear,
+    ambientSocialPosts: newAmbientSocialPosts,
+    recentSocialTemplateIds,
+    recentAmbientTemplateIds,
   };
 }
 
@@ -477,6 +511,7 @@ function tickAiring(
   season: Season,
   newWeek: number,
   newYear: number,
+  socialTemplateTracker: { ids: string[] },
 ): Show {
   const nextIndex = season.episodesAired;
   if (nextIndex >= season.episodeCount) {
@@ -491,7 +526,13 @@ function tickAiring(
     prevEpisodes,
   );
 
-  const reactions = generateSocialReactions(show.title, nextIndex + 1, rating);
+  const socialResult = generateSocialReactions(
+    show.title, nextIndex + 1, rating, show.genre,
+    socialTemplateTracker.ids,
+  );
+  const reactions = socialResult.reactions;
+  socialTemplateTracker.ids = [...socialTemplateTracker.ids, ...socialResult.usedTemplateIds]
+    .slice(-SOCIAL_TEMPLATE_COOLDOWN);
 
   const updatedEpisodes = [...season.episodes];
   updatedEpisodes[nextIndex] = {

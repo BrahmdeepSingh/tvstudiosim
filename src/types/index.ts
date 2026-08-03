@@ -363,6 +363,7 @@ export interface NewsItem {
   body: string;
   type: NewsType;
   read: boolean;
+  byline: string;
 }
 
 export interface InboxItem {
@@ -394,6 +395,7 @@ export interface Network {
 }
 
 // ─── Full Game State ──────────────────────────────────────────────────────────
+import { AmbientSocialPost } from '../engine/ambientsocial';
 
 export interface GameState {
   network: Network;
@@ -410,4 +412,7 @@ export interface GameState {
   saveSlot: number;
   lastSaved: string;
   initialized: boolean;
+  ambientSocialPosts: AmbientSocialPost[];
+  recentSocialTemplateIds: string[];   // cooldown for per-episode reactions (social.ts)
+  recentAmbientTemplateIds: string[];  // cooldown for ambient posts (ambientSocial.ts)
 }

@@ -17,6 +17,11 @@ import { generateInitialTalentPool } from '../engine/talent';
 import { generateInitialCompetitors } from '../engine/competitors';
 import { generatePitch } from '../engine/pitches';
 import { saveGameToStorage, loadGameFromStorage } from './storage';
+import { makeStreamingDealNews } from '../engine/news';
+import {
+  generatePremiereDateAnnouncedPosts,
+  generateRenewalPosts,
+} from '../engine/milestonesocial';
 import {
   STARTING_CASH,
   STARTING_PRESTIGE,
@@ -111,6 +116,9 @@ const EMPTY_STATE: GameState = {
   saveSlot: 1,
   lastSaved: '',
   initialized: false,
+  ambientSocialPosts: [],
+  recentSocialTemplateIds: [],
+  recentAmbientTemplateIds: [],
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -421,16 +429,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!season || show.status !== 'marketing') return;
 
     const { currentWeek, currentYear } = state.network;
-    const weeksFromNow =
-      (year - currentYear) * WEEKS_PER_YEAR + (week - currentWeek);
+    const weeksFromNow = (year - currentYear) * WEEKS_PER_YEAR + (week - currentWeek);
     const marketingWeeksTotal = Math.max(0, weeksFromNow);
 
-    const updatedSeason: Season = {
-      ...season,
-      airDateWeek: week,
-      airDateYear: year,
-      marketingWeeksTotal,
-    };
+    const updatedSeason: Season = { ...season, airDateWeek: week, airDateYear: year, marketingWeeksTotal };
+
+    const newPosts = generatePremiereDateAnnouncedPosts(
+      show.title, weeksFromNow, currentWeek, currentYear,
+    );
 
     set(s => ({
       shows: s.shows.map(sh =>
@@ -438,6 +444,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           ? { ...sh, seasons: sh.seasons.map((se, i) => i === sh.currentSeasonIndex ? updatedSeason : se) }
           : sh,
       ),
+      ambientSocialPosts: [...s.ambientSocialPosts, ...newPosts].slice(-300),
     }));
   },
 
@@ -599,6 +606,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const prevSeason = show.seasons[show.currentSeasonIndex];
     const newSeasonNumber = prevSeason.seasonNumber + 1;
+    const { currentWeek, currentYear } = state.network;
+    const renewalPosts = generateRenewalPosts(show.title, newSeasonNumber, currentWeek, currentYear);
     const newSeasonID = nanoid();
     const resolvedLeadSlots = newLeadSlots ?? prevSeason.leadActorSlots;
     const resolvedSupportingSlots = newSupportingSlots ?? prevSeason.supportingActorSlots;
@@ -675,6 +684,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ? `"${show.title}" renewed for Season ${newSeasonNumber} — ${vStr} viewers watched S${prevSeason.seasonNumber}`
         : `"${show.title}" renewed for Season ${newSeasonNumber}`,
       body: `The network has officially greenlit another season. Pre-production begins immediately.`,
+      byline: 'Trade Wire Staff',
     };
 
     set(s => ({
@@ -705,6 +715,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return t;
       }),
       newsItems: [...s.newsItems, renewalNews].slice(-150),
+      ambientSocialPosts: [...s.ambientSocialPosts, ...renewalPosts].slice(-300),
     }));
   },
 
@@ -767,6 +778,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       expiresYear: state.network.currentYear + offer.durationYears,
     };
 
+    const dealNews = makeStreamingDealNews(
+      show.title,
+      offer.seasonsToInclude,
+      offer.platformName,
+      { week: state.network.currentWeek, year: state.network.currentYear },
+    );
+
     set(s => ({
       network: {
         ...s.network,
@@ -797,6 +815,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
             }
           : sh,
       ),
+      newsItems: [...s.newsItems, dealNews].slice(-150),   // ADDED — matches the
+      // .slice(-150) cap used
+      // elsewhere (e.g. renewalNews)
     }));
   },
 
@@ -841,15 +862,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const { prestigeDelta = 0, cashDelta = 0, delayWeeks = 0, newsHeadline, newsBody } = choice.consequence;
 
-    const newNews = newsHeadline && newsBody
+    const newNews: NewsItem[] = newsHeadline && newsBody
       ? [{
           id: nanoid(),
           week: state.network.currentWeek,
           year: state.network.currentYear,
-          type: 'player' as const,
+          type: 'player',
           read: false,
           headline: newsHeadline,
           body: newsBody,
+          byline: 'Trade Wire Staff',
         }]
       : [];
 
@@ -955,15 +977,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
       awards: (t.awards ?? []).map(migrateAward),
     }));
 
+    const migratedNewsItems = (loaded.newsItems ?? []).map((n: NewsItem) => ({
+      ...n,
+      byline: n.byline ?? 'Trade Wire Staff',
+    }));
+
     set({
       ...loaded,
       shows: migratedShows,
       competitors: migratedCompetitors,
       awards: migratedAwards,
       talent: migratedTalent,
+      newsItems: migratedNewsItems,
       studioEvents: loaded.studioEvents ?? [],
       emmyCeremonyPendingYear: loaded.emmyCeremonyPendingYear ?? null,
       saveSlot: slot,
+      ambientSocialPosts: loaded.ambientSocialPosts ?? [],
+      recentSocialTemplateIds: loaded.recentSocialTemplateIds ?? [],
+      recentAmbientTemplateIds: loaded.recentAmbientTemplateIds ?? [],
     });
     return true;
   },
