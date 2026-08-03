@@ -33,7 +33,8 @@ export function generateSocialReactions(
   rating: number,
   genre: Genre,
   _recentTemplateIds: string[] = [], // unused — kept for call-site compatibility
+  isFinale = false,
 ): GenerateSocialReactionsResult {
-  const reactions = generateEpisodeReactionBatch(showTitle, episodeNumber, genre, rating);
+  const reactions = generateEpisodeReactionBatch(showTitle, episodeNumber, genre, rating, isFinale);
   return { reactions, usedTemplateIds: [] };
 }

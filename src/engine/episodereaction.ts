@@ -1,256 +1,354 @@
 import { SocialReaction, Genre } from '../types';
 import { randomBetween, randomItem } from '../utils/random';
-import { Blueprint, Fragment, FragmentLibrary, PersonaToneProfile, assemblePost, applyPersonaTone } from './fragmentassembler';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Third category converted to the assembly engine, and the highest-frequency
-// one by far — fires for every aired episode of every airing show, every
-// week, guaranteed. Gets the biggest opener pool of the three category files
-// for exactly that reason: this is the content players will see the most of,
-// so it's the most exposed to repetition.
+// Per-persona episode reaction system.
 //
-// Revised after a real gameplay log showed the same root problem as the
-// other two files: too few persona-unrestricted openers ("ok but",
-// "genuinely," carrying 3 personas' worth of posts) and several anaphoric
-// reaction fragments ("nobody is bringing this up enough", "this needs to be
-// talked about more") that hadn't gotten the canLeadPost: false treatment
-// even though they read backwards when leading a post, same bug shape as the
-// "not complaining though" fix from earlier — that fix only ever got applied
-// to the one fragment that was reported, not audited across the whole pool.
-// Also wired in fragment-level cooldown and purged noun-phrase tone entries.
+// Replaced the shared fragment-assembly approach (which produced grammatically
+// correct but tonally flat posts — every persona reached for the same
+// observation/reaction/signoff fragments, so they all read as variations of
+// the same sentence regardless of whose handle was attached).
+//
+// Each persona here has its own template bank, split into rating tiers. No
+// cross-persona sharing. The stan account should never produce a sentence that
+// could come from the critic account; the meme account should read like a meme
+// account, not a recapper with different adjectives. Finale episodes get a
+// dedicated pool (55% chance to fire when isFinale=true) so the last episode
+// of a season gets noticeably different energy.
+//
+// Fragment assembly is still used by competitorreaction.ts and
+// industrychatter.ts — those are lower-frequency, lower-stakes posts where
+// combinatorial variety matters more than voice distinctiveness.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PERSONA_HANDLES: Record<string, { username: string; handle: string }> = {
-  stan: { username: 'unhinged tv stan', handle: '@watchingrn' },
-  critic: { username: 'Critics Desk', handle: '@criticsdesk' },
-  insider: { username: 'The Wrap Line', handle: '@thewrapline' },
-  numbers: { username: 'PrimeTimeFeed', handle: '@primetimefeed' },
-  meme: { username: 'tv memes daily', handle: '@tvmemesdaily' },
-  hatewatcher: { username: 'StreamNerve', handle: '@streamnerve' },
-  recapper: { username: 'TV Obsessed', handle: '@tvobsessed' },
-  parasocial: { username: 'ride or die', handle: '@notokaythough' },
-};
-const PERSONA_KEYS = Object.keys(PERSONA_HANDLES);
+type T = (show: string, ep: number, genre: Genre, hook: string, complaint: string) => string;
 
-function normalizeRating(rating: number): number {
-  return Math.min(1, Math.max(0, (rating - 1) / 9));
+interface PersonaConfig {
+  username: string;
+  handle: string;
+  high: T[];
+  mid: T[];
+  low: T[];
+  finale: T[];
+  likes: { high: [number, number]; mid: [number, number]; low: [number, number] };
+  reposts: { high: [number, number]; mid: [number, number]; low: [number, number] };
 }
 
-const GENRE_FLAVOR: Record<Genre, { unit: string; hook: string; complaint: string }> = {
-  drama: { unit: 'episode', hook: 'that ending', complaint: 'the pacing in the back half' },
-  comedy: { unit: 'episode', hook: 'that cold open', complaint: 'the jokes not landing this week' },
-  'sci-fi': { unit: 'episode', hook: 'that lore drop', complaint: 'the worldbuilding getting away from itself' },
-  procedural: { unit: 'case', hook: 'that twist in the case', complaint: "this week's case feeling like a rerun" },
-  reality: { unit: 'episode', hook: 'that elimination', complaint: 'the edit being so obviously rigged' },
-  'limited-series': { unit: 'episode', hook: 'that reveal', complaint: 'how slow this is moving for something with an ending' },
+const GENRE_FLAVOR: Record<Genre, { hook: string; complaint: string }> = {
+  drama:           { hook: 'that ending',                          complaint: 'the pacing in the back half' },
+  comedy:          { hook: 'that cold open',                       complaint: 'the jokes not landing lately' },
+  'sci-fi':        { hook: 'that lore drop',                       complaint: 'the worldbuilding getting away from itself' },
+  procedural:      { hook: 'that twist',                           complaint: "this week's case feeling recycled" },
+  reality:         { hook: 'that elimination',                     complaint: 'the edit being so obviously rigged' },
+  'limited-series':{ hook: 'that reveal',                         complaint: 'how slow this is moving given the episode count' },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FRAGMENT LIBRARY
-// ─────────────────────────────────────────────────────────────────────────────
+const PERSONAS: Record<string, PersonaConfig> = {
 
-const openers: Fragment[] = [
-  { text: 'okay I have to say this,', personas: ['*'] },
-  { text: 'just finished watching and', personas: ['*'], followsWith: ['observation'] },
-  { text: 'no way I stay quiet about this,', personas: ['*'] },
-  { text: 'thinking about this way too much but,', personas: ['*'] },
-  { text: 'real quick,', personas: ['*'] },
-  { text: 'not gonna lie,', personas: ['hatewatcher', 'critic'] },
-  { text: 'quick thought —', personas: ['insider', 'numbers'] },
-  { text: 'unpopular opinion,', personas: ['hatewatcher', 'critic'], followsWith: ['observation'] },
-  { text: 'hot take incoming,', personas: ['meme', 'hatewatcher'], followsWith: ['observation'] },
-  { text: 'hearing things and', personas: ['insider'], followsWith: ['observation'] },
-  { text: 'watching the numbers on this one,', personas: ['numbers', 'insider'], followsWith: ['observation'] },
-  { text: 'okay this cast though,', personas: ['stan', 'parasocial'], followsWith: ['observation'] },
-  { text: 'not me rewatching this already but,', personas: ['stan', 'parasocial'] },
-  { text: 'ok so,', personas: ['recapper', 'meme'] },
-  { text: 'putting this out into the universe,', personas: ['recapper', 'stan'] },
-];
-
-const observations: Fragment[] = [
-  { text: '{SHOW_NAME} {UNIT} {EPISODE} is {good}', personas: ['*'] },
-  { text: '{HOOK} in {SHOW_NAME} {UNIT} {EPISODE} was {good}', personas: ['recapper', 'stan'] },
-  { text: 'the writing on {SHOW_NAME} has been {good} lately', personas: ['critic', 'recapper'] },
-  { text: "{SHOW_NAME}'s ratings this stretch have been {good}", personas: ['numbers', 'insider'] },
-  { text: 'whoever is running {SHOW_NAME} deserves real credit after this one', personas: ['critic', 'insider'], intensityRange: [0.75, 1] },
-  { text: '{COMPLAINT} is becoming a real problem on {SHOW_NAME}', personas: ['critic', 'hatewatcher'], intensityRange: [0, 0.4] },
-  { text: '{SHOW_NAME} keeps finding new ways to be {bad}', personas: ['hatewatcher', 'meme'], intensityRange: [0, 0.45] },
-  { text: 'the cast on {SHOW_NAME} understood the assignment this {UNIT}', personas: ['stan', 'parasocial'], intensityRange: [0.65, 1] },
-  { text: "{SHOW_NAME} still hasn't given these characters anything new to do", personas: ['parasocial', 'critic'], intensityRange: [0, 0.5] },
-  { text: "{SHOW_NAME} is coasting on a premise it hasn't fully earned yet", personas: ['critic', 'hatewatcher'], intensityRange: [0.25, 0.6] },
-  { text: '{SHOW_NAME} {UNIT} {EPISODE} genuinely surprised me in the best way', personas: ['recapper', 'stan'], intensityRange: [0.6, 1] },
-  { text: '{SHOW_NAME} {UNIT} {EPISODE} left me with more questions than answers and not in a good way', personas: ['parasocial', 'hatewatcher'], intensityRange: [0, 0.45] },
-];
-
-const reactions: Fragment[] = [
-  { text: 'I am fully invested at this point', personas: ['stan', 'recapper'], intensityRange: [0.6, 1], canLeadPost: false },
-  { text: "it's exhausting to keep defending this show", personas: ['hatewatcher', 'critic'], intensityRange: [0, 0.45], canLeadPost: false },
-  { text: 'not complaining though', personas: ['stan', 'numbers', 'recapper'], intensityRange: [0.35, 1], canLeadPost: false },
-  { text: "this show needs to be talked about more", personas: ['insider', 'numbers'], intensityRange: [0.6, 1], canLeadPost: false },
-  { text: "it might be time to call it on this one", personas: ['hatewatcher', 'meme'], intensityRange: [0, 0.3] },
-  { text: 'nobody is bringing this show up enough', personas: ['insider', 'numbers'], canLeadPost: false },
-  { text: 'the show deserves better than this honestly', personas: ['critic', 'hatewatcher'], intensityRange: [0, 0.4] },
-  { text: 'I need everyone to see this', personas: ['stan', 'meme'] },
-  { text: "I'll be thinking about this one for a while", personas: ['stan', 'parasocial'], intensityRange: [0.6, 1] },
-  { text: 'someone needed to say that out loud', personas: ['critic', 'hatewatcher'], canLeadPost: false },
-];
-
-const fillers: Fragment[] = [
-  { text: 'the fandom for this show never sleeps', personas: ['stan', 'recapper'] },
-  { text: 'the discourse around this one has been a lot lately', personas: ['meme', 'hatewatcher'] },
-  { text: 'the trades are going to have opinions about this one', personas: ['insider', 'critic'] },
-  { text: 'rewatch pod when, I need to talk about this with someone', personas: ['recapper', 'stan'] },
-];
-
-const signoffs: Fragment[] = [
-  { text: '#{GENRE}TV', personas: ['*'] },
-  { text: '👀🍿', personas: ['stan', 'hatewatcher', 'meme'] },
-  { text: 'thoughts?', personas: ['critic', 'insider'] },
-  { text: '📺', personas: ['recapper', 'stan'] },
-];
-
-const LIBRARY: FragmentLibrary = {
-  opener: openers,
-  observation: observations,
-  reaction: reactions,
-  filler: fillers,
-  signoff: signoffs,
-};
-
-// No bare ['opener', 'reaction'] blueprint — every blueprint guarantees an
-// 'observation' slot, the only slot type carrying show/episode-specific
-// content (SHOW_NAME, EPISODE, HOOK, COMPLAINT tokens).
-const BLUEPRINTS: Blueprint[] = [
-  ['opener', 'observation', 'reaction', 'signoff'],
-  ['reaction', 'observation', 'signoff'],
-  ['observation', 'filler'],
-  ['observation', 'reaction', 'signoff'],
-  ['opener', 'observation', 'signoff'],
-];
-
-// Purged of noun-phrase-only entries — every option is a plain adjective or
-// adjective phrase, safe in any predicate slot this token appears in.
-const TONE: Record<string, PersonaToneProfile> = {
+  // ── unhinged tv stan ───────────────────────────────────────────────────────
   stan: {
-    capsProbability: 0.2,
-    synonyms: {
-      '{good}': ['nice', 'really solid', 'genuinely great', 'goated', 'literally perfect'],
-      '{bad}': ['a little off', 'not it', 'rough', 'disastrous', 'actually unforgivable'],
-    },
+    username: 'unhinged tv stan',
+    handle: '@watchingrn',
+    high: [
+      (s, ep)           => `ok so I JUST finished ${s} episode ${ep} and I need a minute. I need SEVERAL minutes.`,
+      (s, ep)           => `${s} episode ${ep} is GOATED and I will die on this hill. not changing my mind.`,
+      (s, ep)           => `not me rewatching ${s} ep ${ep} immediately after it ends. I have a problem and I do not care`,
+      (s, ep, _, hook)  => `${hook} in ${s} episode ${ep} has me in my feelings. I cannot explain this to anyone in my life`,
+      (s, ep)           => `${s} episode ${ep} > everything else on TV right now and I said what I said 👀`,
+      (s, ep)           => `whoever wrote ${s} episode ${ep} I owe you everything`,
+    ],
+    mid: [
+      (s, ep) => `${s} episode ${ep} was fine. the season started stronger but I'm still here aren't I`,
+      (s, ep) => `idk ${s} ep ${ep} didn't hit the same for me this week? hoping it picks back up`,
+      (s, ep) => `${s} episode ${ep} is okay. just okay. I wanted more and I got okay. moving on.`,
+    ],
+    low: [
+      (s, ep)                => `okay ${s} episode ${ep} was rough and I love this show too much to pretend otherwise`,
+      (s, ep)                => `oof ${s} ep ${ep}. that was not it. that was very much not it.`,
+      (s, ep, _, __, c)      => `${c} on ${s} and episode ${ep} really showed it. ouch.`,
+      (s, ep)                => `why is ${s} doing this to me. episode ${ep} hurt in a bad way`,
+    ],
+    finale: [
+      (s) => `${s} season finale and I am DESTROYED. someone hold me.`,
+      (s) => `I cannot believe ${s} ended the season like that. I have so many questions and zero chill`,
+    ],
+    likes:   { high: [200, 2000], mid: [80, 900],  low: [50, 600]  },
+    reposts: { high: [80, 700],   mid: [30, 300],  low: [20, 200]  },
   },
+
+  // ── Critics Desk ───────────────────────────────────────────────────────────
   critic: {
-    capsProbability: 0,
-    synonyms: {
-      '{good}': ['decent', 'well-executed', 'quite strong', 'sublime', 'masterful'],
-      '{bad}': ['uneven', 'underwhelming', 'derivative', 'tonally confused', 'a genuine misfire'],
-    },
+    username: 'Critics Desk',
+    handle: '@criticsdesk',
+    high: [
+      (s, ep)          => `${s} episode ${ep} is a textbook example of what this genre can do when it's firing. Remarkable work.`,
+      (s, ep, _, hook) => `${hook} in ${s} episode ${ep} is the kind of narrative pivot this genre rarely gets right. They got it right.`,
+      (s, ep)          => `The writing on ${s} has been building toward episode ${ep} all season. That landing paid off.`,
+      (s, ep)          => `${s} episode ${ep} is doing something genuinely difficult and making it look effortless.`,
+      (s, ep)          => `Strong episode. ${s} episode ${ep} earns every minute of its runtime. Take notes.`,
+    ],
+    mid: [
+      (s, ep) => `${s} episode ${ep} is competent but uninspired. The bones are there; the execution keeps wavering.`,
+      (s, ep) => `Mixed on ${s} episode ${ep}. The premise remains strong. The execution keeps falling short of it.`,
+      (s, ep) => `${s} episode ${ep} passes. Doesn't distinguish itself. That may be enough for some audiences.`,
+    ],
+    low: [
+      (s, ep)           => `${s} episode ${ep} is a structural mess. I've been charitable about this season but this stretched my goodwill.`,
+      (s, ep, _, __, c) => `${c} has been a problem since episode one of ${s}. Episode ${ep} makes it impossible to ignore.`,
+      (s, ep)           => `${s} has written itself into a corner. Episode ${ep} shows exactly what that looks like. Frustrating viewing.`,
+    ],
+    finale: [
+      (s) => `${s} season finale: the end earned what the season promised. The season as a whole holds up.`,
+      (s) => `${s} wraps here. The question now is whether the creative team can sustain this. Strong evidence that they can.`,
+    ],
+    likes:   { high: [100, 900],  mid: [60, 500],  low: [40, 350]  },
+    reposts: { high: [30, 250],   mid: [15, 120],  low: [10, 80]   },
   },
+
+  // ── The Wrap Line ───────────────────────────────────────────────────────────
   insider: {
-    capsProbability: 0,
-    synonyms: {
-      '{good}': ['fine', 'promising', 'notably strong', 'impressive', 'genuinely outstanding'],
-      '{bad}': ['a bit shaky', 'concerning', 'worrying internally', 'in real trouble', 'in full crisis mode'],
-    },
+    username: 'The Wrap Line',
+    handle: '@thewrapline',
+    high: [
+      (s, ep) => `Industry talk around ${s} episode ${ep}: unanimously positive. Whatever's happening in that writers room is working.`,
+      (s, ep) => `Sources telling me episode ${ep} of ${s} is the one that seals a renewal conversation. Tracking this.`,
+      (s, ep) => `The buzz coming out of ${s} episode ${ep} is real. This is the kind of episode that moves things.`,
+      (s, ep) => `Internal response to ${s} episode ${ep} is strong. Expect this to matter come negotiation season.`,
+    ],
+    mid: [
+      (s, ep) => `${s} episode ${ep} is holding steady. Not a breakout, not a stumble. Networks are watching.`,
+      (s, ep) => `Cautious read on ${s} episode ${ep} from people inside the building. Strong in places, soft in others.`,
+      (s, ep) => `The conversation around ${s} shifted a little after episode ${ep}. Not dramatically. Just watching it.`,
+    ],
+    low: [
+      (s, ep) => `Word inside is that ${s} episode ${ep} is where network patience starts running thin. To be continued.`,
+      (s, ep) => `Hard week for ${s} — episode ${ep} underperformed the expectations the early run set. Conversations are happening.`,
+      (s, ep) => `Not what the room was hoping for with ${s} episode ${ep}. This show needs to course-correct.`,
+    ],
+    finale: [
+      (s) => `${s} wrapped its season and the renewal question is now the dominant industry conversation. Interesting timing.`,
+      (s) => `Season finale of ${s} tracked well. Sources say the creative team already has a room for next season. Watch this space.`,
+    ],
+    likes:   { high: [150, 1200], mid: [70, 600],  low: [40, 400]  },
+    reposts: { high: [50, 400],   mid: [20, 180],  low: [10, 120]  },
   },
+
+  // ── PrimeTimeFeed ───────────────────────────────────────────────────────────
   numbers: {
-    capsProbability: 0,
-    synonyms: {
-      '{good}': ['steady', 'solid', 'strong', 'excellent', 'record-setting'],
-      '{bad}': ['soft', 'weak', 'concerning', 'sliding fast', 'in freefall'],
-    },
+    username: 'PrimeTimeFeed',
+    handle: '@primetimefeed',
+    high: [
+      (s, ep) => `${s} episode ${ep}: strong numbers across the board. The audience for this show is locked in.`,
+      (s, ep) => `Episode ${ep} of ${s} tracking well. This is a show that found its audience and held it.`,
+      (s, ep) => `${s} is the kind of show that builds quietly. Episode ${ep} continues that trend.`,
+      (s, ep) => `Viewership for ${s} episode ${ep} looks strong. Early momentum is holding.`,
+    ],
+    mid: [
+      (s, ep) => `${s} episode ${ep}: numbers are fine. Nothing alarming, nothing exceptional.`,
+      (s, ep) => `Steady for ${s} this week — ep ${ep} tracking about where you'd expect mid-season.`,
+      (s, ep) => `${s} episode ${ep}: not losing viewers. That's something, especially at this point in the run.`,
+    ],
+    low: [
+      (s, ep) => `${s} episode ${ep} posted soft numbers. Not freefall but the trajectory matters here.`,
+      (s, ep) => `Rough week in the ratings for ${s}. Episode ${ep} underperformed the window.`,
+      (s, ep) => `The numbers on ${s} episode ${ep} are a yellow flag. Not red yet. Yet.`,
+    ],
+    finale: [
+      (s) => `${s} season finale viewership will be the number everyone watches this week. Early indications: decent.`,
+      (s) => `${s} wraps season here. The cumulative numbers tell a clear story — the audience showed up.`,
+    ],
+    likes:   { high: [80, 700],   mid: [40, 350],  low: [20, 200]  },
+    reposts: { high: [20, 220],   mid: [10, 100],  low: [5, 60]    },
   },
+
+  // ── tv memes daily ─────────────────────────────────────────────────────────
   meme: {
-    capsProbability: 0.3,
-    synonyms: {
-      '{good}': ['kind of unreal', 'wild', 'unreal', 'actually insane', 'beyond parody'],
-      '{bad}': ['not great', 'rough out here', 'a mess', 'genuinely embarrassing', 'catastrophic'],
-    },
+    username: 'tv memes daily',
+    handle: '@tvmemesdaily',
+    high: [
+      (s, ep)          => `${s} episode ${ep} has me in SHAMBLES. someone call someone.`,
+      (s, ep, _, hook) => `me trying to explain ${hook} in ${s} episode ${ep} to someone who hasn't seen it: [visible confusion]`,
+      (s, ep)          => `nobody: / me at midnight after ${s} episode ${ep}: *immediately texts everyone I know*`,
+      (s, ep, _, hook) => `${s} episode ${ep} really said "let's destroy them today" (${hook}) and then did exactly that`,
+      (s, ep)          => `the ${s} episode ${ep} effect: me. at home. alone. in a pile of feelings.`,
+    ],
+    mid: [
+      (s, ep) => `${s} episode ${ep} was okay. I feel things. Mixed things. [shrug]`,
+      (s, ep) => `me watching ${s} ep ${ep} knowing it could've been better but unable to look away anyway`,
+      (s, ep) => `the ${s} writers room: *gestures broadly at episode ${ep}*`,
+    ],
+    low: [
+      (s, ep) => `${s} episode ${ep}: not it. I'm done being polite about it.`,
+      (s, ep) => `me trying to defend ${s} after episode ${ep}: [sweating man doing math meme]`,
+      (s, ep) => `[${s} episode ${ep}] the writers: "yeah that's fine." / the audience: [person slowly leaving]`,
+    ],
+    finale: [
+      (s) => `the season finale of ${s} and I am NOT okay. see you all in therapy.`,
+      (s) => `${s} really ended the season like THAT and just expected us to go on with our lives`,
+    ],
+    likes:   { high: [150, 1800], mid: [70, 800],  low: [40, 500]  },
+    reposts: { high: [100, 900],  mid: [40, 400],  low: [20, 250]  },
   },
+
+  // ── StreamNerve ────────────────────────────────────────────────────────────
   hatewatcher: {
-    capsProbability: 0.15,
-    synonyms: {
-      '{good}': ['accidentally decent', 'better than expected', 'weirdly solid', 'surprisingly good', 'somehow great'],
-      '{bad}': ['mid', 'trashy', 'a total trainwreck', 'unwatchable', 'indefensible'],
-    },
+    username: 'StreamNerve',
+    handle: '@streamnerve',
+    high: [
+      (s, ep) => `fine. FINE. ${s} episode ${ep} was actually good and I refuse to be happy about it.`,
+      (s, ep) => `I've been dragging ${s} for weeks and episode ${ep} is making me eat that. I hate this show. (I love this show.)`,
+      (s, ep) => `ok ${s} episode ${ep} earned it. I'm not going to be weird about this. It earned it.`,
+      (s, ep) => `I started watching ${s} to hate-watch it and episode ${ep} just made me a fan. NOT what I wanted. 👀🍿`,
+    ],
+    mid: [
+      (s, ep) => `${s} episode ${ep}: mid. consistently, committedly mid. at least it's reliable.`,
+      (s, ep) => `${s} ep ${ep} exists. it happened. I watched it. Moving on.`,
+      (s, ep) => `not enough to get excited about, not bad enough to be interesting. ${s} episode ${ep} is just... there.`,
+    ],
+    low: [
+      (s, ep)           => `${s} episode ${ep} is exactly as bad as I said it would be. I keep watching. I am the problem.`,
+      (s, ep)           => `at some point ${s} has to explain what it's doing. Episode ${ep} is not that explanation.`,
+      (s, ep, _, __, c) => `${c} in ${s} and episode ${ep} is where I start to check out. Still here though. Hate myself.`,
+      (s, ep)           => `${s} episode ${ep}: a show happening. to viewers. against their will. (I chose this.) 👀🍿`,
+    ],
+    finale: [
+      (s) => `${s} season finale and I feel nothing. I watched every episode. I feel nothing. That's the problem.`,
+      (s) => `fine. ${s} stuck the landing. I watched it to hate it and it made me care. Logging off for real. 👀🍿`,
+    ],
+    likes:   { high: [200, 1500], mid: [80, 700],  low: [50, 450]  },
+    reposts: { high: [70, 550],   mid: [25, 250],  low: [15, 160]  },
   },
+
+  // ── TV Obsessed ────────────────────────────────────────────────────────────
   recapper: {
-    capsProbability: 0.1,
-    synonyms: {
-      '{good}': ['nice', 'genuinely fun', 'quite strong', 'excellent', 'unmissable'],
-      '{bad}': ['a little disappointing', 'not landing', 'rough lately', 'a real low point', 'a total misfire'],
-    },
+    username: 'TV Obsessed',
+    handle: '@tvobsessed',
+    high: [
+      (s, ep, _, hook) => `Just finished ${s} episode ${ep} and I can't stop thinking about ${hook}. Incredible hour. Recap coming. 📺`,
+      (s, ep)          => `${s} episode ${ep}: I'll be writing about this one for a while. Some moments just land differently.`,
+      (s, ep)          => `Full rewatch of ${s} episode ${ep} done. Caught new layers on every pass. This show rewards attention. 📺`,
+      (s, ep)          => `This is the episode they'll show in screenwriting classes. ${s} episode ${ep} is that good.`,
+      (s, ep)          => `${s} episode ${ep} is exactly why I cover this industry. Beautiful work.`,
+    ],
+    mid: [
+      (s, ep) => `${s} episode ${ep} is a decent hour. Not transcendent, but solidly crafted. Recap up tonight.`,
+      (s, ep) => `Solid ${s} episode ${ep}. Not the best of the season but far from the worst. Worth your time.`,
+      (s, ep) => `${s} episode ${ep}: good in a show that can be great. The gap felt smaller this week, which is something. 📺`,
+    ],
+    low: [
+      (s, ep) => `${s} episode ${ep} is where the season's structural problems really show up. Hard to ignore now. Honest recap incoming.`,
+      (s, ep) => `Recapping ${s} episode ${ep} was a bit of a slog if I'm honest. The show is better than this.`,
+      (s, ep) => `${s} episode ${ep}: the season has been uneven and this is an uneven episode. Said with love. 📺`,
+    ],
+    finale: [
+      (s) => `${s} season finale: the end earned what the season promised. Full season review going up this week. 📺`,
+      (s) => `Season finale of ${s} done. Thinking about the full run now. The recap is going to be long.`,
+    ],
+    likes:   { high: [100, 800],  mid: [50, 400],  low: [30, 250]  },
+    reposts: { high: [30, 220],   mid: [15, 100],  low: [8, 65]    },
   },
+
+  // ── ride or die ────────────────────────────────────────────────────────────
   parasocial: {
-    capsProbability: 0.1,
-    synonyms: {
-      '{good}': ['sweet', 'wonderful', 'so good', 'perfect', 'exactly what I needed'],
-      '{bad}': ['a little flat', 'disappointing', 'rough', 'a real letdown', 'heartbreaking for the worst reasons'],
-    },
+    username: 'ride or die',
+    handle: '@notokaythough',
+    high: [
+      (s, ep)          => `${s} episode ${ep}. I'm not okay. I need everyone in this cast to know they ruined my life (affectionate)`,
+      (s, ep)          => `I've watched ${s} episode ${ep} three times and it gets better every time. I cannot be stopped.`,
+      (s, ep)          => `${s} episode ${ep} is exactly why I tell everyone to watch this show. THIS. RIGHT HERE. 📺`,
+      (s, ep)          => `crying and rewinding at the same time at ${s} episode ${ep}. it's that kind of show.`,
+      (s, ep, _, hook) => `the way I gasped at ${hook} in ${s} episode ${ep}. I am a completely normal person.`,
+    ],
+    mid: [
+      (s, ep) => `${s} episode ${ep} was good! just. good. I wanted great. I got good. It's fine. I'm fine.`,
+      (s, ep) => `not the best ${s} episode (ep ${ep}) but I'm still here aren't I. that's love.`,
+      (s, ep) => `I love ${s} too much to pretend episode ${ep} was the best it's ever been. it wasn't. still here.`,
+    ],
+    low: [
+      (s, ep) => `${s} episode ${ep} broke my heart and not in a good way. I need a minute with this.`,
+      (s, ep) => `the writers really looked at ${s} episode ${ep} and said "yeah that's fine." it is not fine.`,
+      (s, ep) => `I have been defending ${s} since day one and episode ${ep} is testing me. TESTING ME.`,
+    ],
+    finale: [
+      (s) => `${s} season finale and I am a WRECK. I love this cast too much. This is a real problem.`,
+      (s) => `the finale of ${s} just happened and I don't know how to go back to regular life. how do people do that.`,
+    ],
+    likes:   { high: [80, 600],   mid: [30, 280],  low: [15, 180]  },
+    reposts: { high: [20, 200],   mid: [8, 90],    low: [4, 55]    },
   },
 };
 
-// In-memory fragment-level cooldown — see competitorReaction.ts for why this
-// is intentionally not part of persisted GameState.
-const COOLDOWN_WINDOW = 20; // larger than the other two files since this
-                             // category fires far more often per session
-let recentFragmentKeys: string[] = [];
+const PERSONA_KEYS = Object.keys(PERSONAS);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PER-PERSONA COOLDOWN
+// In-memory only — resets on app restart. Tracks the last N "tier:index" keys
+// used per persona so the same line doesn't repeat twice in a short session
+// window. Per-persona rather than global because each persona's pool is small
+// (~4-6 templates per tier), and a global cooldown would silently empty pools
+// that only have 2-3 persona-compatible entries, causing silent skips.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const COOLDOWN_SIZE = 5;
+const personaCooldowns = new Map<string, string[]>();
+
+function pickTemplate(pool: T[], tierKey: string, personaKey: string): T | null {
+  if (pool.length === 0) return null;
+  const recent = personaCooldowns.get(personaKey) ?? [];
+  const recentSet = new Set(recent);
+  const indexed = pool.map((t, i) => ({ t, key: `${tierKey}:${i}` }));
+  const fresh = indexed.filter(x => !recentSet.has(x.key));
+  const usable = fresh.length > 0 ? fresh : indexed;
+  const picked = usable[Math.floor(Math.random() * usable.length)];
+  personaCooldowns.set(personaKey, [...recent, picked.key].slice(-COOLDOWN_SIZE));
+  return picked.t;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC API
 // ─────────────────────────────────────────────────────────────────────────────
 
-function generateOne(showTitle: string, episodeNumber: number, genre: Genre, rating: number, excludePersonas: Set<string>): SocialReaction {
-  const intensity = normalizeRating(rating);
-  const flavor = GENRE_FLAVOR[genre];
-  const tokens = {
-    SHOW_NAME: showTitle,
-    EPISODE: String(episodeNumber),
-    GENRE: genre,
-    UNIT: flavor.unit,
-    HOOK: flavor.hook,
-    COMPLAINT: flavor.complaint,
-  };
-
-  const availablePersonas = PERSONA_KEYS.filter(p => !excludePersonas.has(p));
-  const persona = randomItem(availablePersonas.length > 0 ? availablePersonas : PERSONA_KEYS);
-
-  const { text, usedKeys } = assemblePost(
-    BLUEPRINTS, LIBRARY, persona, tokens, intensity, new Set(recentFragmentKeys),
-  );
-  recentFragmentKeys = [...recentFragmentKeys, ...usedKeys].slice(-COOLDOWN_WINDOW);
-
-  const content = applyPersonaTone(text, TONE[persona], intensity);
-  const { username, handle } = PERSONA_HANDLES[persona];
-
-  return {
-    username,
-    handle,
-    content,
-    likes: randomBetween(80, rating >= 8 ? 5200 : rating >= 5.5 ? 900 : 1600),
-    reposts: randomBetween(20, rating >= 8 ? 1900 : rating >= 5.5 ? 280 : 550),
-  };
-}
-
-/**
- * Generates one episode's batch of reactions (3-5 posts), guaranteeing no
- * persona posts twice within the same batch.
- */
 export function generateEpisodeReactionBatch(
   showTitle: string,
   episodeNumber: number,
   genre: Genre,
   rating: number,
+  isFinale = false,
 ): SocialReaction[] {
+  const tier: 'high' | 'mid' | 'low' = rating >= 7.5 ? 'high' : rating >= 5.0 ? 'mid' : 'low';
+  const flavor = GENRE_FLAVOR[genre];
   const count = randomBetween(3, Math.min(5, PERSONA_KEYS.length));
   const usedPersonas = new Set<string>();
-  const reactions: SocialReaction[] = [];
+  const results: SocialReaction[] = [];
 
   for (let i = 0; i < count; i++) {
-    const post = generateOne(showTitle, episodeNumber, genre, rating, usedPersonas);
-    const usedKey = PERSONA_KEYS.find(k => PERSONA_HANDLES[k].handle === post.handle)!;
-    usedPersonas.add(usedKey);
-    reactions.push(post);
+    const available = PERSONA_KEYS.filter(k => !usedPersonas.has(k));
+    if (available.length === 0) break;
+    const personaKey = randomItem(available);
+    usedPersonas.add(personaKey);
+
+    const persona = PERSONAS[personaKey];
+
+    // Finale episodes: 55% chance to pull from the persona's finale pool.
+    const useFinale = isFinale && persona.finale.length > 0 && Math.random() < 0.55;
+    const pool = useFinale ? persona.finale : persona[tier];
+    const tierKey = useFinale ? 'finale' : tier;
+
+    const template = pickTemplate(pool, tierKey, personaKey);
+    if (!template) continue;
+
+    const content = template(showTitle, episodeNumber, genre, flavor.hook, flavor.complaint);
+    const lr = persona.likes[tier];
+    const rr = persona.reposts[tier];
+
+    results.push({
+      username: persona.username,
+      handle: persona.handle,
+      content,
+      likes: randomBetween(lr[0], lr[1]),
+      reposts: randomBetween(rr[0], rr[1]),
+    });
   }
 
-  return reactions;
+  return results;
 }

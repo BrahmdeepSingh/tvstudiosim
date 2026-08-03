@@ -526,9 +526,11 @@ function tickAiring(
     prevEpisodes,
   );
 
+  const isFinale = (nextIndex + 1) === season.episodeCount;
   const socialResult = generateSocialReactions(
     show.title, nextIndex + 1, rating, show.genre,
     socialTemplateTracker.ids,
+    isFinale,
   );
   const reactions = socialResult.reactions;
   socialTemplateTracker.ids = [...socialTemplateTracker.ids, ...socialResult.usedTemplateIds]
