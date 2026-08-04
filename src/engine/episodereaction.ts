@@ -525,7 +525,7 @@ const PERSONAS: Record<string, PersonaConfig> = {
     ],
     trendDown: [
       (s, ep) => `${s} episode ${ep} is a step back from the prior week. The internal temperature has dropped a little.`,
-      (s, ep) => `Sources flagging that ${s} ep ${ep} landed softer than episode ${ep - 1}. Worth watching.`,
+      (s, ep) => `Sources flagging that ${s} ep ${ep} landed softer than last week. Worth watching.`,
       (s, ep) => `The conversation around ${s} is more cautious after episode ${ep} than it was last week. Not alarm bells. A flag.`,
       (s, ep) => `${s} episode ${ep}: the internal read is cooler than last week. One week isn't the story. Two is where it starts.`,
       (s, ep) => `Sources say the ${s} ep ${ep} postmortem was more uncomfortable than last week's. The show lost a little ground.`,
@@ -592,7 +592,7 @@ const PERSONAS: Record<string, PersonaConfig> = {
       (s, ep) => `${s} episode ${ep} tracking: within range. The audience this show has is loyal. It's not expanding. It's holding.`,
       (s, ep) => `${s} ep ${ep}: the viewership story is "consistent." Consistent is a good story mid-season for a show in its situation.`,
       (s, ep) => `${s} episode ${ep}: the number came in. It's fine. The season average is intact. Move on.`,
-      (s, ep) => `${s} ep ${ep}: week ${ep} looks like week ${ep - 1} in the data. For a mid-season read, that's exactly what you want.`,
+      (s, ep) => `${s} ep ${ep}: the data looks the same as last week. For a mid-season read, that's exactly what you want.`,
       (s, ep) => `${s} episode ${ep}: retention is solid, sampling has leveled off. The audience is set. Whether it grows is a later question.`,
       (s, ep) => `${s} ep ${ep} viewership: the show is performing where it should be performing. No surprises. None wanted.`,
       (s, ep) => `${s} episode ${ep}: steady audience, mid-range number, no flags. The tracking story this week is "nothing happened."`,
@@ -680,7 +680,7 @@ const PERSONAS: Record<string, PersonaConfig> = {
     ],
     trendDown: [
       (s, ep) => `${s} ep ${ep} slipped from last week. Two soft weeks in a row is where it starts to matter.`,
-      (s, ep) => `Numbers on ${s} episode ${ep} are down from episode ${ep - 1}. Directional trend worth watching.`,
+      (s, ep) => `Numbers on ${s} episode ${ep} are down from the prior week. Directional trend worth watching.`,
       (s, ep) => `${s} episode ${ep} dipped from the prior week. Not freefall, but the trajectory isn't helping.`,
       (s, ep) => `${s} ep ${ep}: viewership down from last week. One week is noise. Watching for two.`,
       (s, ep) => `${s} episode ${ep}: the number declined week-over-week. Not a crisis. A direction.`,
