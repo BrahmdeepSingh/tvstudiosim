@@ -527,10 +527,12 @@ function tickAiring(
   );
 
   const isFinale = (nextIndex + 1) === season.episodeCount;
+  const prevRating = nextIndex > 0 ? (season.episodes[nextIndex - 1]?.rating ?? undefined) : undefined;
   const socialResult = generateSocialReactions(
     show.title, nextIndex + 1, rating, show.genre,
     socialTemplateTracker.ids,
     isFinale,
+    prevRating,
   );
   const reactions = socialResult.reactions;
   socialTemplateTracker.ids = [...socialTemplateTracker.ids, ...socialResult.usedTemplateIds]

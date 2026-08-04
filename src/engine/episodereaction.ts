@@ -62,6 +62,8 @@ interface PersonaConfig {
   finaleHigh: T[];
   finaleMid: T[];
   finaleLow: T[];
+  trendUp: T[];   // fires when rating rose ≥ 0.2 from prior episode
+  trendDown: T[]; // fires when rating fell ≥ 0.2 from prior episode
   likes: Record<RangeKey, [number, number]>;
   reposts: Record<RangeKey, [number, number]>;
 }
@@ -124,6 +126,16 @@ const PERSONAS: Record<string, PersonaConfig> = {
       (s) => `${s} finale and I'm like... okay? that's it? I wanted more from this ending.`,
       (s) => `the ${s} finale was fine but this season deserved a better finish. still love this show though.`,
     ],
+    trendUp: [
+      (s, ep) => `${s} episode ${ep} bounced back and I needed that. last week had me nervous`,
+      (s, ep) => `back on track with ${s} ep ${ep}. I love a recovery episode`,
+      (s, ep) => `${s} ep ${ep} found it again after last week. my trust is restored`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} ep ${ep} is a step down from last week. I'm not spiraling. I'm almost not spiraling.`,
+      (s, ep) => `idk ${s} episode ${ep} didn't hit as hard as last week for me. hoping it picks back up`,
+      (s, ep) => `${s} ep ${ep} slipped a bit from last week. it's fine. everything is fine.`,
+    ],
     likes:   { high: [200, 2000], midHigh: [100, 1000], midLow: [60, 600], low: [40, 400] },
     reposts: { high: [80, 700],   midHigh: [35, 300],   midLow: [20, 180], low: [15, 120] },
   },
@@ -173,6 +185,16 @@ const PERSONAS: Record<string, PersonaConfig> = {
       (s) => `${s} season finale lands with a thud. A rough end to a rough stretch. The show owes its audience more.`,
       (s) => `${s} closes its season here. Not where the premiere promised we'd be. Hard to call this a landing.`,
     ],
+    trendUp: [
+      (s, ep) => `${s} course-corrects with episode ${ep}. A meaningful improvement after a weaker stretch.`,
+      (s, ep) => `Episode ${ep} of ${s} recovers ground the show had been losing. Notable uptick.`,
+      (s, ep) => `${s} finds its footing again in episode ${ep}. Worth acknowledging after the recent wobble.`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} episode ${ep} is a step back from last week. The inconsistency is becoming the story.`,
+      (s, ep) => `Episode ${ep} of ${s} underperforms the recent run. The show has more in it than this week offered.`,
+      (s, ep) => `${s} ep ${ep} gives back some of the ground the season had built. Watching carefully.`,
+    ],
     likes:   { high: [100, 900],  midHigh: [70, 600],  midLow: [40, 350], low: [30, 220] },
     reposts: { high: [30, 250],   midHigh: [20, 150],  midLow: [10, 90],  low: [8, 60]  },
   },
@@ -221,6 +243,16 @@ const PERSONAS: Record<string, PersonaConfig> = {
       (s) => `Hard read on the ${s} finale. The season didn't end where it started. Internal conversations are going to be uncomfortable.`,
       (s) => `${s} closes its season with the weakest episode of the run. The renewal math just got harder.`,
     ],
+    trendUp: [
+      (s, ep) => `Chatter on ${s} episode ${ep} is more positive than last week. The room noticed the uptick.`,
+      (s, ep) => `${s} episode ${ep} turned some conversations around. Better than the week before, and people inside are saying so.`,
+      (s, ep) => `Industry read on ${s} ep ${ep} is warmer than last week. A recovery episode matters for the renewal math.`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} episode ${ep} is a step back from the prior week. The internal temperature has dropped a little.`,
+      (s, ep) => `Sources flagging that ${s} ep ${ep} landed softer than episode ${ep - 1}. Worth watching.`,
+      (s, ep) => `The conversation around ${s} is more cautious after episode ${ep} than it was last week. Not alarm bells. A flag.`,
+    ],
     likes:   { high: [150, 1200], midHigh: [90, 700],  midLow: [50, 400], low: [30, 250] },
     reposts: { high: [50, 400],   midHigh: [25, 200],  midLow: [12, 110], low: [8, 70]  },
   },
@@ -268,6 +300,16 @@ const PERSONAS: Record<string, PersonaConfig> = {
     finaleLow: [
       (s) => `${s} season finale numbers closed the book on a soft season. The data will be front and center in every renewal conversation.`,
       (s) => `${s} wraps here with viewership that reflects where this season went. Tough numbers to build a renewal case on.`,
+    ],
+    trendUp: [
+      (s, ep) => `${s} episode ${ep} viewership up from last week. The floor is higher than the recent dip suggested.`,
+      (s, ep) => `Recovery for ${s} this week — ep ${ep} trending above the prior episode's mark.`,
+      (s, ep) => `${s} ep ${ep} bounced back in the numbers. Good sign for the back half of the season.`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} ep ${ep} slipped from last week. Two soft weeks in a row is where it starts to matter.`,
+      (s, ep) => `Numbers on ${s} episode ${ep} are down from episode ${ep - 1}. Directional trend worth watching.`,
+      (s, ep) => `${s} episode ${ep} dipped from the prior week. Not freefall, but the trajectory isn't helping.`,
     ],
     likes:   { high: [80, 700],   midHigh: [50, 400],  midLow: [25, 220], low: [15, 130] },
     reposts: { high: [20, 220],   midHigh: [12, 120],  midLow: [6, 65],   low: [4, 40]  },
@@ -318,6 +360,16 @@ const PERSONAS: Record<string, PersonaConfig> = {
       (s) => `${s} finale was… [person staring into middle distance] okay. we watched it.`,
       (s) => `the ${s} writers went out there, did a whole season, ended it like that. bold choice.`,
     ],
+    trendUp: [
+      (s, ep) => `${s} episode ${ep} said "we're back" and the group chat has re-entered the building`,
+      (s, ep) => `bounce back episode for ${s} (ep ${ep}) and I am choosing to interpret this as the show hearing us`,
+      (s, ep) => `ep ${ep} of ${s}: [unexpected comeback arc]`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} ep ${ep} was a little bit of a step down from last week. the group chat went quieter than usual.`,
+      (s, ep) => `${s} episode ${ep} energy: last week was better and everyone felt it`,
+      (s, ep) => `me after ${s} ep ${ep}: not bad. not as good as last week. [polite nodding]`,
+    ],
     likes:   { high: [150, 1800], midHigh: [80, 900],  midLow: [45, 500], low: [25, 300] },
     reposts: { high: [100, 900],  midHigh: [45, 400],  midLow: [20, 220], low: [12, 130] },
   },
@@ -366,6 +418,16 @@ const PERSONAS: Record<string, PersonaConfig> = {
     finaleLow: [
       (s) => `${s} season finale and I feel nothing. I watched every episode. I feel nothing. That's a problem.`,
       (s) => `${s} closed out the season like it closed out every episode: with a shrug. respect for the consistency I guess.`,
+    ],
+    trendUp: [
+      (s, ep) => `fine. ${s} episode ${ep} is an improvement from last week. I hate that I'm noting it. It's an improvement.`,
+      (s, ep) => `${s} bounced back in ep ${ep} and I grudgingly acknowledge it. grudgingly.`,
+      (s, ep) => `I predicted a continued dip for ${s} and episode ${ep} proved me wrong. Noted. Logging it.`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} episode ${ep} slipped from last week. I called it. The dip I saw coming is arriving.`,
+      (s, ep) => `step back for ${s} in ep ${ep}. two mediocre weeks and a trend is forming. I'm watching.`,
+      (s, ep) => `${s} ep ${ep} is worse than last week. small comfort to have been right about the direction.`,
     ],
     likes:   { high: [200, 1500], midHigh: [100, 800], midLow: [55, 450], low: [35, 280] },
     reposts: { high: [70, 550],   midHigh: [30, 270],  midLow: [15, 150], low: [10, 90]  },
@@ -416,6 +478,16 @@ const PERSONAS: Record<string, PersonaConfig> = {
       (s) => `${s} season finale: a rough end to a rough back half. The show started with more to offer than it delivered. 📺`,
       (s) => `Closing out ${s} and the finale left me with more questions about the writers room than the plot. Recap up.`,
     ],
+    trendUp: [
+      (s, ep) => `${s} episode ${ep} is a genuine step up from last week. The show remembered what makes it good. Recap up. 📺`,
+      (s, ep) => `Bounce-back hour: ${s} ep ${ep} recovers from last week's stumble. Worth noting. 📺`,
+      (s, ep) => `${s} course-corrects in episode ${ep}. A recovery episode after a soft week is exactly what this season needed.`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} episode ${ep} steps back from last week. The uneven pattern is becoming the season's signature. 📺`,
+      (s, ep) => `Softer than the week before: ${s} episode ${ep}. The show has more in it. Said with genuine frustration.`,
+      (s, ep) => `A slip for ${s} in episode ${ep} after a decent stretch. Honest notes in tonight's recap. 📺`,
+    ],
     likes:   { high: [100, 800],  midHigh: [60, 450],  midLow: [30, 250], low: [20, 160] },
     reposts: { high: [30, 220],   midHigh: [18, 120],  midLow: [8, 65],   low: [5, 40]  },
   },
@@ -465,6 +537,16 @@ const PERSONAS: Record<string, PersonaConfig> = {
       (s) => `${s} finale and I needed more than that. I still love this show. The love is just complicated right now.`,
       (s) => `they really ended ${s} like that. I am still here. I always will be. But I have questions.`,
     ],
+    trendUp: [
+      (s, ep) => `${s} episode ${ep} is SO MUCH BETTER than last week and I feel vindicated for never leaving`,
+      (s, ep) => `they HEARD US. I'm convinced they heard us. ${s} ep ${ep} bounced back and I am FINE.`,
+      (s, ep) => `${s} ep ${ep} got it back and I'm not going to pretend I wasn't a little worried last week. I was. I'm not now.`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} episode ${ep} wasn't as strong as last week and I'm trying very hard to stay calm about it`,
+      (s, ep) => `I love ${s} but ep ${ep} slipped a little from last week. I will remain loyal. Obviously I'll remain loyal.`,
+      (s, ep) => `${s} ep ${ep} is a step down from last week and I am holding it together. barely.`,
+    ],
     likes:   { high: [80, 600],   midHigh: [45, 320],  midLow: [20, 180], low: [12, 110] },
     reposts: { high: [20, 200],   midHigh: [10, 100],  midLow: [5, 55],   low: [3, 35]  },
   },
@@ -505,29 +587,59 @@ export function generateEpisodeReactionBatch(
   genre: Genre,
   rating: number,
   isFinale = false,
+  prevRating?: number,
 ): SocialReaction[] {
   const isPremiereEp = episodeNumber === 1;
   const tier = getTier(rating, isFinale, isPremiereEp);
   const flavor = GENRE_FLAVOR[genre];
   const count = randomBetween(3, Math.min(5, PERSONA_KEYS.length));
+
+  // Trajectory: only fires for regular (non-premiere, non-finale) episodes with
+  // a meaningful delta. Threshold at 0.2 — smaller swings are noise.
+  const delta = prevRating !== undefined && !isPremiereEp && !isFinale
+    ? rating - prevRating
+    : 0;
+  const trend: 'rising' | 'falling' | 'flat' =
+    delta >= 0.2 ? 'rising' : delta <= -0.2 ? 'falling' : 'flat';
+
+  // Pick one persona to carry the trajectory post (if trend is non-flat).
+  const trendPersonaKey: string | null = trend !== 'flat' ? randomItem(PERSONA_KEYS) : null;
+
   const usedPersonas = new Set<string>();
   const results: SocialReaction[] = [];
+  let trendPosted = false;
 
   for (let i = 0; i < count; i++) {
     const available = PERSONA_KEYS.filter(k => !usedPersonas.has(k));
     if (available.length === 0) break;
-    const personaKey = randomItem(available);
+
+    // Ensure the designated trend persona gets picked while it's still available.
+    let personaKey: string;
+    if (trendPersonaKey && !trendPosted && available.includes(trendPersonaKey)) {
+      personaKey = trendPersonaKey;
+    } else {
+      personaKey = randomItem(available);
+    }
     usedPersonas.add(personaKey);
 
     const persona = PERSONAS[personaKey];
-    const pool = persona[tier];
 
-    // Graceful fallback: if a persona has no templates for this tier
-    // (shouldn't happen after v2, but defensive), use the closest tier.
-    const effectivePool = pool.length > 0 ? pool : persona.midHigh;
-    const effectiveTierKey = pool.length > 0 ? tier : 'midHigh';
+    // Decide whether this post uses the trend pool or the tier pool.
+    const useTrend = personaKey === trendPersonaKey && !trendPosted && trend !== 'flat';
+    let pool: T[];
+    let tierKey: string;
 
-    const template = pickTemplate(effectivePool, effectiveTierKey, personaKey);
+    if (useTrend) {
+      pool = trend === 'rising' ? persona.trendUp : persona.trendDown;
+      tierKey = trend === 'rising' ? 'trendUp' : 'trendDown';
+      trendPosted = true;
+    } else {
+      const raw = persona[tier];
+      pool = raw.length > 0 ? raw : persona.midHigh;
+      tierKey = raw.length > 0 ? tier : 'midHigh';
+    }
+
+    const template = pickTemplate(pool, tierKey, personaKey);
     if (!template) continue;
 
     const content = template(showTitle, episodeNumber, genre, flavor.hook, flavor.complaint);
