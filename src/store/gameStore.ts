@@ -21,6 +21,9 @@ import { makeStreamingDealNews } from '../engine/news';
 import {
   generatePremiereDateAnnouncedPosts,
   generateRenewalPosts,
+  generateCancellationPosts,
+  generateDirectorCastingPosts,
+  generateActorCastingPosts,
 } from '../engine/milestonesocial';
 import {
   STARTING_CASH,
@@ -353,6 +356,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       productionCost: season.productionCost + flatFee,
     };
 
+    const directorPosts = generateDirectorCastingPosts(
+      show.title, talent.name, talent.popularity,
+      state.network.currentWeek, state.network.currentYear,
+    );
+
     set(s => ({
       network: { ...s.network, cashOnHand: s.network.cashOnHand - flatFee },
       talent: s.talent.map(t =>
@@ -366,6 +374,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           : sh,
       ),
       talentDeals: [...s.talentDeals, deal],
+      ambientSocialPosts: [...s.ambientSocialPosts, ...directorPosts].slice(-300),
     }));
 
     return true;
@@ -400,6 +409,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       productionCost: season.productionCost + flatFee,
     };
 
+    const actorPosts = generateActorCastingPosts(
+      show.title, talent.name, actorType, talent.popularity,
+      state.network.currentWeek, state.network.currentYear,
+    );
+
     set(s => ({
       network: { ...s.network, cashOnHand: s.network.cashOnHand - flatFee },
       talent: s.talent.map(t =>
@@ -413,6 +427,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           : sh,
       ),
       talentDeals: [...s.talentDeals, deal],
+      ambientSocialPosts: [...s.ambientSocialPosts, ...actorPosts].slice(-300),
     }));
 
     return true;
@@ -739,6 +754,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Cancelling from renewal-pending = clean; mid-production = unclean
     const cancelledClean = show.status === 'renewal-pending';
 
+    const ratedEps = season.episodes.filter(e => e.rating !== null);
+    const avgRating = ratedEps.length > 0
+      ? ratedEps.reduce((sum, e) => sum + (e.rating ?? 0), 0) / ratedEps.length
+      : undefined;
+    const { currentWeek, currentYear } = state.network;
+    const cancellationPosts = generateCancellationPosts(show.title, cancelledClean, currentWeek, currentYear, avgRating);
+
     set(s => ({
       shows: s.shows.map(sh =>
         sh.id === showID ? { ...sh, status: 'cancelled' as ShowStatus, cancelledClean } : sh,
@@ -752,6 +774,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ...s.network,
         totalShowsProduced: s.network.totalShowsProduced + 1,
       },
+      ambientSocialPosts: [...s.ambientSocialPosts, ...cancellationPosts].slice(-300),
     }));
   },
 
