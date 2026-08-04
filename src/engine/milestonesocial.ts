@@ -54,25 +54,57 @@ export function generatePremiereDateAnnouncedPosts(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. RENEWAL — fires the moment renewShow() succeeds.
+//    Three buckets keyed to the completed season's average rating:
+//      strong  ≥ 7.5  — deserved it, the numbers backed it up
+//      decent  6.0–7.4 — solid enough, network saw a path forward
+//      weak    < 6.0  — renewed despite soft numbers, some skepticism
 // ─────────────────────────────────────────────────────────────────────────────
 
 type RenewalTemplate = (title: string, seasonNumber: number) => SocialReaction;
 
-const RENEWAL: RenewalTemplate[] = [
-  (title) => ({ ...P.stan, content: `${title} got RENEWED. we are so back`, likes: randomBetween(300, 1900), reposts: randomBetween(90, 580) }),
-  (title, n) => ({ ...P.recapper, content: `${title} season ${n} confirmed. let's gooo`, likes: randomBetween(220, 1300), reposts: randomBetween(65, 400) }),
-  (title) => ({ ...P.parasocial, content: `no cap ${title} deserved this renewal, so happy for this cast`, likes: randomBetween(250, 1500), reposts: randomBetween(70, 460) }),
-  (title) => ({ ...P.numbers, content: `${title} renewal isn't a surprise given the numbers, but still good news for fans`, likes: randomBetween(150, 850), reposts: randomBetween(40, 270) }),
-  (title, n) => ({ ...P.insider, content: `${title} picked up for season ${n}. The network clearly likes what they're seeing.`, likes: randomBetween(160, 900), reposts: randomBetween(45, 290) }),
+const RENEWAL_STRONG: RenewalTemplate[] = [
+  (title) => ({ ...P.stan, content: `${title} got RENEWED. honestly would've rioted if they didn't`, likes: randomBetween(500, 2500), reposts: randomBetween(150, 750) }),
+  (title, n) => ({ ...P.recapper, content: `${title} season ${n} confirmed. after the season it just had? absolutely had to happen`, likes: randomBetween(350, 1800), reposts: randomBetween(100, 540) }),
+  (title) => ({ ...P.parasocial, content: `${title} renewed and I genuinely teared up a little. this show earned every bit of it`, likes: randomBetween(400, 2200), reposts: randomBetween(120, 660) }),
+  (title) => ({ ...P.numbers, content: `${title} renewal is a formality at this point. the numbers never really gave the network a choice`, likes: randomBetween(250, 1400), reposts: randomBetween(70, 420) }),
+  (title, n) => ({ ...P.insider, content: `${title} picked up for season ${n}. this was locked before the finale even aired.`, likes: randomBetween(220, 1200), reposts: randomBetween(60, 360) }),
+  (title) => ({ ...P.meme, content: `${title} renewed and the haters have gone quiet real fast`, likes: randomBetween(350, 1900), reposts: randomBetween(100, 580) }),
 ];
+
+const RENEWAL_DECENT: RenewalTemplate[] = [
+  (title) => ({ ...P.stan, content: `${title} got RENEWED. we are so back`, likes: randomBetween(300, 1600), reposts: randomBetween(90, 490) }),
+  (title, n) => ({ ...P.recapper, content: `${title} season ${n} confirmed. solid enough season to justify it`, likes: randomBetween(200, 1100), reposts: randomBetween(55, 340) }),
+  (title) => ({ ...P.parasocial, content: `no cap ${title} deserved this renewal, so happy for this cast`, likes: randomBetween(220, 1300), reposts: randomBetween(65, 400) }),
+  (title) => ({ ...P.numbers, content: `${title} renewal isn't a surprise given the numbers, but still good news for fans`, likes: randomBetween(150, 850), reposts: randomBetween(40, 270) }),
+  (title, n) => ({ ...P.insider, content: `${title} picked up for season ${n}. The network clearly sees a path forward with this one.`, likes: randomBetween(160, 900), reposts: randomBetween(45, 290) }),
+  (title) => ({ ...P.meme, content: `${title} renewed. not shocked, the show's been doing its thing`, likes: randomBetween(180, 950), reposts: randomBetween(50, 290) }),
+];
+
+const RENEWAL_WEAK: RenewalTemplate[] = [
+  (title) => ({ ...P.stan, content: `${title} renewed?? okay I'll take it, still want more`, likes: randomBetween(150, 800), reposts: randomBetween(40, 240) }),
+  (title, n) => ({ ...P.recapper, content: `${title} season ${n} is happening. interesting call given how the last season landed`, likes: randomBetween(130, 700), reposts: randomBetween(35, 210) }),
+  (title) => ({ ...P.numbers, content: `${title} renewed despite the soft numbers. the network must see something we're not`, likes: randomBetween(120, 650), reposts: randomBetween(30, 195) }),
+  (title, n) => ({ ...P.insider, content: `${title} picked up for season ${n}. Sources say it was closer than the announcement makes it look.`, likes: randomBetween(180, 950), reposts: randomBetween(50, 285) }),
+  (title) => ({ ...P.meme, content: `${title} got renewed and honestly I have questions. respecting the hustle though`, likes: randomBetween(200, 1050), reposts: randomBetween(55, 315) }),
+  (title) => ({ ...P.parasocial, content: `${title} renewal is confirmed and look, I want to be excited, I just need season ${0} to have been a fluke`, likes: randomBetween(110, 600), reposts: randomBetween(30, 180) }),
+];
+
+function getRenewalBucket(avgRating: number | undefined): RenewalTemplate[] {
+  if (avgRating === undefined) return RENEWAL_DECENT;
+  if (avgRating >= 7.5) return RENEWAL_STRONG;
+  if (avgRating >= 6.0) return RENEWAL_DECENT;
+  return RENEWAL_WEAK;
+}
 
 export function generateRenewalPosts(
   showTitle: string,
   newSeasonNumber: number,
   week: number,
   year: number,
+  avgRating?: number,
 ): AmbientSocialPost[] {
-  return pickN(RENEWAL, randomBetween(1, 2)).map(fn => make(week, year, fn(showTitle, newSeasonNumber), showTitle));
+  const pool = getRenewalBucket(avgRating);
+  return pickN(pool, randomBetween(1, 2)).map(fn => make(week, year, fn(showTitle, newSeasonNumber), showTitle));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

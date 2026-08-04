@@ -607,7 +607,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const prevSeason = show.seasons[show.currentSeasonIndex];
     const newSeasonNumber = prevSeason.seasonNumber + 1;
     const { currentWeek, currentYear } = state.network;
-    const renewalPosts = generateRenewalPosts(show.title, newSeasonNumber, currentWeek, currentYear);
+    const ratedEps = prevSeason.episodes.filter(e => e.rating !== null);
+    const avgRating = ratedEps.length > 0
+      ? ratedEps.reduce((sum, e) => sum + (e.rating ?? 0), 0) / ratedEps.length
+      : undefined;
+    const renewalPosts = generateRenewalPosts(show.title, newSeasonNumber, currentWeek, currentYear, avgRating);
     const newSeasonID = nanoid();
     const resolvedLeadSlots = newLeadSlots ?? prevSeason.leadActorSlots;
     const resolvedSupportingSlots = newSupportingSlots ?? prevSeason.supportingActorSlots;
