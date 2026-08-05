@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Show, NewsItem, StudioEvent } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
+import { THEME_WINDOWS } from '../../src/constants/schedule';
 import { EmmyCeremonyModal } from '../components/EmmyCeremonyModal';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -135,6 +136,50 @@ function StatCard({ label, value, valueColor }: {
       <Text style={s.statCardLabel}>{label}</Text>
       <Text style={[s.statCardValue, valueColor ? { color: valueColor } : undefined]}>{value}</Text>
     </View>
+  );
+}
+
+// ── Schedule mini-strip ───────────────────────────────────────────────────────
+function ScheduleStrip({ currentWeek, currentYear, onPress }: {
+  currentWeek: number; currentYear: number; onPress: () => void;
+}) {
+  const VISIBLE = 7;
+  const half = Math.floor(VISIBLE / 2);
+  const weeks = Array.from({ length: VISIBLE }, (_, i) => {
+    const raw = currentWeek - half + i;
+    const week = ((raw - 1 + WEEKS_PER_YEAR) % WEEKS_PER_YEAR) + 1;
+    return { week, offset: raw - currentWeek };
+  });
+
+  return (
+    <TouchableOpacity style={sc.strip} onPress={onPress} activeOpacity={0.85}>
+      <View style={sc.stripHeader}>
+        <Text style={sc.stripLabel}>SCHEDULE</Text>
+        <Text style={sc.stripAction}>VIEW FULL →</Text>
+      </View>
+      <View style={sc.stripCells}>
+        {weeks.map(({ week, offset }) => {
+          const win = THEME_WINDOWS.find(tw => week >= tw.startWeek && week <= tw.endWeek);
+          const isCurrent = offset === 0;
+          const cellBg    = isCurrent ? '#1e2a18' : 'transparent';
+          const cellBorder= isCurrent ? C.green + '88' : 'transparent';
+          const numColor  = isCurrent ? C.green : C.mutedMid;
+
+          return (
+            <View
+              key={week}
+              style={[sc.cell, { backgroundColor: cellBg, borderColor: cellBorder }]}
+            >
+              {win && (
+                <Text style={sc.cellEmoji}>{win.emoji}</Text>
+              )}
+              <Text style={[sc.cellWeek, { color: numColor }]}>{week}</Text>
+              {isCurrent && <Text style={sc.cellNow}>NOW</Text>}
+            </View>
+          );
+        })}
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -580,6 +625,13 @@ export default function Dashboard() {
             year={network.currentYear}
           />
 
+          {/* ── Schedule strip ── */}
+          <ScheduleStrip
+            currentWeek={network.currentWeek}
+            currentYear={network.currentYear}
+            onPress={() => router.push('/schedule')}
+          />
+
           {/* ── Your Slate ── */}
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>YOUR SLATE</Text>
@@ -817,6 +869,19 @@ const s = StyleSheet.create({
   advanceBtn:         { borderRadius: 999, overflow: 'hidden' },
   advanceBtnGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
   advanceBtnText:     { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
+});
+
+// ── Schedule strip styles ─────────────────────────────────────────────────────
+const sc = StyleSheet.create({
+  strip:        { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 16, padding: 12 },
+  stripHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  stripLabel:   { fontFamily: F.bodyBd, color: C.muted, fontSize: 9, letterSpacing: 2 },
+  stripAction:  { fontFamily: F.bodyBd, color: C.gold, fontSize: 9, letterSpacing: 1.5 },
+  stripCells:   { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
+  cell:         { flex: 1, alignItems: 'center', borderRadius: 8, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 2, gap: 2 },
+  cellEmoji:    { fontSize: 12, lineHeight: 14 },
+  cellWeek:     { fontFamily: F.bodyBd, fontSize: 11, letterSpacing: 0 },
+  cellNow:      { fontFamily: F.bodyXBd, color: C.green, fontSize: 7, letterSpacing: 1 },
 });
 
 // ── Studio Event Modal styles ─────────────────────────────────────────────────

@@ -20,6 +20,7 @@ import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFi
 import { tryGenerateStudioEvent } from './events';
 import { nanoid } from '../utils/nanoid';
 import { randomChance, randomBetween } from '../utils/random';
+import { getViewershipMultiplier } from '../constants/schedule';
 
 export function advanceWeek(state: GameState): GameState {
   const { currentWeek, currentYear } = state.network;
@@ -538,12 +539,17 @@ function tickAiring(
   }
 
   const prevEpisodes = season.episodes.filter(ep => ep.rating !== null);
-  const { rating, viewers, adRevenue } = calculateEpisodeRating(
+  const { rating, viewers: baseViewers, adRevenue: baseAdRevenue } = calculateEpisodeRating(
     season,
     nextIndex + 1,
     show.genre,
     prevEpisodes,
   );
+
+  // Apply theme window viewership boost — only viewers/revenue are affected, not the rating
+  const scheduleMultiplier = getViewershipMultiplier(show.theme, newWeek);
+  const viewers = scheduleMultiplier !== 1.0 ? Math.round(baseViewers * scheduleMultiplier) : baseViewers;
+  const adRevenue = scheduleMultiplier !== 1.0 ? Math.round(baseAdRevenue * scheduleMultiplier) : baseAdRevenue;
 
   const isFinale = (nextIndex + 1) === season.episodeCount;
   const prevRating = nextIndex > 0 ? (season.episodes[nextIndex - 1]?.rating ?? undefined) : undefined;
