@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,9 +10,14 @@ import { THEME_WINDOWS, ThemeWindow, getThemeWindow } from '../src/constants/sch
 import { Show, Season } from '../src/types';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const CELL_W  = 52;          // px per week — wide/zoomed-in feel
-const HDR_H   = 26;          // week-number header
-const SHOW_H  = 34;          // show bar height
+const CELL_W  = 60;          // px per week — zoomed-in feel
+const HDR_H   = 40;          // week-number header (taller for bigger text)
+const SHOW_H  = 38;          // show bar height
+
+// Screen-aware row height: fill all available vertical space with the 10 lanes
+const SCREEN_H    = Dimensions.get('window').height;
+const HEADER_AREA = 130;     // approximate: safe-area + app-header + legend row
+const ROW_H       = Math.floor((SCREEN_H - HEADER_AREA - HDR_H) / 10); // 10 = NUM_LANES
 
 // Computed once: greedy lane assignment for all 21 windows
 function computeLanes(windows: ThemeWindow[]): { map: Map<string, number>; count: number } {
@@ -29,9 +34,6 @@ function computeLanes(windows: ThemeWindow[]): { map: Map<string, number>; count
 }
 
 const { map: LANE_MAP, count: NUM_LANES } = computeLanes(THEME_WINDOWS);
-
-// Row height sized so all lanes fill a ~680px screen area
-const ROW_H = Math.max(54, Math.floor(680 / NUM_LANES));
 
 const TOTAL_W = CELL_W * WEEKS_PER_YEAR;
 
@@ -132,10 +134,11 @@ function WeekHeader({ currentWeek }: { currentWeek: number }) {
     <View style={{ position: 'absolute', top: 0, left: 0, width: TOTAL_W, height: HDR_H, flexDirection: 'row' }}>
       {Array.from({ length: WEEKS_PER_YEAR }, (_, i) => {
         const w = i + 1;
-        const isCur  = w === currentWeek;
-        const show   = w % 4 === 1 || isCur;
+        const isCur = w === currentWeek;
+        // Show every 2 weeks + always show current week
+        const show  = w % 2 === 1 || isCur;
         return (
-          <View key={w} style={{ width: CELL_W, alignItems: 'center', justifyContent: 'center' }}>
+          <View key={w} style={{ width: CELL_W, alignItems: 'center', justifyContent: 'center', height: HDR_H }}>
             {show && (
               <Text style={[g.hdrNum, isCur && g.hdrNumCur]}>
                 {isCur ? '▼' : w}
@@ -334,8 +337,8 @@ export default function ScheduleScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const g = StyleSheet.create({
-  hdrNum:    { fontFamily: 'Manrope_700Bold', fontSize: 8, color: '#3d3d5c' },
-  hdrNumCur: { color: '#e6b254', fontSize: 9.5 },
+  hdrNum:    { fontFamily: 'Manrope_700Bold', fontSize: 12, color: '#5a5a7a' },
+  hdrNumCur: { color: '#e6b254', fontSize: 13 },
 
   blockEmoji: { fontSize: 14, lineHeight: 17 },
   blockTheme: { fontFamily: 'Manrope_700Bold', fontSize: 9.5, marginTop: 2, textTransform: 'capitalize' },
