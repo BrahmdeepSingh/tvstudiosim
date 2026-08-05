@@ -11,12 +11,12 @@ import { calculateScriptScore, calculateQualityScore } from './quality';
 import { calculateEpisodeRating } from './ratings';
 import { generateSocialReactions, SOCIAL_TEMPLATE_COOLDOWN } from './social';
 import { generateAmbientSocialPosts, AMBIENT_TEMPLATE_COOLDOWN, AmbientSocialPost } from './ambientsocial';
-import { generateEmmyNominationPosts, generateEmmyWinPosts } from './milestonesocial';
+import { generateEmmyNominationPosts, generateEmmyWinPosts, generateSeriesFinaleAiredPosts } from './milestonesocial';
 import { advanceCompetitors } from './competitors';
 import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
 import { tryGenerateStreamingOffer, scheduleNextOfferCheck } from './streaming';
 import { generatePitch } from './pitches';
-import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews } from './news';
+import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews, makeSeriesFinaleNews } from './news';
 import { tryGenerateStudioEvent } from './events';
 import { nanoid } from '../utils/nanoid';
 import { randomChance, randomBetween } from '../utils/random';
@@ -70,16 +70,35 @@ export function advanceWeek(state: GameState): GameState {
     }
   }
 
-  // Detect premiere and finale episode airings
+  // Detect premiere, season finale, and series finale airings
   for (let i = 0; i < state.shows.length; i++) {
     const before = state.shows[i].seasons[state.shows[i].currentSeasonIndex];
     const after = shows[i].seasons[shows[i].currentSeasonIndex];
     if (!before || !after) continue;
-    if (state.shows[i].status === 'airing' || shows[i].status === 'renewal-pending') {
+
+    const wasAiring = state.shows[i].status === 'airing';
+    const nowEnded = shows[i].status === 'renewal-pending' || shows[i].status === 'cancelled';
+
+    if (wasAiring || nowEnded) {
       if (before.episodesAired === 0 && after.episodesAired === 1) {
         newNewsItems.push(makePremiereNews(shows[i].title, shows[i].genre, { week: newWeek, year: newYear }));
       } else if (before.episodesAired === before.episodeCount - 1 && after.episodesAired === after.episodeCount) {
-        newNewsItems.push(makeFinaleNews(shows[i].title, after.seasonNumber, { week: newWeek, year: newYear }));
+        if (after.isFinalSeason) {
+          // Series finale — distinct news, social posts, and showrunner release
+          newNewsItems.push(makeSeriesFinaleNews(shows[i].title, after.seasonNumber, { week: newWeek, year: newYear }));
+          milestoneAmbientPosts.push(
+            ...generateSeriesFinaleAiredPosts(shows[i].title, after.seasonNumber, newWeek, newYear),
+          );
+          // Free the showrunner (cast/director were already freed at filming→marketing)
+          const showrunnerID = after.showrunnerID;
+          if (showrunnerID) {
+            talent = talent.map(t =>
+              t.id === showrunnerID ? { ...t, available: true, bookedForSeasonID: null } : t,
+            );
+          }
+        } else {
+          newNewsItems.push(makeFinaleNews(shows[i].title, after.seasonNumber, { week: newWeek, year: newYear }));
+        }
       }
     }
   }
@@ -558,10 +577,17 @@ function tickAiring(
     totalAdRevenue: season.totalAdRevenue + adRevenue,
   };
 
-  const status: ShowStatus =
-    newEpisodesAired >= season.episodeCount ? 'renewal-pending' : 'airing';
-
-  return updateShow(show, updatedSeason, status);
+  if (newEpisodesAired >= season.episodeCount) {
+    if (updatedSeason.isFinalSeason) {
+      // Final season complete — close the show as cancelled (clean) immediately,
+      // skipping the renewal-pending step. Showrunner is freed in advanceWeek.
+      const seasons = [...show.seasons];
+      seasons[show.currentSeasonIndex] = updatedSeason;
+      return { ...show, status: 'cancelled', cancelledClean: true, seasons };
+    }
+    return updateShow(show, updatedSeason, 'renewal-pending');
+  }
+  return updateShow(show, updatedSeason, 'airing');
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -328,3 +328,64 @@ export function generateActorCastingPosts(
   }
   return pickN(pool, 1).map(fn => make(week, year, fn(showTitle, actorName), showTitle));
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. FINAL SEASON ANNOUNCED — fires at renewShow() when isFinalSeason=true.
+//    Tone: bittersweet excitement. "Ending on their terms."
+// ─────────────────────────────────────────────────────────────────────────────
+
+type FinalSeasonTemplate = (title: string, seasonNumber: number) => SocialReaction;
+
+const FINAL_SEASON_ANNOUNCED: FinalSeasonTemplate[] = [
+  (title, n) => ({ ...P.stan, content: `they just announced ${title} season ${n} is the FINAL SEASON and I have so many emotions right now`, likes: randomBetween(500, 2800), reposts: randomBetween(150, 840) }),
+  (title, n) => ({ ...P.recapper, content: `${title} will end after season ${n}. If they stick the landing, this goes down as one of the greats. 📺`, likes: randomBetween(400, 2000), reposts: randomBetween(110, 600) }),
+  (title) => ({ ...P.parasocial, content: `${title} is ending on its own terms and I'm devastated but I also respect it so much. this is rare.`, likes: randomBetween(450, 2400), reposts: randomBetween(130, 720) }),
+  (title, n) => ({ ...P.insider, content: `${title} confirmed for a final season ${n}. A planned ending — the rarest, most precious thing in television.`, likes: randomBetween(280, 1500), reposts: randomBetween(75, 450) }),
+  (title) => ({ ...P.numbers, content: `${title} final season announced. Expect viewership to spike. Farewell seasons almost always pull numbers.`, likes: randomBetween(220, 1200), reposts: randomBetween(60, 360) }),
+  (title, n) => ({ ...P.meme, content: `${title} season ${n} is the FINAL season confirmed. me for this entire run: [sobbing while clapping]`, likes: randomBetween(400, 2200), reposts: randomBetween(115, 660) }),
+  (title) => ({ ...P.stan, content: `not ready to accept that ${title} is ending but also I want them to go out on top so I will support this decision while crying`, likes: randomBetween(350, 1900), reposts: randomBetween(95, 570) }),
+  (title, n) => ({ ...P.recapper, content: `The ${title} final season announcement is the rare good news in television. Season ${n} will be something to watch. 📺`, likes: randomBetween(300, 1600), reposts: randomBetween(85, 480) }),
+];
+
+export function generateFinalSeasonAnnouncedPosts(
+  showTitle: string,
+  seasonNumber: number,
+  week: number,
+  year: number,
+): AmbientSocialPost[] {
+  return pickN(FINAL_SEASON_ANNOUNCED, randomBetween(2, 3)).map(fn =>
+    make(week, year, fn(showTitle, seasonNumber), showTitle),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. SERIES FINALE AIRED — fires when the last episode of a final season airs.
+//    Distinct from cancellation. Tone: the show is over, cultural moment,
+//    "this is how you end something."
+// ─────────────────────────────────────────────────────────────────────────────
+
+type SeriesFinaleTemplate = (title: string, seasonNumber: number) => SocialReaction;
+
+const SERIES_FINALE_AIRED: SeriesFinaleTemplate[] = [
+  (title) => ({ ...P.stan, content: `${title} is OVER. I genuinely do not know what to do with myself right now`, likes: randomBetween(600, 3200), reposts: randomBetween(180, 960) }),
+  (title) => ({ ...P.recapper, content: `${title} has aired its series finale. Full review going up tonight. This is how you end a show. 📺`, likes: randomBetween(500, 2600), reposts: randomBetween(140, 780) }),
+  (title) => ({ ...P.parasocial, content: `watching the ${title} series finale and I am not okay. not even slightly. what do we watch now. what do we DO`, likes: randomBetween(550, 2900), reposts: randomBetween(160, 870) }),
+  (title, n) => ({ ...P.insider, content: `${title} ends its ${n}-season run tonight. A complete story, told on its own terms. That's genuinely rare.`, likes: randomBetween(350, 1800), reposts: randomBetween(95, 540) }),
+  (title) => ({ ...P.numbers, content: `${title} series finale pulling the kind of numbers you only see when a show ends exactly right.`, likes: randomBetween(280, 1500), reposts: randomBetween(75, 450) }),
+  (title) => ({ ...P.meme, content: `${title} is over and I am sobbing at 2am but I made this choice and I would make it again [crying emoji][crying emoji]`, likes: randomBetween(500, 2700), reposts: randomBetween(145, 810) }),
+  (title, n) => ({ ...P.stan, content: `${n} seasons. it's done. ${title} just ended and the group chat has been going for three hours straight`, likes: randomBetween(450, 2400), reposts: randomBetween(130, 720) }),
+  (title) => ({ ...P.recapper, content: `The ${title} finale debate starts now. Was it everything? Did it earn it? Either way — that was television. 📺`, likes: randomBetween(400, 2100), reposts: randomBetween(115, 630) }),
+  (title) => ({ ...P.parasocial, content: `${title} is over and I genuinely feel like I have to go through grief stages about this`, likes: randomBetween(380, 2000), reposts: randomBetween(105, 600) }),
+  (title) => ({ ...P.insider, content: `The ${title} era is officially closed. Whatever you thought of the finale, the show earned its place in the conversation.`, likes: randomBetween(300, 1600), reposts: randomBetween(85, 480) }),
+];
+
+export function generateSeriesFinaleAiredPosts(
+  showTitle: string,
+  seasonNumber: number,
+  week: number,
+  year: number,
+): AmbientSocialPost[] {
+  return pickN(SERIES_FINALE_AIRED, randomBetween(2, 3)).map(fn =>
+    make(week, year, fn(showTitle, seasonNumber), showTitle),
+  );
+}

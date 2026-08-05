@@ -24,7 +24,9 @@ import {
   generateCancellationPosts,
   generateDirectorCastingPosts,
   generateActorCastingPosts,
+  generateFinalSeasonAnnouncedPosts,
 } from '../engine/milestonesocial';
+import { makeFinalSeasonAnnouncedNews } from '../engine/news';
 import {
   STARTING_CASH,
   STARTING_PRESTIGE,
@@ -68,7 +70,7 @@ interface GameStore extends GameState {
   passPitch: (pitchID: string) => void;
 
   // Renewal / cancellation
-  renewShow: (showID: string, newEpisodeCount: number, newLeadSlots?: number, newSupportingSlots?: number, keepShowrunner?: boolean) => void;
+  renewShow: (showID: string, newEpisodeCount: number, newLeadSlots?: number, newSupportingSlots?: number, keepShowrunner?: boolean, isFinalSeason?: boolean) => void;
   cancelShow: (showID: string) => void;
 
   // Streaming
@@ -614,7 +616,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Renewal ───────────────────────────────────────────────────────────────
 
-  renewShow: (showID, newEpisodeCount, newLeadSlots, newSupportingSlots, keepShowrunner = true) => {
+  renewShow: (showID, newEpisodeCount, newLeadSlots, newSupportingSlots, keepShowrunner = true, isFinalSeason = false) => {
     const state = get();
     const show = state.shows.find(s => s.id === showID);
     if (!show || show.status !== 'renewal-pending') return;
@@ -626,7 +628,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const avgRating = ratedEps.length > 0
       ? ratedEps.reduce((sum, e) => sum + (e.rating ?? 0), 0) / ratedEps.length
       : undefined;
-    const renewalPosts = generateRenewalPosts(show.title, newSeasonNumber, currentWeek, currentYear, avgRating);
+    const socialPosts = isFinalSeason
+      ? generateFinalSeasonAnnouncedPosts(show.title, newSeasonNumber, currentWeek, currentYear)
+      : generateRenewalPosts(show.title, newSeasonNumber, currentWeek, currentYear, avgRating);
     const newSeasonID = nanoid();
     const resolvedLeadSlots = newLeadSlots ?? prevSeason.leadActorSlots;
     const resolvedSupportingSlots = newSupportingSlots ?? prevSeason.supportingActorSlots;
@@ -677,6 +681,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       suggestedDirectorID: prevSeason.directorID,
       suggestedLeadActorIDs: [...prevSeason.leadActorIDs],
       suggestedSupportingActorIDs: [...prevSeason.supportingActorIDs],
+      isFinalSeason,
     };
 
     // Free up talent from previous season now that filming is long done
@@ -693,18 +698,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ? `${(viewers / 1_000).toFixed(0)}K`
       : String(viewers);
 
-    const renewalNews: NewsItem = {
-      id: nanoid(),
-      week: state.network.currentWeek,
-      year: state.network.currentYear,
-      type: 'player',
-      read: false,
-      headline: viewers > 0
-        ? `"${show.title}" renewed for Season ${newSeasonNumber} — ${vStr} viewers watched S${prevSeason.seasonNumber}`
-        : `"${show.title}" renewed for Season ${newSeasonNumber}`,
-      body: `The network has officially greenlit another season. Pre-production begins immediately.`,
-      byline: 'Trade Wire Staff',
-    };
+    const renewalNews: NewsItem = isFinalSeason
+      ? makeFinalSeasonAnnouncedNews(show.title, newSeasonNumber, { week: state.network.currentWeek, year: state.network.currentYear })
+      : {
+          id: nanoid(),
+          week: state.network.currentWeek,
+          year: state.network.currentYear,
+          type: 'player',
+          read: false,
+          headline: viewers > 0
+            ? `"${show.title}" renewed for Season ${newSeasonNumber} — ${vStr} viewers watched S${prevSeason.seasonNumber}`
+            : `"${show.title}" renewed for Season ${newSeasonNumber}`,
+          body: `The network has officially greenlit another season. Pre-production begins immediately.`,
+          byline: 'Trade Wire Staff',
+        };
 
     set(s => ({
       shows: s.shows.map(sh =>
@@ -734,7 +741,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return t;
       }),
       newsItems: [...s.newsItems, renewalNews].slice(-150),
-      ambientSocialPosts: [...s.ambientSocialPosts, ...renewalPosts].slice(-300),
+      ambientSocialPosts: [...s.ambientSocialPosts, ...socialPosts].slice(-300),
     }));
   },
 
