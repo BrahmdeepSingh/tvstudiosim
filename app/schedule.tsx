@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Dimensions,
 } from 'react-native';
@@ -10,8 +10,8 @@ import { THEME_WINDOWS, ThemeWindow, isInThemeWindow } from '../src/constants/sc
 import { Show, Season } from '../src/types';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const LOOK_BACK = 6;               // columns of history shown before "now"
-const TOTAL_DISPLAY_WEEKS = 53;    // rolling window width
+// Canvas = current year (W1-W52) + first half of next year = 78 weeks
+const CANVAS_WEEKS = WEEKS_PER_YEAR + Math.floor(WEEKS_PER_YEAR / 2);
 const CELL_W  = 60;
 const HDR_H   = 40;
 const SHOW_H  = 38;
@@ -20,11 +20,7 @@ const SCREEN_H    = Dimensions.get('window').height;
 const HEADER_AREA = 130;
 const ROW_H       = Math.floor((SCREEN_H - HEADER_AREA - HDR_H) / 10);
 
-const TOTAL_W = CELL_W * TOTAL_DISPLAY_WEEKS;
-
-// Scroll so now-line (at column LOOK_BACK) sits ~120px from the left edge
-const NOW_X   = LOOK_BACK * CELL_W;
-const INIT_X  = Math.max(0, NOW_X - 120);
+const TOTAL_W = CELL_W * CANVAS_WEEKS;
 
 // ── Lane assignment ───────────────────────────────────────────────────────────
 function computeLanes(windows: ThemeWindow[]): { map: Map<string, number>; count: number } {
@@ -55,16 +51,10 @@ function winAccent(win: ThemeWindow): string {
   return win.type === 'cultural' ? '#e6b254' : '#3db8a8';
 }
 
-// ── Absolute-week helpers ─────────────────────────────────────────────────────
-// Game stores absolute week as: year * WEEKS_PER_YEAR + weekOfYear
-function toAbs(year: number, woy: number): number {
-  return year * WEEKS_PER_YEAR + woy;
-}
-function woyOf(abs: number): number {
-  return ((abs - 1) % WEEKS_PER_YEAR) + 1;
-}
-function yearOf(abs: number): number {
-  return Math.floor((abs - 1) / WEEKS_PER_YEAR);
+// ── Canvas column helpers ─────────────────────────────────────────────────────
+// Column 0 = Week 1 of currentYear. Col = (airYear - currentYear)*52 + (airWeek - 1)
+function toCol(airYear: number, airWeek: number, currentYear: number): number {
+  return (airYear - currentYear) * WEEKS_PER_YEAR + (airWeek - 1);
 }
 
 // ── Scheduled show helper ─────────────────────────────────────────────────────
@@ -72,28 +62,23 @@ interface ScheduledShow {
   show: Show; season: Season;
   colStart: number; colEnd: number; colorIdx: number;
 }
-function getScheduledShows(
-  shows: Show[],
-  windowAbsStart: number,
-): ScheduledShow[] {
+function getScheduledShows(shows: Show[], currentYear: number): ScheduledShow[] {
   const out: ScheduledShow[] = [];
   let idx = 0;
-  const windowAbsEnd = windowAbsStart + TOTAL_DISPLAY_WEEKS - 1;
-
   for (const show of shows) {
     const season = show.seasons[show.currentSeasonIndex];
     if (!season?.airDateWeek || !season?.airDateYear) continue;
     if (!['marketing','airing','renewal-pending','completed','cancelled'].includes(show.status)) continue;
 
-    const absStart = toAbs(season.airDateYear, season.airDateWeek);
-    const absEnd   = absStart + season.episodeCount - 1;
+    const colStart = toCol(season.airDateYear, season.airDateWeek, currentYear);
+    const colEnd   = colStart + season.episodeCount - 1;
 
-    if (absEnd < windowAbsStart || absStart > windowAbsEnd) continue;
+    if (colEnd < 0 || colStart >= CANVAS_WEEKS) continue;
 
     out.push({
       show, season,
-      colStart: Math.max(0, absStart - windowAbsStart),
-      colEnd:   Math.min(TOTAL_DISPLAY_WEEKS - 1, absEnd - windowAbsStart),
+      colStart: Math.max(0, colStart),
+      colEnd:   Math.min(CANVAS_WEEKS - 1, colEnd),
       colorIdx: idx++ % SHOW_COLORS.length,
     });
   }
@@ -122,8 +107,8 @@ function Background({ numLanes, rowH, showsH }: { numLanes: number; rowH: number
           backgroundColor: '#0a0e1c',
         }} />
       )}
-      {/* Vertical guides every 4 columns */}
-      {Array.from({ length: TOTAL_DISPLAY_WEEKS }, (_, i) => {
+      {/* Vertical guides every 4 weeks */}
+      {Array.from({ length: CANVAS_WEEKS }, (_, i) => {
         if (i % 4 !== 0) return null;
         return (
           <View key={i} style={{
@@ -134,35 +119,36 @@ function Background({ numLanes, rowH, showsH }: { numLanes: number; rowH: number
           }} />
         );
       })}
+      {/* Year boundary line at column WEEKS_PER_YEAR */}
+      <View style={{
+        position: 'absolute',
+        top: HDR_H, left: WEEKS_PER_YEAR * CELL_W,
+        width: 1.5, height: laneArea + showsH + 6,
+        backgroundColor: '#e6b25433',
+      }} />
     </>
   );
 }
 
-// Week header — columns based on rolling absolute window
-function WeekHeader({ windowAbsStart, nowAbs }: { windowAbsStart: number; nowAbs: number }) {
+// Week header — col 0 = W1 currentYear, col 52+ = next year
+function WeekHeader({ currentWeek, currentYear }: { currentWeek: number; currentYear: number }) {
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, width: TOTAL_W, height: HDR_H, flexDirection: 'row' }}>
-      {Array.from({ length: TOTAL_DISPLAY_WEEKS }, (_, i) => {
-        const abs   = windowAbsStart + i;
-        const woy   = woyOf(abs);
-        const isCur = abs === nowAbs;
-        const isNewYear = woy === 1 && i > 0;
-        const show  = woy % 2 === 1 || isCur;
+      {Array.from({ length: CANVAS_WEEKS }, (_, col) => {
+        const isNextYear = col >= WEEKS_PER_YEAR;
+        const woy    = isNextYear ? col - WEEKS_PER_YEAR + 1 : col + 1;
+        const isCur  = !isNextYear && woy === currentWeek;
+        const isYearBoundary = col === WEEKS_PER_YEAR;
+        const show   = woy % 2 === 1 || isCur;
         return (
-          <View key={i} style={{ width: CELL_W, alignItems: 'center', justifyContent: 'center', height: HDR_H }}>
-            {/* Year-boundary divider */}
-            {isNewYear && (
-              <View style={{ position: 'absolute', left: 0, top: 6, bottom: 6, width: 1.5, backgroundColor: '#e6b25444' }} />
-            )}
-            {/* Year badge at boundary */}
-            {isNewYear && (
-              <Text style={g.yearBadge}>Y{yearOf(abs)}</Text>
-            )}
-            {!isNewYear && show && (
+          <View key={col} style={{ width: CELL_W, alignItems: 'center', justifyContent: 'center', height: HDR_H }}>
+            {isYearBoundary ? (
+              <Text style={g.yearBadge}>Y{currentYear + 1}</Text>
+            ) : (show && (
               <Text style={[g.hdrNum, isCur && g.hdrNumCur]}>
                 {isCur ? '▼' : woy}
               </Text>
-            )}
+            ))}
           </View>
         );
       })}
@@ -170,14 +156,15 @@ function WeekHeader({ windowAbsStart, nowAbs }: { windowAbsStart: number; nowAbs
   );
 }
 
-// Gold now-line — always at column LOOK_BACK
-function NowLine({ height }: { height: number }) {
+// Gold now-line — at the current week's column in the full-year canvas
+function NowLine({ currentWeek, height }: { currentWeek: number; height: number }) {
+  const x = (currentWeek - 1) * CELL_W + CELL_W / 2 - 1;
   return (
     <View
       pointerEvents="none"
       style={{
         position: 'absolute',
-        top: 0, left: NOW_X + CELL_W / 2 - 1,
+        top: 0, left: x,
         width: 2, height,
         backgroundColor: '#e6b25455', zIndex: 30,
       }}
@@ -185,13 +172,19 @@ function NowLine({ height }: { height: number }) {
   );
 }
 
-// Theme block — receives pre-computed canvas x / w
-function ThemeBlock({ win, lane, rowH, x, w, isActive }: {
+// Theme block
+function ThemeBlock({ win, lane, rowH, colOffset, isActive }: {
   win: ThemeWindow; lane: number; rowH: number;
-  x: number; w: number; isActive: boolean;
+  colOffset: number; isActive: boolean;
 }) {
   const accent = winAccent(win);
   const y = HDR_H + lane * rowH;
+  const colStart = Math.max(0, win.startWeek - 1 + colOffset);
+  const colEnd   = Math.min(CANVAS_WEEKS - 1, win.endWeek - 1 + colOffset);
+  const x = colStart * CELL_W;
+  const w = (colEnd - colStart + 1) * CELL_W;
+
+  if (colEnd < 0 || colStart >= CANVAS_WEEKS || w <= 0) return null;
 
   return (
     <View style={{
@@ -227,15 +220,13 @@ function ThemeBlock({ win, lane, rowH, x, w, isActive }: {
 
 // Show bar
 function ShowBlock({ item, laneAreaBottom }: { item: ScheduledShow; laneAreaBottom: number }) {
-  const color  = SHOW_COLORS[item.colorIdx];
-  const x      = item.colStart * CELL_W;
-  const w      = (item.colEnd - item.colStart + 1) * CELL_W;
-  const hasBoost = item.colEnd > item.colStart &&
-    Array.from({ length: item.colEnd - item.colStart + 1 }, (_, k) => {
-      const woy = woyOf(item.colStart + k); // approximate; good enough for icon
-      return isInThemeWindow(item.show.theme, woy);
-    }).some(Boolean);
-  const boostColor = item.show.theme ? '#e6b254' : '#3db8a8';
+  const color = SHOW_COLORS[item.colorIdx];
+  const x = item.colStart * CELL_W;
+  const w = (item.colEnd - item.colStart + 1) * CELL_W;
+  const hasBoost = Array.from(
+    { length: item.colEnd - item.colStart + 1 },
+    (_, k) => isInThemeWindow(item.show.theme, (item.colStart + k) % WEEKS_PER_YEAR + 1),
+  ).some(Boolean);
 
   return (
     <View style={{
@@ -251,9 +242,7 @@ function ShowBlock({ item, laneAreaBottom }: { item: ScheduledShow; laneAreaBott
       <View style={{ paddingLeft: 6 }}>
         <Text style={[g.showTitle, { color }]} numberOfLines={1}>{item.show.title}</Text>
         {w >= 100 && hasBoost && (
-          <Text style={[g.showBoost, { color: boostColor }]} numberOfLines={1}>
-            ✦ boost window
-          </Text>
+          <Text style={[g.showBoost, { color: '#e6b254' }]} numberOfLines={1}>✦ boost window</Text>
         )}
       </View>
     </View>
@@ -262,25 +251,24 @@ function ShowBlock({ item, laneAreaBottom }: { item: ScheduledShow; laneAreaBott
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function ScheduleScreen() {
-  const router = useRouter();
+  const router  = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
   const { network, shows } = useGameStore();
   const currentWeek = network.currentWeek as number;
   const currentYear = network.currentYear as number;
 
-  // Absolute week of "now"
-  const nowAbs        = toAbs(currentYear, currentWeek);
-  // First column of the rolling window
-  const windowAbsStart = nowAbs - LOOK_BACK;
+  // Scroll so the now-line appears ~120px from the left edge of the viewport
+  useEffect(() => {
+    const targetX = Math.max(0, (currentWeek - 1) * CELL_W - 120);
+    scrollRef.current?.scrollTo({ x: targetX, y: 0, animated: false });
+  }, [currentWeek]);
 
-  const scheduled = getScheduledShows(shows, windowAbsStart);
+  const scheduled = getScheduledShows(shows, currentYear);
 
   const laneAreaH      = NUM_LANES * ROW_H;
   const showsH         = scheduled.length > 0 ? scheduled.length * SHOW_H + 6 : 0;
   const canvasH        = HDR_H + laneAreaH + showsH;
   const laneAreaBottom = HDR_H + laneAreaH + 6;
-
-  // Years whose theme windows might be visible
-  const yearsToRender = [currentYear - 1, currentYear, currentYear + 1];
 
   return (
     <SafeAreaView style={s.container}>
@@ -305,51 +293,38 @@ export default function ScheduleScreen() {
         </View>
       </View>
 
-      {/* Rolling-window horizontal scroll calendar */}
+      {/* Horizontal scroll calendar: W1 of current year → W26 of next year */}
       <ScrollView
+        ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentOffset={{ x: INIT_X, y: 0 }}
         style={{ flex: 1 }}
         contentContainerStyle={{ width: TOTAL_W, height: canvasH, position: 'relative' }}
       >
         <Background numLanes={NUM_LANES} rowH={ROW_H} showsH={showsH} />
-        <NowLine height={canvasH} />
-        <WeekHeader windowAbsStart={windowAbsStart} nowAbs={nowAbs} />
+        <NowLine currentWeek={currentWeek} height={canvasH} />
+        <WeekHeader currentWeek={currentWeek} currentYear={currentYear} />
 
-        {/* Theme window blocks for prev/current/next year */}
-        {yearsToRender.flatMap(yr =>
-          THEME_WINDOWS.map((win, wi) => {
-            const lane = LANE_MAP.get(win.theme);
-            if (lane === undefined) return null;
+        {/* Current year theme windows (colOffset=0) */}
+        {THEME_WINDOWS.map((win, wi) => {
+          const lane = LANE_MAP.get(win.theme);
+          if (lane === undefined) return null;
+          const isActive = currentWeek >= win.startWeek && currentWeek <= win.endWeek;
+          return (
+            <ThemeBlock key={`cur-${wi}`} win={win} lane={lane} rowH={ROW_H}
+              colOffset={0} isActive={isActive} />
+          );
+        })}
 
-            const absStart = toAbs(yr, win.startWeek);
-            const absEnd   = toAbs(yr, win.endWeek);
-            const colStart = absStart - windowAbsStart;
-            const colEnd   = absEnd   - windowAbsStart;
-
-            if (colEnd < 0 || colStart >= TOTAL_DISPLAY_WEEKS) return null;
-
-            const visColStart = Math.max(0, colStart);
-            const visColEnd   = Math.min(TOTAL_DISPLAY_WEEKS - 1, colEnd);
-            const x = visColStart * CELL_W;
-            const w = (visColEnd - visColStart + 1) * CELL_W;
-
-            const isActive = yr === currentYear &&
-              currentWeek >= win.startWeek && currentWeek <= win.endWeek;
-
-            return (
-              <ThemeBlock
-                key={`${yr}-${wi}`}
-                win={win}
-                lane={lane}
-                rowH={ROW_H}
-                x={x} w={w}
-                isActive={isActive}
-              />
-            );
-          })
-        )}
+        {/* Next year theme windows (colOffset=WEEKS_PER_YEAR) */}
+        {THEME_WINDOWS.map((win, wi) => {
+          const lane = LANE_MAP.get(win.theme);
+          if (lane === undefined) return null;
+          return (
+            <ThemeBlock key={`nxt-${wi}`} win={win} lane={lane} rowH={ROW_H}
+              colOffset={WEEKS_PER_YEAR} isActive={false} />
+          );
+        })}
 
         {/* Divider */}
         {showsH > 0 && (
