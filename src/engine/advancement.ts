@@ -161,8 +161,9 @@ export function advanceWeek(state: GameState): GameState {
         week: newWeek,
         year: newYear,
         read: false,
-        headline: `Revenue share paid — ${shows[i].title} S${season.seasonNumber}`,
-        body: `Season ad revenue: $${(season.totalAdRevenue / 1_000_000).toFixed(2)}M\n\n${lineItems.join('\n')}\n\nTotal paid out: $${(seasonPayout / 1_000_000).toFixed(2)}M`,
+        refID: shows[i].id,
+        title: `Revenue share paid — ${shows[i].title} S${season.seasonNumber}`,
+        preview: `Total paid out: $${(seasonPayout / 1_000_000).toFixed(2)}M · ${lineItems.join(' · ')}`,
       });
     }
   }
@@ -450,9 +451,13 @@ export function advanceWeek(state: GameState): GameState {
     emmyCeremonyPendingYear = newYear;
   }
 
-  // Prune TalentDeal records for talent that is no longer booked
+  // Prune TalentDeal records for talent that is no longer booked.
+  // Keep deals with revenueSharePercent > 0 permanently — they serve as
+  // historical records for the season financials display.
   const bookedTalentIDs = new Set(talent.filter(t => !t.available).map(t => t.id));
-  const prunedDeals = state.talentDeals.filter(d => bookedTalentIDs.has(d.talentID));
+  const prunedDeals = state.talentDeals.filter(
+    d => bookedTalentIDs.has(d.talentID) || d.revenueSharePercent > 0,
+  );
 
   // ─── Studio events ────────────────────────────────────────────────────────
   const partialState = {
