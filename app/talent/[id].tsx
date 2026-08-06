@@ -635,7 +635,7 @@ export default function TalentDetailScreen() {
                     <View style={[m.likelihoodBarFill, { width: `${likelihood}%` as any, backgroundColor: lColor }]} />
                   </View>
                   <Text style={[m.likelihoodPct, { color: lColor }]}>
-                    {hasTyped && offered > 0 ? `${likelihood}%` : '—'}
+                    {hasTyped && flatFee > 0 ? `${likelihood}%` : '—'}
                   </Text>
                 </View>
 
