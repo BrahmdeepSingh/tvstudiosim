@@ -6,20 +6,27 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { WEEKS_PER_YEAR } from '../src/constants/game';
-import { THEME_WINDOWS, ThemeWindow, getThemeWindow } from '../src/constants/schedule';
+import { THEME_WINDOWS, ThemeWindow, isInThemeWindow } from '../src/constants/schedule';
 import { Show, Season } from '../src/types';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const CELL_W  = 60;          // px per week — zoomed-in feel
-const HDR_H   = 40;          // week-number header (taller for bigger text)
-const SHOW_H  = 38;          // show bar height
+const LOOK_BACK = 6;               // columns of history shown before "now"
+const TOTAL_DISPLAY_WEEKS = 53;    // rolling window width
+const CELL_W  = 60;
+const HDR_H   = 40;
+const SHOW_H  = 38;
 
-// Screen-aware row height: fill all available vertical space with the 10 lanes
 const SCREEN_H    = Dimensions.get('window').height;
-const HEADER_AREA = 130;     // approximate: safe-area + app-header + legend row
-const ROW_H       = Math.floor((SCREEN_H - HEADER_AREA - HDR_H) / 10); // 10 = NUM_LANES
+const HEADER_AREA = 130;
+const ROW_H       = Math.floor((SCREEN_H - HEADER_AREA - HDR_H) / 10);
 
-// Computed once: greedy lane assignment for all 21 windows
+const TOTAL_W = CELL_W * TOTAL_DISPLAY_WEEKS;
+
+// Scroll so now-line (at column LOOK_BACK) sits ~120px from the left edge
+const NOW_X   = LOOK_BACK * CELL_W;
+const INIT_X  = Math.max(0, NOW_X - 120);
+
+// ── Lane assignment ───────────────────────────────────────────────────────────
 function computeLanes(windows: ThemeWindow[]): { map: Map<string, number>; count: number } {
   const sorted = [...windows].sort((a, b) => a.startWeek - b.startWeek);
   const laneEnds: number[] = [];
@@ -35,8 +42,6 @@ function computeLanes(windows: ThemeWindow[]): { map: Map<string, number>; count
 
 const { map: LANE_MAP, count: NUM_LANES } = computeLanes(THEME_WINDOWS);
 
-const TOTAL_W = CELL_W * WEEKS_PER_YEAR;
-
 const SHOW_COLORS = ['#5b8dee','#e04f7c','#4ec46e','#d4753a','#9b72cb','#3db8a8','#e6b254','#c06060'];
 
 // ── Window styling ────────────────────────────────────────────────────────────
@@ -50,56 +55,65 @@ function winAccent(win: ThemeWindow): string {
   return win.type === 'cultural' ? '#e6b254' : '#3db8a8';
 }
 
+// ── Absolute-week helpers ─────────────────────────────────────────────────────
+// Game stores absolute week as: year * WEEKS_PER_YEAR + weekOfYear
+function toAbs(year: number, woy: number): number {
+  return year * WEEKS_PER_YEAR + woy;
+}
+function woyOf(abs: number): number {
+  return ((abs - 1) % WEEKS_PER_YEAR) + 1;
+}
+function yearOf(abs: number): number {
+  return Math.floor((abs - 1) / WEEKS_PER_YEAR);
+}
+
 // ── Scheduled show helper ─────────────────────────────────────────────────────
 interface ScheduledShow {
   show: Show; season: Season;
-  airWeek: number; endWeek: number; colorIdx: number;
+  colStart: number; colEnd: number; colorIdx: number;
 }
-function getScheduledShows(shows: Show[], currentYear: number): ScheduledShow[] {
+function getScheduledShows(
+  shows: Show[],
+  windowAbsStart: number,
+): ScheduledShow[] {
   const out: ScheduledShow[] = [];
   let idx = 0;
+  const windowAbsEnd = windowAbsStart + TOTAL_DISPLAY_WEEKS - 1;
+
   for (const show of shows) {
     const season = show.seasons[show.currentSeasonIndex];
     if (!season?.airDateWeek || !season?.airDateYear) continue;
     if (!['marketing','airing','renewal-pending','completed','cancelled'].includes(show.status)) continue;
-    const airY = season.airDateYear, airW = season.airDateWeek;
-    const absStart = airY * WEEKS_PER_YEAR + airW;
+
+    const absStart = toAbs(season.airDateYear, season.airDateWeek);
     const absEnd   = absStart + season.episodeCount - 1;
-    const yrStart  = currentYear * WEEKS_PER_YEAR + 1;
-    const yrEnd    = currentYear * WEEKS_PER_YEAR + WEEKS_PER_YEAR;
-    if (absEnd < yrStart || absStart > yrEnd) continue;
-    const startInYear = airY < currentYear ? airW - (currentYear - airY) * WEEKS_PER_YEAR : airW;
-    const rawEnd      = startInYear + season.episodeCount - 1;
+
+    if (absEnd < windowAbsStart || absStart > windowAbsEnd) continue;
+
     out.push({
       show, season,
-      airWeek: Math.max(1, startInYear),
-      endWeek: Math.min(WEEKS_PER_YEAR, rawEnd),
+      colStart: Math.max(0, absStart - windowAbsStart),
+      colEnd:   Math.min(TOTAL_DISPLAY_WEEKS - 1, absEnd - windowAbsStart),
       colorIdx: idx++ % SHOW_COLORS.length,
     });
   }
   return out;
 }
 
-// ── Canvas pieces (all absolutely positioned) ─────────────────────────────────
+// ── Canvas pieces ─────────────────────────────────────────────────────────────
 
-// Alternating lane stripes + vertical week guides
 function Background({ numLanes, rowH, showsH }: { numLanes: number; rowH: number; showsH: number }) {
   const laneArea = numLanes * rowH;
   return (
     <>
-      {/* Lane stripes */}
       {Array.from({ length: numLanes }, (_, i) => (
-        <View
-          key={i}
-          style={{
-            position: 'absolute',
-            top: HDR_H + i * rowH,
-            left: 0, width: TOTAL_W, height: rowH,
-            backgroundColor: i % 2 === 0 ? '#0c1020' : '#101428',
-          }}
-        />
+        <View key={i} style={{
+          position: 'absolute',
+          top: HDR_H + i * rowH,
+          left: 0, width: TOTAL_W, height: rowH,
+          backgroundColor: i % 2 === 0 ? '#0c1020' : '#101428',
+        }} />
       ))}
-      {/* Shows area stripe */}
       {showsH > 0 && (
         <View style={{
           position: 'absolute',
@@ -108,40 +122,45 @@ function Background({ numLanes, rowH, showsH }: { numLanes: number; rowH: number
           backgroundColor: '#0a0e1c',
         }} />
       )}
-      {/* Vertical guide lines every 4 weeks */}
-      {Array.from({ length: WEEKS_PER_YEAR }, (_, i) => {
-        const w = i + 1;
-        if (w % 4 !== 1) return null;
+      {/* Vertical guides every 4 columns */}
+      {Array.from({ length: TOTAL_DISPLAY_WEEKS }, (_, i) => {
+        if (i % 4 !== 0) return null;
         return (
-          <View
-            key={w}
-            style={{
-              position: 'absolute',
-              top: HDR_H, left: i * CELL_W,
-              width: 1, height: laneArea + showsH + 6,
-              backgroundColor: '#ffffff09',
-            }}
-          />
+          <View key={i} style={{
+            position: 'absolute',
+            top: HDR_H, left: i * CELL_W,
+            width: 1, height: laneArea + showsH + 6,
+            backgroundColor: '#ffffff09',
+          }} />
         );
       })}
     </>
   );
 }
 
-// Week number header row
-function WeekHeader({ currentWeek }: { currentWeek: number }) {
+// Week header — columns based on rolling absolute window
+function WeekHeader({ windowAbsStart, nowAbs }: { windowAbsStart: number; nowAbs: number }) {
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, width: TOTAL_W, height: HDR_H, flexDirection: 'row' }}>
-      {Array.from({ length: WEEKS_PER_YEAR }, (_, i) => {
-        const w = i + 1;
-        const isCur = w === currentWeek;
-        // Show every 2 weeks + always show current week
-        const show  = w % 2 === 1 || isCur;
+      {Array.from({ length: TOTAL_DISPLAY_WEEKS }, (_, i) => {
+        const abs   = windowAbsStart + i;
+        const woy   = woyOf(abs);
+        const isCur = abs === nowAbs;
+        const isNewYear = woy === 1 && i > 0;
+        const show  = woy % 2 === 1 || isCur;
         return (
-          <View key={w} style={{ width: CELL_W, alignItems: 'center', justifyContent: 'center', height: HDR_H }}>
-            {show && (
+          <View key={i} style={{ width: CELL_W, alignItems: 'center', justifyContent: 'center', height: HDR_H }}>
+            {/* Year-boundary divider */}
+            {isNewYear && (
+              <View style={{ position: 'absolute', left: 0, top: 6, bottom: 6, width: 1.5, backgroundColor: '#e6b25444' }} />
+            )}
+            {/* Year badge at boundary */}
+            {isNewYear && (
+              <Text style={g.yearBadge}>Y{yearOf(abs)}</Text>
+            )}
+            {!isNewYear && show && (
               <Text style={[g.hdrNum, isCur && g.hdrNumCur]}>
-                {isCur ? '▼' : w}
+                {isCur ? '▼' : woy}
               </Text>
             )}
           </View>
@@ -151,14 +170,14 @@ function WeekHeader({ currentWeek }: { currentWeek: number }) {
   );
 }
 
-// Gold now-line
-function NowLine({ week, height }: { week: number; height: number }) {
+// Gold now-line — always at column LOOK_BACK
+function NowLine({ height }: { height: number }) {
   return (
     <View
       pointerEvents="none"
       style={{
         position: 'absolute',
-        top: 0, left: (week - 1) * CELL_W + CELL_W / 2 - 1,
+        top: 0, left: NOW_X + CELL_W / 2 - 1,
         width: 2, height,
         backgroundColor: '#e6b25455', zIndex: 30,
       }}
@@ -166,39 +185,33 @@ function NowLine({ week, height }: { week: number; height: number }) {
   );
 }
 
-// Individual theme block
-function ThemeBlock({ win, lane, rowH, currentWeek }: {
-  win: ThemeWindow; lane: number; rowH: number; currentWeek: number;
+// Theme block — receives pre-computed canvas x / w
+function ThemeBlock({ win, lane, rowH, x, w, isActive }: {
+  win: ThemeWindow; lane: number; rowH: number;
+  x: number; w: number; isActive: boolean;
 }) {
-  const x = (win.startWeek - 1) * CELL_W;
-  const y = HDR_H + lane * rowH;
-  const w = (win.endWeek - win.startWeek + 1) * CELL_W;
   const accent = winAccent(win);
-  const isActive = currentWeek >= win.startWeek && currentWeek <= win.endWeek;
+  const y = HDR_H + lane * rowH;
 
   return (
-    <View
-      style={{
-        position: 'absolute',
-        left: x + 1, top: y + 2,
-        width: w - 2, height: rowH - 4,
-        backgroundColor: winFill(win),
-        borderWidth: isActive ? 1.5 : 1,
-        borderColor: winBorder(win) + (isActive ? '' : ''),
-        borderRadius: 6,
-        overflow: 'hidden',
-        justifyContent: 'center',
-        paddingHorizontal: 7,
-      }}
-    >
-      {/* Accent left edge */}
+    <View style={{
+      position: 'absolute',
+      left: x + 1, top: y + 2,
+      width: w - 2, height: rowH - 4,
+      backgroundColor: winFill(win),
+      borderWidth: isActive ? 1.5 : 1,
+      borderColor: winBorder(win),
+      borderRadius: 6,
+      overflow: 'hidden',
+      justifyContent: 'center',
+      paddingHorizontal: 7,
+    }}>
       <View style={{
         position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
         backgroundColor: accent + (isActive ? 'ff' : '88'),
       }} />
-
       <View style={{ paddingLeft: 6 }}>
-        <Text style={[g.blockEmoji]}>{win.emoji}</Text>
+        <Text style={g.blockEmoji}>{win.emoji}</Text>
         {w >= 80 && (
           <Text style={[g.blockTheme, { color: accent }]} numberOfLines={1}>
             {win.theme.replace(/-/g, ' ')}
@@ -214,30 +227,32 @@ function ThemeBlock({ win, lane, rowH, currentWeek }: {
 
 // Show bar
 function ShowBlock({ item, laneAreaBottom }: { item: ScheduledShow; laneAreaBottom: number }) {
-  const color = SHOW_COLORS[item.colorIdx];
-  const x     = (item.airWeek - 1) * CELL_W;
-  const w     = (item.endWeek - item.airWeek + 1) * CELL_W;
-  const win   = getThemeWindow(item.show.theme);
-  const hasBoost = win && item.airWeek <= win.endWeek && item.endWeek >= win.startWeek;
+  const color  = SHOW_COLORS[item.colorIdx];
+  const x      = item.colStart * CELL_W;
+  const w      = (item.colEnd - item.colStart + 1) * CELL_W;
+  const hasBoost = item.colEnd > item.colStart &&
+    Array.from({ length: item.colEnd - item.colStart + 1 }, (_, k) => {
+      const woy = woyOf(item.colStart + k); // approximate; good enough for icon
+      return isInThemeWindow(item.show.theme, woy);
+    }).some(Boolean);
+  const boostColor = item.show.theme ? '#e6b254' : '#3db8a8';
 
   return (
-    <View
-      style={{
-        position: 'absolute',
-        left: x + 1, top: laneAreaBottom + 2,
-        width: w - 2, height: SHOW_H - 4,
-        backgroundColor: color + '28',
-        borderWidth: 1, borderColor: color + 'aa',
-        borderRadius: 5, overflow: 'hidden',
-        justifyContent: 'center', paddingHorizontal: 6,
-      }}
-    >
+    <View style={{
+      position: 'absolute',
+      left: x + 1, top: laneAreaBottom + 2,
+      width: w - 2, height: SHOW_H - 4,
+      backgroundColor: color + '28',
+      borderWidth: 1, borderColor: color + 'aa',
+      borderRadius: 5, overflow: 'hidden',
+      justifyContent: 'center', paddingHorizontal: 6,
+    }}>
       <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: color + 'cc' }} />
       <View style={{ paddingLeft: 6 }}>
         <Text style={[g.showTitle, { color }]} numberOfLines={1}>{item.show.title}</Text>
-        {w >= 100 && hasBoost && win && (
-          <Text style={[g.showBoost, { color: win.type === 'cultural' ? '#e6b254' : '#3db8a8' }]} numberOfLines={1}>
-            {win.emoji} {win.type === 'cultural' ? '+25%' : '+15%'} viewers
+        {w >= 100 && hasBoost && (
+          <Text style={[g.showBoost, { color: boostColor }]} numberOfLines={1}>
+            ✦ boost window
           </Text>
         )}
       </View>
@@ -252,14 +267,20 @@ export default function ScheduleScreen() {
   const currentWeek = network.currentWeek as number;
   const currentYear = network.currentYear as number;
 
-  const scheduled = getScheduledShows(shows, currentYear);
+  // Absolute week of "now"
+  const nowAbs        = toAbs(currentYear, currentWeek);
+  // First column of the rolling window
+  const windowAbsStart = nowAbs - LOOK_BACK;
 
-  const laneAreaH = NUM_LANES * ROW_H;
-  const showsH    = scheduled.length > 0 ? scheduled.length * SHOW_H + 6 : 0;
-  const canvasH   = HDR_H + laneAreaH + showsH;
+  const scheduled = getScheduledShows(shows, windowAbsStart);
+
+  const laneAreaH      = NUM_LANES * ROW_H;
+  const showsH         = scheduled.length > 0 ? scheduled.length * SHOW_H + 6 : 0;
+  const canvasH        = HDR_H + laneAreaH + showsH;
   const laneAreaBottom = HDR_H + laneAreaH + 6;
 
-  const initX = Math.max(0, (currentWeek - 1) * CELL_W - 80);
+  // Years whose theme windows might be visible
+  const yearsToRender = [currentYear - 1, currentYear, currentYear + 1];
 
   return (
     <SafeAreaView style={s.container}>
@@ -274,7 +295,6 @@ export default function ScheduleScreen() {
           <Text style={s.title}>SCHEDULE</Text>
           <Text style={s.subtitle}>YEAR {currentYear} · WEEK {currentWeek}</Text>
         </View>
-        {/* Legend chips */}
         <View style={s.legendRight}>
           <View style={[s.chip, { borderColor: '#e6b25466', backgroundColor: '#e6b25415' }]}>
             <Text style={[s.chipText, { color: '#e6b254' }]}>+25%</Text>
@@ -285,34 +305,53 @@ export default function ScheduleScreen() {
         </View>
       </View>
 
-      {/* Full-screen horizontal scroll calendar */}
+      {/* Rolling-window horizontal scroll calendar */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentOffset={{ x: initX, y: 0 }}
+        contentOffset={{ x: INIT_X, y: 0 }}
         style={{ flex: 1 }}
         contentContainerStyle={{ width: TOTAL_W, height: canvasH, position: 'relative' }}
       >
         <Background numLanes={NUM_LANES} rowH={ROW_H} showsH={showsH} />
-        <NowLine week={currentWeek} height={canvasH} />
-        <WeekHeader currentWeek={currentWeek} />
+        <NowLine height={canvasH} />
+        <WeekHeader windowAbsStart={windowAbsStart} nowAbs={nowAbs} />
 
-        {/* Theme window blocks */}
-        {THEME_WINDOWS.map(win => {
-          const lane = LANE_MAP.get(win.theme);
-          if (lane === undefined) return null;
-          return (
-            <ThemeBlock
-              key={win.theme}
-              win={win}
-              lane={lane}
-              rowH={ROW_H}
-              currentWeek={currentWeek}
-            />
-          );
-        })}
+        {/* Theme window blocks for prev/current/next year */}
+        {yearsToRender.flatMap(yr =>
+          THEME_WINDOWS.map((win, wi) => {
+            const lane = LANE_MAP.get(win.theme);
+            if (lane === undefined) return null;
 
-        {/* Divider line between themes and shows */}
+            const absStart = toAbs(yr, win.startWeek);
+            const absEnd   = toAbs(yr, win.endWeek);
+            const colStart = absStart - windowAbsStart;
+            const colEnd   = absEnd   - windowAbsStart;
+
+            if (colEnd < 0 || colStart >= TOTAL_DISPLAY_WEEKS) return null;
+
+            const visColStart = Math.max(0, colStart);
+            const visColEnd   = Math.min(TOTAL_DISPLAY_WEEKS - 1, colEnd);
+            const x = visColStart * CELL_W;
+            const w = (visColEnd - visColStart + 1) * CELL_W;
+
+            const isActive = yr === currentYear &&
+              currentWeek >= win.startWeek && currentWeek <= win.endWeek;
+
+            return (
+              <ThemeBlock
+                key={`${yr}-${wi}`}
+                win={win}
+                lane={lane}
+                rowH={ROW_H}
+                x={x} w={w}
+                isActive={isActive}
+              />
+            );
+          })
+        )}
+
+        {/* Divider */}
         {showsH > 0 && (
           <View style={{
             position: 'absolute',
@@ -339,6 +378,7 @@ export default function ScheduleScreen() {
 const g = StyleSheet.create({
   hdrNum:    { fontFamily: 'Manrope_700Bold', fontSize: 12, color: '#5a5a7a' },
   hdrNumCur: { color: '#e6b254', fontSize: 13 },
+  yearBadge: { fontFamily: 'Manrope_800ExtraBold', fontSize: 9, color: '#e6b25499', letterSpacing: 0.5 },
 
   blockEmoji: { fontSize: 14, lineHeight: 17 },
   blockTheme: { fontFamily: 'Manrope_700Bold', fontSize: 9.5, marginTop: 2, textTransform: 'capitalize' },
