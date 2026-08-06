@@ -182,7 +182,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function ShowDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { shows, talent, network, cancelShow, acceptStreamingOffer, declineStreamingOffer } = useGameStore();
+  const { shows, talent, talentDeals, network, cancelShow, acceptStreamingOffer, declineStreamingOffer } = useGameStore();
 
   const show = shows.find(s => s.id === id);
   if (!show) {
@@ -210,7 +210,10 @@ export default function ShowDetailScreen() {
     .reduce((acc, e, _, arr) => acc + (e.rating ?? 0) / arr.length, 0);
 
   const streamingRevenue = season.streamingRevenue;
-  const netProfit = season.totalAdRevenue + streamingRevenue - season.productionCost - season.marketingSpend;
+  const revShareExpense = talentDeals
+    .filter(d => d.seasonID === season.id && d.revenueSharePercent > 0)
+    .reduce((sum, d) => sum + Math.round(d.revenueSharePercent / 100 * season.totalAdRevenue), 0);
+  const netProfit = season.totalAdRevenue + streamingRevenue - season.productionCost - season.marketingSpend - revShareExpense;
 
   const needsDirector  = show.status === 'filming' && !season.directorID;
   const leadsNeeded    = season.leadActorSlots - season.leadActorIDs.length;
@@ -480,6 +483,16 @@ export default function ShowDetailScreen() {
                 <Text style={[sd.finValue, { color: C.green }]}>{fmt(streamingRevenue)}</Text>
               </View>
             )}
+            {revShareExpense > 0 && (
+              <View style={sd.finRow}>
+                <Text style={sd.finLabel}>
+                  {show.status === 'renewal-pending' || show.status === 'cancelled'
+                    ? 'Revenue share paid'
+                    : 'Revenue share (est.)'}
+                </Text>
+                <Text style={[sd.finValue, { color: C.red }]}>−{fmt(revShareExpense)}</Text>
+              </View>
+            )}
             <View style={[sd.finRow, sd.finTotalRow]}>
               <Text style={[sd.finLabel, { fontFamily: F.bodyBd, color: C.text }]}>Net</Text>
               <Text style={[sd.finValue, { fontFamily: F.bodyBd, color: netProfit >= 0 ? C.green : C.red }]}>
@@ -553,7 +566,10 @@ export default function ShowDetailScreen() {
               {show.seasons.slice(0, show.currentSeasonIndex).reverse().map((s: Season) => {
                 const aired = s.episodes.filter(e => e.rating !== null);
                 const avg   = aired.length > 0 ? aired.reduce((sum, e) => sum + (e.rating ?? 0), 0) / aired.length : 0;
-                const sNet  = s.totalAdRevenue + s.streamingRevenue - s.productionCost - s.marketingSpend;
+                const sRevShare = talentDeals
+                  .filter(d => d.seasonID === s.id && d.revenueSharePercent > 0)
+                  .reduce((sum, d) => sum + Math.round(d.revenueSharePercent / 100 * s.totalAdRevenue), 0);
+                const sNet  = s.totalAdRevenue + s.streamingRevenue - s.productionCost - s.marketingSpend - sRevShare;
                 return (
                   <TouchableOpacity
                     key={s.id}
