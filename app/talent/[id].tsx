@@ -1,8 +1,8 @@
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView,
-  Image, Modal, TextInput,
+  Image, TextInput, Animated,
 } from 'react-native';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
@@ -90,6 +90,7 @@ export default function TalentDetailScreen() {
   const [offerText, setOfferText] = useState('');
   const [offerStatus, setOfferStatus] = useState<OfferStatus>('idle');
   const [lastRejected, setLastRejected] = useState(false);
+  const sheetAnim = useRef(new Animated.Value(400)).current;
 
   const person = talent.find(t => t.id === id);
 
@@ -186,7 +187,22 @@ export default function TalentDetailScreen() {
     setOfferText('');
     setOfferStatus('idle');
     setLastRejected(false);
+    sheetAnim.setValue(400);
     setOfferVisible(true);
+    Animated.spring(sheetAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      bounciness: 4,
+      speed: 14,
+    }).start();
+  }
+
+  function closeOfferSheet() {
+    Animated.timing(sheetAnim, {
+      toValue: 400,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => setOfferVisible(false));
   }
 
   function handleOffer() {
@@ -201,7 +217,7 @@ export default function TalentDetailScreen() {
       if (success) {
         setOfferStatus('accepted');
         setTimeout(() => {
-          setOfferVisible(false);
+          closeOfferSheet();
           if (hireRole === 'showrunner') {
             router.replace('/(tabs)/');
           } else {
@@ -436,17 +452,21 @@ export default function TalentDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* ── OFFER SHEET MODAL ───────────────────────────────────────────────── */}
-      <Modal
-        visible={offerVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setOfferVisible(false)}
-      >
-        <View style={m.overlay}>
-          <TouchableOpacity style={m.dismiss} onPress={() => setOfferVisible(false)} />
-          <View style={m.sheet}>
-            {/* Sheet handle */}
+      {/* ── OFFER SHEET (absolute overlay, no Modal) ────────────────────────── */}
+      {offerVisible && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 50 }]} pointerEvents="box-none">
+          {/* Dim backdrop */}
+          <TouchableOpacity
+            style={m.backdrop}
+            activeOpacity={1}
+            onPress={closeOfferSheet}
+            pointerEvents="auto"
+          />
+          {/* Animated sheet */}
+          <Animated.View
+            style={[m.sheet, { transform: [{ translateY: sheetAnim }] }]}
+            pointerEvents="auto"
+          >
             <View style={m.handle} />
 
             <View style={m.sheetHeader}>
@@ -455,7 +475,7 @@ export default function TalentDetailScreen() {
                   {person.chemistryColor.charAt(0).toUpperCase() + person.chemistryColor.slice(1)}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setOfferVisible(false)} style={m.closeBtn}>
+              <TouchableOpacity onPress={closeOfferSheet} style={m.closeBtn}>
                 <Text style={m.closeBtnText}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -487,7 +507,6 @@ export default function TalentDetailScreen() {
                     placeholder="0.00"
                     placeholderTextColor={C.muted}
                     keyboardType="decimal-pad"
-                    autoFocus
                   />
                   <Text style={m.millionLabel}>M</Text>
                 </View>
@@ -523,9 +542,9 @@ export default function TalentDetailScreen() {
                 )}
               </>
             )}
-          </View>
+          </Animated.View>
         </View>
-      </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -587,9 +606,8 @@ const rs = StyleSheet.create({
 });
 
 const m = StyleSheet.create({
-  overlay:    { flex: 1, backgroundColor: '#000000bb', justifyContent: 'flex-end' },
-  dismiss:    { flex: 1 },
-  sheet:      { backgroundColor: '#16192a', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderColor: '#252840', padding: 24, paddingBottom: 40 },
+  backdrop:   { ...StyleSheet.absoluteFillObject, backgroundColor: '#000000bb' },
+  sheet:      { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#16192a', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderColor: '#252840', padding: 24, paddingBottom: 40 },
   handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: '#3a3d55', alignSelf: 'center', marginBottom: 20 },
 
   sheetHeader:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
