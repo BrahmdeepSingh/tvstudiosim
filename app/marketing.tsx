@@ -6,7 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { MARKETING_CHANNELS, WEEKS_PER_YEAR } from '../src/constants/game';
-import { getThemeWindow } from '../src/constants/schedule';
+import { getThemeWindow, isInThemeWindow } from '../src/constants/schedule';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
@@ -176,13 +176,13 @@ export default function MarketingScreen() {
 
             {/* Theme window indicator */}
             {(() => {
-              const win = getThemeWindow(show.theme);
+              const win = getThemeWindow(show.theme, targetWeek);
               if (!win) return null;
               const allAirWeeks = Array.from({ length: season.episodeCount }, (_, i) => {
                 const raw = targetWeek + i;
                 return ((raw - 1) % WEEKS_PER_YEAR) + 1;
               });
-              const overlapCount = allAirWeeks.filter(w => w >= win.startWeek && w <= win.endWeek).length;
+              const overlapCount = allAirWeeks.filter(w => isInThemeWindow(show.theme, w)).length;
               if (overlapCount === 0) {
                 return (
                   <View style={s.noWinRow}>
