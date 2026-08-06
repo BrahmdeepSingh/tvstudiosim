@@ -7,9 +7,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { getYearsActive } from '../../src/engine/talent';
-import { EMMY_CATEGORY_LABELS } from '../../src/constants/game';
+import { EMMY_CATEGORY_LABELS, TALENT_FEES, SUPPORTING_ACTOR_FEES } from '../../src/constants/game';
 import { AVATAR_MAP } from '../../src/utils/avatars';
-import { TalentRole } from '../../src/types';
+import { TalentRole, Talent } from '../../src/types';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
@@ -22,6 +22,65 @@ const C = {
 };
 
 const CHEM_COLORS = { green: '#4ec46e', blue: '#5b8dee', red: '#c43820' };
+
+// ─── Voice lines ──────────────────────────────────────────────────────────────
+const VOICE: Record<string, string[]> = {
+  opening_showrunner: ["Ready to run the room — for the right number.", "I don't come cheap, but I deliver.", "Name your offer. My writers room awaits."],
+  opening_director:   ["I have a vision. The question is your budget.", "Every great show needs a great director.", "Cameras don't roll without the right deal."],
+  opening_actor:      ["I bring the audience. You bring the offer.", "Star power doesn't come free.", "I'm listening. Make it worth my while."],
+  veryLow:  ["You're joking, right?", "My dry cleaning costs more than this.", "Did you mean to add a zero?", "My agent is going to hang up on you."],
+  low:      ["That's not gonna pay the bills.", "We're not in the same ballpark.", "I've seen better from indie studios.", "Keep the change."],
+  medium:   ["Getting warmer, but not quite.", "I'm listening now. Keep going.", "Not there yet, but you're trying.", "You're in the conversation."],
+  high:     ["Now we're talking.", "I like where this is going.", "Almost there — push it over the line.", "My agent would be happy with this."],
+  top:      ["You've got yourself a deal.", "Let's make great TV together.", "Pleasure doing business.", "I'll have my agent draw up the paperwork."],
+  rejected: ["That's too low for me.", "I need more than that to sign.", "Come back when you're serious.", "Not gonna happen at that price."],
+};
+
+function seededPick<T>(arr: T[], seed: string): T {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
+  return arr[Math.abs(h) % arr.length];
+}
+
+function getVoiceLine(talent: Talent, likelihood: number, offerStatus: 'idle' | 'accepted' | 'rejected', hasTyped: boolean): string {
+  if (offerStatus === 'accepted') return seededPick(VOICE.top, talent.id + 'top');
+  if (offerStatus === 'rejected') return seededPick(VOICE.rejected, talent.id + 'rej');
+  if (!hasTyped) return seededPick(VOICE[`opening_${talent.role}`] ?? VOICE.opening_actor, talent.id + 'open');
+  if (likelihood >= 100) return seededPick(VOICE.top, talent.id + 'top');
+  if (likelihood >= 70)  return seededPick(VOICE.high, talent.id + 'high');
+  if (likelihood >= 40)  return seededPick(VOICE.medium, talent.id + 'med');
+  if (likelihood >= 15)  return seededPick(VOICE.low, talent.id + 'low');
+  return seededPick(VOICE.veryLow, talent.id + 'vlo');
+}
+
+// ─── Likelihood (mirrors evaluateOffer math exactly) ─────────────────────────
+function computeLikelihood(
+  talent: Talent,
+  offeredFee: number,
+  networkPrestige: number,
+  actorType: 'lead' | 'supporting',
+): number {
+  const pop = talent.popularity;
+  const tier = pop < 40 ? 'low' : pop < 70 ? 'mid' : 'high';
+  const range = (talent.role === 'actor' && actorType === 'supporting')
+    ? SUPPORTING_ACTOR_FEES[tier]
+    : TALENT_FEES[talent.role][tier];
+  const minAcceptable = range[0] * 0.85;
+  const prestigeMod = 1 - Math.min(Math.max((networkPrestige - talent.prestigeRequired) / 200, 0), 0.15);
+  const effectiveMin = minAcceptable * prestigeMod;
+  if (offeredFee >= effectiveMin) return 100;
+  const ratio = offeredFee / effectiveMin;
+  // Quadratic curve: smooth 0→99% as offer approaches threshold
+  return Math.floor(ratio * ratio * 99);
+}
+
+function likelihoodColor(pct: number): string {
+  if (pct >= 100) return '#4ec46e';
+  if (pct >= 70)  return '#8ecf5a';
+  if (pct >= 40)  return '#d4c14a';
+  if (pct >= 15)  return '#d4753a';
+  return '#c43820';
+}
 
 function FilmRibbonAmbient() {
   return (
@@ -182,6 +241,12 @@ export default function TalentDetailScreen() {
   const cashOnHand = network.cashOnHand;
   const offered = parseFloat(offerText.replace(/,/g, '')) * 1_000_000;
   const validOffer = !isNaN(offered) && offered > 0 && offered <= cashOnHand;
+  const hasTyped = offerText.trim().length > 0;
+  const likelihood = (hasTyped && !isNaN(offered) && offered > 0)
+    ? computeLikelihood(person, offered, network.prestige, hireActorType)
+    : 0;
+  const voiceLine = getVoiceLine(person, likelihood, offerStatus, hasTyped);
+  const lColor = likelihoodColor(likelihood);
 
   function openOfferSheet() {
     setOfferText('');
@@ -480,12 +545,21 @@ export default function TalentDetailScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Name row */}
             <View style={m.nameRow}>
               <Image source={AVATAR_MAP[person.avatarId]} style={m.avatar} />
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={m.name}>{person.name}</Text>
                 <Text style={m.role}>{person.role.charAt(0).toUpperCase() + person.role.slice(1)} · {popularityLabel(person.popularity)}</Text>
               </View>
+            </View>
+
+            {/* Voice bubble */}
+            <View style={m.voiceBubble}>
+              <Text style={m.voiceName}>{person.name.split(' ')[0]}:</Text>
+              <Text style={[m.voiceText, offerStatus === 'rejected' && { color: '#d4753a' }, offerStatus === 'accepted' && { color: '#4ec46e' }]}>
+                {' '}{voiceLine}
+              </Text>
             </View>
 
             {offerStatus === 'accepted' ? (
@@ -494,10 +568,7 @@ export default function TalentDetailScreen() {
               </View>
             ) : (
               <>
-                <Text style={m.offerLabel}>MAKE AN OFFER (millions)</Text>
-                {lastRejected && (
-                  <Text style={m.rejectedHint}>Not interested. Try a higher offer.</Text>
-                )}
+                <Text style={m.offerLabel}>YOUR OFFER (millions)</Text>
                 <View style={m.offerRow}>
                   <Text style={m.dollarSign}>$</Text>
                   <TextInput
@@ -510,13 +581,25 @@ export default function TalentDetailScreen() {
                   />
                   <Text style={m.millionLabel}>M</Text>
                 </View>
+
+                {/* Likelihood meter */}
+                <View style={m.likelihoodRow}>
+                  <Text style={m.likelihoodLabel}>LIKELIHOOD</Text>
+                  <View style={m.likelihoodBarBg}>
+                    <View style={[m.likelihoodBarFill, { width: `${Math.min(likelihood, 100)}%` as any, backgroundColor: lColor }]} />
+                  </View>
+                  <Text style={[m.likelihoodPct, { color: lColor }]}>
+                    {hasTyped && offered > 0 ? `${likelihood}%` : '—'}
+                  </Text>
+                </View>
+
                 <Text style={m.cashAvail}>
-                  Available: ${(cashOnHand / 1_000_000).toFixed(1)}M
+                  Budget available: ${(cashOnHand / 1_000_000).toFixed(1)}M
                 </Text>
 
                 {offerStatus === 'rejected' ? (
                   <View style={m.rejectedBanner}>
-                    <Text style={m.rejectedText}>✗ Offer rejected</Text>
+                    <Text style={m.rejectedText}>✗ Offer rejected — try higher</Text>
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -621,9 +704,21 @@ const m = StyleSheet.create({
   name:       { color: '#f0ede8', fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
   role:       { color: '#9a958e', fontFamily: 'Manrope_400Regular', fontSize: 13 },
 
+  // Voice bubble
+  voiceBubble:  { backgroundColor: '#1e2238', borderWidth: 1, borderColor: '#2e3255', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 18, flexDirection: 'row', flexWrap: 'wrap' },
+  voiceName:    { color: '#e6b254', fontFamily: 'Manrope_700Bold', fontSize: 13 },
+  voiceText:    { color: '#f0ede8', fontFamily: 'Manrope_400Regular', fontSize: 13, fontStyle: 'italic', lineHeight: 18 },
+
+  // Offer input
   offerLabel: { color: '#9a958e', fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 8 },
-  rejectedHint: { color: '#d4753a', fontFamily: 'Manrope_600SemiBold', fontSize: 12, marginBottom: 10 },
-  offerRow:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#252840', borderRadius: 12, paddingHorizontal: 14, marginBottom: 8 },
+  offerRow:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#252840', borderRadius: 12, paddingHorizontal: 14, marginBottom: 10 },
+
+  // Likelihood meter
+  likelihoodRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  likelihoodLabel:  { color: '#9a958e', fontFamily: 'Manrope_700Bold', fontSize: 10, letterSpacing: 1.2, width: 80 },
+  likelihoodBarBg:  { flex: 1, height: 6, backgroundColor: '#252840', borderRadius: 3, overflow: 'hidden' },
+  likelihoodBarFill:{ height: 6, borderRadius: 3 },
+  likelihoodPct:    { fontFamily: 'Manrope_700Bold', fontSize: 13, width: 36, textAlign: 'right' },
   dollarSign: { color: '#9a958e', fontSize: 20, marginRight: 4 },
   offerInput: { flex: 1, color: '#f0ede8', fontFamily: 'Manrope_700Bold', fontSize: 24, paddingVertical: 14 },
   millionLabel: { color: '#9a958e', fontSize: 18 },
