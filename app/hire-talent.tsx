@@ -1,5 +1,5 @@
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, FlatList,
+  View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, SafeAreaView, Image,
 } from 'react-native';
 import { useState, useMemo } from 'react';
@@ -7,27 +7,20 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { Talent, TalentRole } from '../src/types';
-import { TALENT_FEES } from '../src/constants/game';
 import { AVATAR_MAP } from '../src/utils/avatars';
 
 const C = {
-  pageBg: '#0f1220', cardBg: '#191c2a', cardBg2: '#1d2035',
+  pageBg: '#0f1220', cardBg: '#191c2a',
   border: '#252840',
   text: '#f0ede8', muted: '#9a958e',
   gold: '#e6b254', goldDim: '#e6b25420', goldBtnText: '#161008',
-  green: '#4ec46e', greenBg: '#1a3325', amber: '#d4753a', red: '#c43820', redBg: '#2a130f',
+  green: '#4ec46e',
 };
 
 const CHEM_COLORS = {
   green: '#4ec46e',
   blue:  '#5b8dee',
   red:   '#c43820',
-};
-
-const ROLE_LABELS: Record<TalentRole, string> = {
-  showrunner: 'Showrunner',
-  director:   'Director',
-  actor:      'Actor',
 };
 
 const ROLE_STAT_LABEL: Record<TalentRole, string> = {
@@ -54,22 +47,6 @@ function getPrimaryStatValue(talent: Talent): number {
   return 0;
 }
 
-function getSecondaryStats(talent: Talent): { label: string; value: number }[] {
-  if (talent.stats.role === 'showrunner') return [
-    { label: 'Creativity',  value: talent.stats.creativity },
-    { label: 'Consistency', value: talent.stats.consistency },
-  ];
-  if (talent.stats.role === 'director') return [
-    { label: 'Vision',     value: talent.stats.vision },
-    { label: 'Efficiency', value: talent.stats.efficiency },
-  ];
-  if (talent.stats.role === 'actor') return [
-    { label: 'Chemistry', value: talent.stats.chemistry },
-    { label: 'Popularity', value: talent.popularity },
-  ];
-  return [];
-}
-
 function popularityLabel(p: number): string {
   if (p < 30)  return 'Unknown';
   if (p < 50)  return 'Emerging';
@@ -78,34 +55,17 @@ function popularityLabel(p: number): string {
   return 'Star';
 }
 
-function StatBar({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={s.statBarRow}>
-      <Text style={s.statBarLabel}>{label}</Text>
-      <View style={s.statBarTrack}>
-        <LinearGradient
-          colors={['#c49440', '#e6b254']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[s.statBarFill, { width: `${value}%` as any }]}
-        />
-      </View>
-      <Text style={s.statBarValue}>{value}</Text>
-    </View>
-  );
-}
-
 function TalentCard({
   talent,
-  onSelect,
+  onPress,
 }: {
   talent: Talent;
-  onSelect: (t: Talent) => void;
+  onPress: () => void;
 }) {
   const primary = getPrimaryStatValue(talent);
 
   return (
-    <TouchableOpacity style={s.talentCard} onPress={() => onSelect(talent)}>
+    <TouchableOpacity style={s.talentCard} onPress={onPress}>
       <View style={s.talentCardLeft}>
         <View style={s.avatarWrap}>
           <Image source={AVATAR_MAP[talent.avatarId]} style={s.avatarThumb} />
@@ -126,144 +86,9 @@ function TalentCard({
   );
 }
 
-type OfferStatus = 'idle' | 'accepted' | 'rejected';
-
-function OfferModal({
-  talent,
-  showID,
-  role,
-  actorType,
-  onSuccess,
-  onClose,
-}: {
-  talent: Talent;
-  showID: string;
-  role: TalentRole;
-  actorType: 'lead' | 'supporting';
-  onSuccess: () => void;
-  onClose: () => void;
-}) {
-  const { network, hireShowrunner, hireDirector, hireActor, evaluateOffer } = useGameStore();
-  const [offerText, setOfferText] = useState('');
-  const [status, setStatus] = useState<OfferStatus>('idle');
-  const [lastRejected, setLastRejected] = useState(false);
-
-  const cashOnHand = network.cashOnHand;
-  const offered = parseFloat(offerText.replace(/,/g, '')) * 1_000_000;
-  const validOffer = !isNaN(offered) && offered > 0 && offered <= cashOnHand;
-
-  function handleOffer() {
-    if (!validOffer) return;
-    const accepted = evaluateOffer(talent.id, offered, network.prestige, actorType);
-
-    if (accepted) {
-      let success = false;
-      if (role === 'showrunner') success = hireShowrunner(showID, talent.id, offered, 0);
-      else if (role === 'director') success = hireDirector(showID, talent.id, offered, 0);
-      else success = hireActor(showID, talent.id, offered, 0, actorType);
-
-      if (success) {
-        setStatus('accepted');
-        setTimeout(onSuccess, 1200);
-      }
-    } else {
-      setStatus('rejected');
-      setLastRejected(true);
-      setTimeout(() => setStatus('idle'), 1500);
-    }
-  }
-
-  const secondary = getSecondaryStats(talent);
-
-  return (
-    <View style={s.modalOverlay}>
-      <View style={s.modalCard}>
-        <View style={s.modalHeader}>
-          <View style={[s.modalChemBadge, { backgroundColor: CHEM_COLORS[talent.chemistryColor] + '33', borderColor: CHEM_COLORS[talent.chemistryColor] }]}>
-            <Text style={[s.modalChemText, { color: CHEM_COLORS[talent.chemistryColor] }]}>
-              {talent.chemistryColor.charAt(0).toUpperCase() + talent.chemistryColor.slice(1)}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={onClose} style={s.modalClose}>
-            <Text style={s.modalCloseText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={s.modalNameRow}>
-          <Image source={AVATAR_MAP[talent.avatarId]} style={s.modalAvatar} />
-          <Text style={s.modalName}>{talent.name}</Text>
-        </View>
-        <Text style={s.modalRole}>{ROLE_LABELS[role]} · {popularityLabel(talent.popularity)}</Text>
-
-        <View style={s.statsBlock}>
-          <StatBar value={getPrimaryStatValue(talent)} label={ROLE_STAT_LABEL[role]} />
-          {secondary.map(st => (
-            <StatBar key={st.label} value={st.value} label={st.label} />
-          ))}
-        </View>
-
-        {status === 'accepted' ? (
-          <View style={s.acceptedBanner}>
-            <Text style={s.acceptedText}>✓ Deal signed — ${(offered / 1_000_000).toFixed(2)}M</Text>
-          </View>
-        ) : (
-          <>
-            <Text style={s.offerLabel}>MAKE AN OFFER (millions)</Text>
-            {lastRejected && (
-              <Text style={s.rejectedHint}>Not interested. Try a higher offer.</Text>
-            )}
-            <View style={s.offerRow}>
-              <Text style={s.dollarSign}>$</Text>
-              <TextInput
-                style={s.offerInput}
-                value={offerText}
-                onChangeText={setOfferText}
-                placeholder="0.00"
-                placeholderTextColor={C.muted}
-                keyboardType="decimal-pad"
-              />
-              <Text style={s.millionLabel}>M</Text>
-            </View>
-            <Text style={s.cashAvail}>
-              Available: ${(cashOnHand / 1_000_000).toFixed(1)}M
-            </Text>
-
-            {status === 'rejected' ? (
-              <View style={s.rejectedBanner}>
-                <Text style={s.rejectedText}>✗ Offer rejected</Text>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[s.offerBtn, !validOffer && s.offerBtnDisabled]}
-                onPress={handleOffer}
-                disabled={!validOffer}
-              >
-                {validOffer ? (
-                  <LinearGradient
-                    colors={['#c49440', '#e6b254']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={s.offerBtnGrad}
-                  >
-                    <Text style={s.offerBtnText}>Make Offer</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={s.offerBtnGrad}>
-                    <Text style={s.offerBtnTextDisabled}>Make Offer</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            )}
-          </>
-        )}
-      </View>
-    </View>
-  );
-}
-
 export default function HireTalentScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ showID: string; role: TalentRole; actorType?: string; talentID?: string }>();
+  const params = useLocalSearchParams<{ showID: string; role: TalentRole; actorType?: string }>();
   const showID = params.showID ?? '';
   const role: TalentRole = (params.role as TalentRole) ?? 'showrunner';
   const actorType: 'lead' | 'supporting' =
@@ -271,9 +96,6 @@ export default function HireTalentScreen() {
 
   const { talent, network, shows } = useGameStore();
   const [searchQuery, setSearchQuery] = useState('');
-
-  const preselected = params.talentID ? talent.find(t => t.id === params.talentID) ?? null : null;
-  const [selectedTalent, setSelectedTalent] = useState<Talent | null>(preselected);
 
   const show = shows.find(s => s.id === showID);
   const season = show?.seasons[show.currentSeasonIndex];
@@ -293,18 +115,6 @@ export default function HireTalentScreen() {
   const filledCount = actorType === 'lead' ? filledLeads : filledSupporting;
   const totalSlots = actorType === 'lead' ? leadSlots : supportingSlots;
   const slotsRemaining = totalSlots - filledCount;
-
-  function handleSuccess() {
-    setSelectedTalent(null);
-    const newFilled = filledCount + 1;
-    if (role === 'showrunner') {
-      router.replace('/(tabs)/');
-    } else if (role === 'actor' && newFilled >= totalSlots) {
-      router.back();
-    } else {
-      setSelectedTalent(null);
-    }
-  }
 
   const roleTitle = {
     showrunner: 'Hire Showrunner',
@@ -370,7 +180,12 @@ export default function HireTalentScreen() {
           data={available}
           keyExtractor={t => t.id}
           renderItem={({ item }) => (
-            <TalentCard talent={item} onSelect={setSelectedTalent} />
+            <TalentCard
+              talent={item}
+              onPress={() => router.push(
+                `/talent/${item.id}?showID=${showID}&role=${role}&actorType=${actorType}`
+              )}
+            />
           )}
           contentContainerStyle={{ padding: 16, gap: 8 }}
         />
@@ -391,19 +206,6 @@ export default function HireTalentScreen() {
               <Text style={s.doneBtnText}>Done →</Text>
             </LinearGradient>
           </TouchableOpacity>
-        </View>
-      )}
-
-      {selectedTalent && (
-        <View style={[StyleSheet.absoluteFill, { zIndex: 50 }]} pointerEvents="box-none">
-          <OfferModal
-            talent={selectedTalent}
-            showID={showID}
-            role={role}
-            actorType={actorType}
-            onSuccess={handleSuccess}
-            onClose={() => setSelectedTalent(null)}
-          />
         </View>
       )}
     </SafeAreaView>
@@ -446,43 +248,4 @@ const s = StyleSheet.create({
   doneBtn:        { borderRadius: 14, overflow: 'hidden' },
   doneBtnGrad:    { padding: 16, alignItems: 'center' },
   doneBtnText:    { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
-
-  // Modal
-  modalOverlay:   { flex: 1, backgroundColor: '#000000cc', justifyContent: 'flex-end' },
-  modalCard:      { backgroundColor: '#16192a', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: C.border, padding: 24, maxHeight: '88%' },
-  modalHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  modalChemBadge: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
-  modalChemText:  { fontFamily: 'Manrope_700Bold', fontSize: 12 },
-  modalClose:     { padding: 4 },
-  modalCloseText: { color: C.muted, fontSize: 18 },
-  modalNameRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  modalAvatar:    { width: 30, height: 36, borderRadius: 5 },
-  modalName:      { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 30, letterSpacing: 0.5 },
-  modalRole:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14, marginBottom: 20 },
-
-  statsBlock:     { gap: 10, marginBottom: 24 },
-  statBarRow:     { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  statBarLabel:   { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 12, width: 80 },
-  statBarTrack:   { flex: 1, height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
-  statBarFill:    { height: '100%', borderRadius: 3 },
-  statBarValue:   { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 13, width: 28, textAlign: 'right' },
-
-  offerLabel:     { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 8 },
-  rejectedHint:   { color: C.amber, fontFamily: 'Manrope_600SemiBold', fontSize: 12, marginBottom: 10 },
-  offerRow:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, marginBottom: 8 },
-  dollarSign:     { color: C.muted, fontSize: 20, marginRight: 4 },
-  offerInput:     { flex: 1, color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 24, paddingVertical: 14 },
-  millionLabel:   { color: C.muted, fontSize: 18 },
-  cashAvail:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginBottom: 16 },
-
-  offerBtn:       { borderRadius: 14, overflow: 'hidden' },
-  offerBtnDisabled:{ backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 14 },
-  offerBtnGrad:   { padding: 16, alignItems: 'center' },
-  offerBtnText:   { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
-  offerBtnTextDisabled: { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 16 },
-
-  acceptedBanner: { backgroundColor: C.greenBg, borderRadius: 12, padding: 16, alignItems: 'center' },
-  acceptedText:   { color: C.green, fontFamily: 'Manrope_700Bold', fontSize: 16 },
-  rejectedBanner: { backgroundColor: C.redBg, borderRadius: 12, padding: 16, alignItems: 'center' },
-  rejectedText:   { color: C.red, fontFamily: 'Manrope_700Bold', fontSize: 16 },
 });
