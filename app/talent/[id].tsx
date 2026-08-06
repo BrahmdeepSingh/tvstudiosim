@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { getYearsActive } from '../../src/engine/talent';
-import { EMMY_CATEGORY_LABELS, TALENT_FEES, SUPPORTING_ACTOR_FEES } from '../../src/constants/game';
+import { EMMY_CATEGORY_LABELS, TALENT_FEES, SUPPORTING_ACTOR_FEES, GENRE_CONFIG } from '../../src/constants/game';
 import { AVATAR_MAP } from '../../src/utils/avatars';
 import { TalentRole, Talent } from '../../src/types';
 
@@ -57,10 +57,13 @@ function getVoiceLine(talent: Talent, likelihood: number, offerStatus: 'idle' | 
 // effectiveMin is the 100% mark on the bar; acceptance fires at >= 85%.
 function computeLikelihood(
   talent: Talent,
-  offeredFee: number,
+  flatFee: number,
+  revSharePercent: number,
   networkPrestige: number,
   actorType: 'lead' | 'supporting',
+  expectedSeasonRevenue: number,
 ): number {
+  if (flatFee <= 0) return 0;
   const pop = talent.popularity;
   const tier = pop < 40 ? 'low' : pop < 70 ? 'mid' : 'high';
   const range = (talent.role === 'actor' && actorType === 'supporting')
@@ -68,8 +71,11 @@ function computeLikelihood(
     : TALENT_FEES[talent.role][tier];
   const prestigeMod = 1 - Math.min(Math.max((networkPrestige - talent.prestigeRequired) / 200, 0), 0.15);
   const effectiveMin = range[0] * prestigeMod;
-  return Math.min(100, Math.floor((offeredFee / effectiveMin) * 100));
+  const revShareValue = (revSharePercent / 100) * expectedSeasonRevenue;
+  const combinedValue = flatFee + revShareValue;
+  return Math.min(100, Math.floor((combinedValue / effectiveMin) * 100));
 }
+
 
 function likelihoodColor(pct: number): string {
   if (pct >= 85) return '#4ec46e'; // will sign
@@ -144,9 +150,21 @@ export default function TalentDetailScreen() {
 
   const [offerVisible, setOfferVisible] = useState(false);
   const [offerText, setOfferText] = useState('');
+  const [revShare, setRevShare] = useState(0);
   const [offerStatus, setOfferStatus] = useState<OfferStatus>('idle');
   const [lastRejected, setLastRejected] = useState(false);
   const sheetAnim = useRef(new Animated.Value(400)).current;
+
+  // Expected season ad revenue for the hire-context show (genre baseline at rating 7)
+  const hireShow = shows.find(s => s.id === hireShowID);
+  const expectedSeasonRevenue = useMemo(() => {
+    if (!hireShow) return 0;
+    const season = hireShow.seasons[hireShow.currentSeasonIndex];
+    const episodeCount = season?.episodeCount ?? 10;
+    const cfg = GENRE_CONFIG[hireShow.genre];
+    const perEpisode = Math.round((cfg.baseViewers / 1000) * cfg.cpm * (1 + (7 - 5) / 10));
+    return perEpisode * episodeCount;
+  }, [hireShow]);
 
   const person = talent.find(t => t.id === id);
 
@@ -236,17 +254,20 @@ export default function TalentDetailScreen() {
 
   // ─── Offer sheet logic ────────────────────────────────────────────────────────
   const cashOnHand = network.cashOnHand;
-  const offered = parseFloat(offerText.replace(/,/g, '')) * 1_000_000;
-  const validOffer = !isNaN(offered) && offered > 0 && offered <= cashOnHand;
+  const flatFee = parseFloat(offerText.replace(/,/g, '')) * 1_000_000;
+  const cashValid = !isNaN(flatFee) && flatFee > 0 && flatFee <= cashOnHand;
+  const validOffer = cashValid; // cash required; rev share is optional on top
   const hasTyped = offerText.trim().length > 0;
-  const likelihood = (hasTyped && !isNaN(offered) && offered > 0)
-    ? computeLikelihood(person, offered, network.prestige, hireActorType)
+  const likelihood = (hasTyped && !isNaN(flatFee) && flatFee > 0)
+    ? computeLikelihood(person, flatFee, revShare, network.prestige, hireActorType, expectedSeasonRevenue)
     : 0;
   const voiceLine = getVoiceLine(person, likelihood, offerStatus, hasTyped);
   const lColor = likelihoodColor(likelihood);
+  const revSharePayout = Math.round(revShare / 100 * expectedSeasonRevenue);
 
   function openOfferSheet() {
     setOfferText('');
+    setRevShare(0);
     setOfferStatus('idle');
     setLastRejected(false);
     sheetAnim.setValue(400);
@@ -269,12 +290,12 @@ export default function TalentDetailScreen() {
 
   function handleOffer() {
     if (!validOffer) return;
-    const accepted = evaluateOffer(person.id, offered, network.prestige, hireActorType);
+    const accepted = evaluateOffer(person.id, flatFee, revShare, network.prestige, hireShowID, hireActorType);
     if (accepted) {
       let success = false;
-      if (hireRole === 'showrunner') success = hireShowrunner(hireShowID, person.id, offered, 0);
-      else if (hireRole === 'director') success = hireDirector(hireShowID, person.id, offered, 0);
-      else success = hireActor(hireShowID, person.id, offered, 0, hireActorType);
+      if (hireRole === 'showrunner') success = hireShowrunner(hireShowID, person.id, flatFee, revShare);
+      else if (hireRole === 'director') success = hireDirector(hireShowID, person.id, flatFee, revShare);
+      else success = hireActor(hireShowID, person.id, flatFee, revShare, hireActorType);
 
       if (success) {
         setOfferStatus('accepted');
@@ -561,11 +582,12 @@ export default function TalentDetailScreen() {
 
             {offerStatus === 'accepted' ? (
               <View style={m.acceptedBanner}>
-                <Text style={m.acceptedText}>✓ Deal signed — ${(offered / 1_000_000).toFixed(2)}M</Text>
+                <Text style={m.acceptedText}>✓ Deal signed — ${(flatFee / 1_000_000).toFixed(2)}M{revShare > 0 ? ` + ${revShare}%` : ''}</Text>
               </View>
             ) : (
               <>
-                <Text style={m.offerLabel}>YOUR OFFER (millions)</Text>
+                {/* Cash input */}
+                <Text style={m.offerLabel}>UPFRONT CASH (millions) — required</Text>
                 <View style={m.offerRow}>
                   <Text style={m.dollarSign}>$</Text>
                   <TextInput
@@ -577,6 +599,33 @@ export default function TalentDetailScreen() {
                     keyboardType="decimal-pad"
                   />
                   <Text style={m.millionLabel}>M</Text>
+                </View>
+
+                {/* Revenue share stepper */}
+                <Text style={m.offerLabel}>AD REVENUE SHARE — optional</Text>
+                <View style={m.revShareRow}>
+                  <TouchableOpacity
+                    style={m.stepBtn}
+                    onPress={() => setRevShare(r => Math.max(0, r - 1))}
+                    disabled={revShare === 0}
+                  >
+                    <Text style={[m.stepBtnText, revShare === 0 && { color: C.border }]}>−</Text>
+                  </TouchableOpacity>
+                  <View style={m.revShareValueWrap}>
+                    <Text style={m.revShareValue}>{revShare}%</Text>
+                    {revShare > 0 && expectedSeasonRevenue > 0 && (
+                      <Text style={m.revShareEst}>
+                        ~${(revSharePayout / 1_000_000).toFixed(2)}M est. payout/season
+                      </Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    style={m.stepBtn}
+                    onPress={() => setRevShare(r => Math.min(10, r + 1))}
+                    disabled={revShare === 10}
+                  >
+                    <Text style={[m.stepBtnText, revShare === 10 && { color: C.border }]}>+</Text>
+                  </TouchableOpacity>
                 </View>
 
                 {/* Likelihood meter */}
@@ -591,7 +640,7 @@ export default function TalentDetailScreen() {
                 </View>
 
                 <Text style={m.cashAvail}>
-                  Budget available: ${(cashOnHand / 1_000_000).toFixed(1)}M
+                  Cash available: ${(cashOnHand / 1_000_000).toFixed(1)}M
                 </Text>
 
                 {offerStatus === 'rejected' ? (
@@ -707,8 +756,16 @@ const m = StyleSheet.create({
   voiceText:    { color: '#f0ede8', fontFamily: 'Manrope_400Regular', fontSize: 13, fontStyle: 'italic', lineHeight: 18 },
 
   // Offer input
-  offerLabel: { color: '#9a958e', fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 8 },
-  offerRow:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#252840', borderRadius: 12, paddingHorizontal: 14, marginBottom: 10 },
+  offerLabel:       { color: '#9a958e', fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 8 },
+  offerRow:         { flexDirection: 'row', alignItems: 'center', backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#252840', borderRadius: 12, paddingHorizontal: 14, marginBottom: 16 },
+
+  // Revenue share stepper
+  revShareRow:      { flexDirection: 'row', alignItems: 'center', backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#252840', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 10, marginBottom: 16 },
+  stepBtn:          { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  stepBtnText:      { color: '#e6b254', fontSize: 24, fontFamily: 'Manrope_700Bold' },
+  revShareValueWrap:{ flex: 1, alignItems: 'center' },
+  revShareValue:    { color: '#f0ede8', fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
+  revShareEst:      { color: '#9a958e', fontFamily: 'Manrope_400Regular', fontSize: 11, marginTop: 2 },
 
   // Likelihood meter
   likelihoodRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },

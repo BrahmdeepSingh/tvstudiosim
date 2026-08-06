@@ -1,4 +1,4 @@
-import { GameState, Show, Season, Episode, ShowStatus, InboxItem } from '../types';
+import { GameState, Show, Season, Episode, ShowStatus, InboxItem, TalentDeal } from '../types';
 import {
   WRITING_WEEKS,
   WEEKS_PER_YEAR,
@@ -122,6 +122,54 @@ export function advanceWeek(state: GameState): GameState {
     cashOnHand: network.cashOnHand + revenueThisWeek,
     careerEarnings: network.careerEarnings + revenueThisWeek,
   };
+
+  // ─── Revenue share payout: deduct from cash when a season finishes airing ──
+  // Fires once per season when the show transitions airing → renewal-pending/cancelled.
+  // totalAdRevenue on the updated season already includes the finale episode.
+  let revenueShareTotal = 0;
+  const revenueShareInboxItems: InboxItem[] = [];
+  for (let i = 0; i < state.shows.length; i++) {
+    const wasAiring = state.shows[i].status === 'airing';
+    const nowFinished = shows[i].status === 'renewal-pending' ||
+      (shows[i].status === 'cancelled' && shows[i].cancelledClean);
+    if (!wasAiring || !nowFinished) continue;
+
+    const season = shows[i].seasons[shows[i].currentSeasonIndex];
+    if (!season) continue;
+
+    const deals: TalentDeal[] = state.talentDeals.filter(
+      d => d.seasonID === season.id && d.revenueSharePercent > 0,
+    );
+    if (deals.length === 0) continue;
+
+    let seasonPayout = 0;
+    const lineItems: string[] = [];
+    for (const deal of deals) {
+      const payout = Math.round(deal.revenueSharePercent / 100 * season.totalAdRevenue);
+      if (payout > 0) {
+        seasonPayout += payout;
+        const talentName = state.talent.find(t => t.id === deal.talentID)?.name ?? 'Talent';
+        lineItems.push(`${talentName} (${deal.revenueSharePercent}%): $${(payout / 1_000_000).toFixed(2)}M`);
+      }
+    }
+
+    if (seasonPayout > 0) {
+      revenueShareTotal += seasonPayout;
+      revenueShareInboxItems.push({
+        id: nanoid(),
+        type: 'revenue-share-payout',
+        week: newWeek,
+        year: newYear,
+        read: false,
+        headline: `Revenue share paid — ${shows[i].title} S${season.seasonNumber}`,
+        body: `Season ad revenue: $${(season.totalAdRevenue / 1_000_000).toFixed(2)}M\n\n${lineItems.join('\n')}\n\nTotal paid out: $${(seasonPayout / 1_000_000).toFixed(2)}M`,
+      });
+    }
+  }
+  if (revenueShareTotal > 0) {
+    network = { ...network, cashOnHand: network.cashOnHand - revenueShareTotal };
+    newInboxItems.push(...revenueShareInboxItems);
+  }
 
   // ─── Streaming: expire offers, run scheduled checks, generate offers ─────────
   const updatedShows = shows.map(show => {

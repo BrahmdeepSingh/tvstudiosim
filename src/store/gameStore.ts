@@ -37,6 +37,7 @@ import {
   SUPPORTING_ACTOR_FEES,
   MARKETING_CHANNELS,
   WEEKS_PER_YEAR,
+  GENRE_CONFIG,
 } from '../constants/game';
 import { nanoid } from '../utils/nanoid';
 import { randomBetween, randomFloat, clamp } from '../utils/random';
@@ -59,7 +60,7 @@ interface GameStore extends GameState {
   hireActor: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number, actorType: 'lead' | 'supporting') => boolean;
 
   // Talent negotiation: returns whether talent accepts the offer
-  evaluateOffer: (talentID: string, offeredFee: number, networkPrestige: number, actorType?: 'lead' | 'supporting') => boolean;
+  evaluateOffer: (talentID: string, flatFee: number, revenueSharePercent: number, networkPrestige: number, showID: string, actorType?: 'lead' | 'supporting') => boolean;
 
   // Marketing
   setAirDate: (showID: string, week: number, year: number) => void;
@@ -258,7 +259,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Talent Negotiation ─────────────────────────────────────────────────────
 
-  evaluateOffer: (talentID, offeredFee, networkPrestige, actorType = 'lead') => {
+  evaluateOffer: (talentID, flatFee, revenueSharePercent, networkPrestige, showID, actorType = 'lead') => {
+    if (flatFee <= 0) return false; // cash is always required
+
     const state = get();
     const talent = state.talent.find(t => t.id === talentID);
     if (!talent) return false;
@@ -266,17 +269,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const role = talent.role;
     const popularity = talent.popularity;
 
-    // Determine talent's expected minimum based on popularity
     const tierIndex = popularity < 40 ? 'low' : popularity < 70 ? 'mid' : 'high';
     const feeRange = (role === 'actor' && actorType === 'supporting')
       ? SUPPORTING_ACTOR_FEES[tierIndex]
       : TALENT_FEES[role][tierIndex];
-    // Prestige factor: high prestige network makes talent more flexible
+
     const prestigeMod = 1 - clamp((networkPrestige - talent.prestigeRequired) / 200, 0, 0.15);
     const effectiveMin = feeRange[0] * prestigeMod;
 
-    // Accept at 85% of the effective minimum (matches the likelihood meter threshold)
-    return offeredFee >= effectiveMin * 0.85;
+    // Convert revenue share % to cash-equivalent value using expected season ad revenue
+    let revShareValue = 0;
+    if (revenueSharePercent > 0) {
+      const show = state.shows.find(s => s.id === showID);
+      if (show) {
+        const season = show.seasons[show.currentSeasonIndex];
+        const episodeCount = season?.episodeCount ?? 10;
+        const cfg = GENRE_CONFIG[show.genre];
+        const perEpisode = Math.round((cfg.baseViewers / 1000) * cfg.cpm * (1 + (7 - 5) / 10));
+        revShareValue = (revenueSharePercent / 100) * perEpisode * episodeCount;
+      }
+    }
+
+    const combinedValue = flatFee + revShareValue;
+    return combinedValue >= effectiveMin * 0.85;
   },
 
   // ── Talent Hiring ──────────────────────────────────────────────────────────
