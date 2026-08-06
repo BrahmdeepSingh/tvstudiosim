@@ -589,9 +589,6 @@ export default function TalentDetailScreen() {
                     {hasTyped && offered > 0 ? `${likelihood}%` : '—'}
                   </Text>
                 </View>
-                {hasTyped && offered > 0 && likelihood >= 85 && (
-                  <Text style={m.willSignBadge}>✓ Will sign at this offer</Text>
-                )}
 
                 <Text style={m.cashAvail}>
                   Budget available: ${(cashOnHand / 1_000_000).toFixed(1)}M
@@ -719,7 +716,6 @@ const m = StyleSheet.create({
   likelihoodBarBg:  { flex: 1, height: 6, backgroundColor: '#252840', borderRadius: 3, overflow: 'hidden' },
   likelihoodBarFill:{ height: 6, borderRadius: 3 },
   likelihoodPct:    { fontFamily: 'Manrope_700Bold', fontSize: 13, width: 36, textAlign: 'right' },
-  willSignBadge:    { color: '#4ec46e', fontFamily: 'Manrope_600SemiBold', fontSize: 12, marginTop: 2, marginBottom: 4 },
   dollarSign: { color: '#9a958e', fontSize: 20, marginRight: 4 },
   offerInput: { flex: 1, color: '#f0ede8', fontFamily: 'Manrope_700Bold', fontSize: 24, paddingVertical: 14 },
   millionLabel: { color: '#9a958e', fontSize: 18 },
