@@ -105,6 +105,7 @@ function getCandidatesForCategory(
 
   for (const { show, season } of eligible) {
     const avgRating = getAverageRating(season);
+    if (avgRating < 6.5) continue; // below Emmy-nomination caliber
     const config = GENRE_CONFIG[show.genre];
     const base = avgRating + randomFloat(0, 1.5); // variance for snubs/surprises
 
@@ -180,13 +181,13 @@ function getCompetitorCandidates(
       const completedThisYear =
         show.lastSeasonCompletedYear === year &&
         show.lastSeasonFinalRating !== null &&
-        show.lastSeasonFinalRating >= 5.0;
+        show.lastSeasonFinalRating >= 6.5;
       if (!isAiring && !completedThisYear) continue;
 
       const effectiveRating = completedThisYear
         ? show.lastSeasonFinalRating!
         : show.currentRating;
-      if (effectiveRating < 5.0) continue;
+      if (effectiveRating < 6.5) continue;
 
       const base = effectiveRating + randomFloat(0, 1.5);
 
