@@ -23,15 +23,17 @@ const ROW_H       = Math.floor((SCREEN_H - HEADER_AREA - HDR_H) / 10);
 const TOTAL_W = CELL_W * CANVAS_WEEKS;
 
 // ── Lane assignment ───────────────────────────────────────────────────────────
-function computeLanes(windows: ThemeWindow[]): { map: Map<string, number>; count: number } {
-  const sorted = [...windows].sort((a, b) => a.startWeek - b.startWeek);
+// Keyed by array index so duplicate-theme entries (medieval W1-5 and W48-52)
+// each get their own independent lane rather than the second overwriting the first.
+function computeLanes(windows: ThemeWindow[]): { map: Map<number, number>; count: number } {
+  const sorted = windows.map((win, i) => ({ win, i })).sort((a, b) => a.win.startWeek - b.win.startWeek);
   const laneEnds: number[] = [];
-  const map = new Map<string, number>();
-  for (const win of sorted) {
+  const map = new Map<number, number>();
+  for (const { win, i } of sorted) {
     let lane = laneEnds.findIndex(end => end < win.startWeek);
     if (lane === -1) { lane = laneEnds.length; laneEnds.push(-1); }
     laneEnds[lane] = win.endWeek;
-    map.set(win.theme, lane);
+    map.set(i, lane);
   }
   return { map, count: laneEnds.length };
 }
@@ -307,7 +309,7 @@ export default function ScheduleScreen() {
 
         {/* Current year theme windows (colOffset=0) */}
         {THEME_WINDOWS.map((win, wi) => {
-          const lane = LANE_MAP.get(win.theme);
+          const lane = LANE_MAP.get(wi);
           if (lane === undefined) return null;
           const isActive = currentWeek >= win.startWeek && currentWeek <= win.endWeek;
           return (
@@ -318,7 +320,7 @@ export default function ScheduleScreen() {
 
         {/* Next year theme windows (colOffset=WEEKS_PER_YEAR) */}
         {THEME_WINDOWS.map((win, wi) => {
-          const lane = LANE_MAP.get(win.theme);
+          const lane = LANE_MAP.get(wi);
           if (lane === undefined) return null;
           return (
             <ThemeBlock key={`nxt-${wi}`} win={win} lane={lane} rowH={ROW_H}
