@@ -271,14 +271,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const feeRange = (role === 'actor' && actorType === 'supporting')
       ? SUPPORTING_ACTOR_FEES[tierIndex]
       : TALENT_FEES[role][tierIndex];
-    const minAcceptable = feeRange[0] * 0.85; // will accept down to 85% of range floor
-    const askingPrice = feeRange[0] + (feeRange[1] - feeRange[0]) * (popularity / 100);
-
     // Prestige factor: high prestige network makes talent more flexible
     const prestigeMod = 1 - clamp((networkPrestige - talent.prestigeRequired) / 200, 0, 0.15);
-    const effectiveMin = minAcceptable * prestigeMod;
+    const effectiveMin = feeRange[0] * prestigeMod;
 
-    return offeredFee >= effectiveMin;
+    // Accept at 85% of the effective minimum (matches the likelihood meter threshold)
+    return offeredFee >= effectiveMin * 0.85;
   },
 
   // ── Talent Hiring ──────────────────────────────────────────────────────────

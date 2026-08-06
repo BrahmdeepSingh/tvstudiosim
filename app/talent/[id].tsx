@@ -46,14 +46,15 @@ function getVoiceLine(talent: Talent, likelihood: number, offerStatus: 'idle' | 
   if (offerStatus === 'accepted') return seededPick(VOICE.top, talent.id + 'top');
   if (offerStatus === 'rejected') return seededPick(VOICE.rejected, talent.id + 'rej');
   if (!hasTyped) return seededPick(VOICE[`opening_${talent.role}`] ?? VOICE.opening_actor, talent.id + 'open');
-  if (likelihood >= 100) return seededPick(VOICE.top, talent.id + 'top');
-  if (likelihood >= 70)  return seededPick(VOICE.high, talent.id + 'high');
-  if (likelihood >= 40)  return seededPick(VOICE.medium, talent.id + 'med');
+  if (likelihood >= 85)  return seededPick(VOICE.top, talent.id + 'top');
+  if (likelihood >= 60)  return seededPick(VOICE.high, talent.id + 'high');
+  if (likelihood >= 35)  return seededPick(VOICE.medium, talent.id + 'med');
   if (likelihood >= 15)  return seededPick(VOICE.low, talent.id + 'low');
   return seededPick(VOICE.veryLow, talent.id + 'vlo');
 }
 
 // ─── Likelihood (mirrors evaluateOffer math exactly) ─────────────────────────
+// effectiveMin is the 100% mark on the bar; acceptance fires at >= 85%.
 function computeLikelihood(
   talent: Talent,
   offeredFee: number,
@@ -65,20 +66,16 @@ function computeLikelihood(
   const range = (talent.role === 'actor' && actorType === 'supporting')
     ? SUPPORTING_ACTOR_FEES[tier]
     : TALENT_FEES[talent.role][tier];
-  const minAcceptable = range[0] * 0.85;
   const prestigeMod = 1 - Math.min(Math.max((networkPrestige - talent.prestigeRequired) / 200, 0), 0.15);
-  const effectiveMin = minAcceptable * prestigeMod;
-  if (offeredFee >= effectiveMin) return 100;
-  const ratio = offeredFee / effectiveMin;
-  // Quadratic curve: smooth 0→99% as offer approaches threshold
-  return Math.floor(ratio * ratio * 99);
+  const effectiveMin = range[0] * prestigeMod;
+  return Math.min(100, Math.floor((offeredFee / effectiveMin) * 100));
 }
 
 function likelihoodColor(pct: number): string {
-  if (pct >= 100) return '#4ec46e';
-  if (pct >= 70)  return '#8ecf5a';
-  if (pct >= 40)  return '#d4c14a';
-  if (pct >= 15)  return '#d4753a';
+  if (pct >= 85) return '#4ec46e'; // will sign
+  if (pct >= 65) return '#8ecf5a';
+  if (pct >= 40) return '#d4c14a';
+  if (pct >= 15) return '#d4753a';
   return '#c43820';
 }
 
@@ -586,12 +583,15 @@ export default function TalentDetailScreen() {
                 <View style={m.likelihoodRow}>
                   <Text style={m.likelihoodLabel}>LIKELIHOOD</Text>
                   <View style={m.likelihoodBarBg}>
-                    <View style={[m.likelihoodBarFill, { width: `${Math.min(likelihood, 100)}%` as any, backgroundColor: lColor }]} />
+                    <View style={[m.likelihoodBarFill, { width: `${likelihood}%` as any, backgroundColor: lColor }]} />
                   </View>
                   <Text style={[m.likelihoodPct, { color: lColor }]}>
                     {hasTyped && offered > 0 ? `${likelihood}%` : '—'}
                   </Text>
                 </View>
+                {hasTyped && offered > 0 && likelihood >= 85 && (
+                  <Text style={m.willSignBadge}>✓ Will sign at this offer</Text>
+                )}
 
                 <Text style={m.cashAvail}>
                   Budget available: ${(cashOnHand / 1_000_000).toFixed(1)}M
@@ -719,6 +719,7 @@ const m = StyleSheet.create({
   likelihoodBarBg:  { flex: 1, height: 6, backgroundColor: '#252840', borderRadius: 3, overflow: 'hidden' },
   likelihoodBarFill:{ height: 6, borderRadius: 3 },
   likelihoodPct:    { fontFamily: 'Manrope_700Bold', fontSize: 13, width: 36, textAlign: 'right' },
+  willSignBadge:    { color: '#4ec46e', fontFamily: 'Manrope_600SemiBold', fontSize: 12, marginTop: 2, marginBottom: 4 },
   dollarSign: { color: '#9a958e', fontSize: 20, marginRight: 4 },
   offerInput: { flex: 1, color: '#f0ede8', fontFamily: 'Manrope_700Bold', fontSize: 24, paddingVertical: 14 },
   millionLabel: { color: '#9a958e', fontSize: 18 },
