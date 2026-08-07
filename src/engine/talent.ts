@@ -311,3 +311,60 @@ export function getAvailableTalent(talent: Talent[]): Talent[] {
 export function getYearsActive(talent: Talent, currentYear: number): number {
   return Math.max(0, currentYear - talent.debutYear);
 }
+
+// ─── Replacement talent (retirements) ────────────────────────────────────────
+// Generates a single fresh talent to replace a retiree. Age range is capped
+// lower than the initial pool to represent genuinely new industry entrants.
+
+export function generateReplacementTalent(
+  role: TalentRole,
+  tier: 'low' | 'mid' | 'high',
+  existingTalent: Talent[],
+  currentYear: number,
+): Talent {
+  const gender: 'male' | 'female' = Math.random() < 0.5 ? 'male' : 'female';
+
+  // Prefer an avatar not already in the active pool
+  const usedIds = new Set(existingTalent.map(t => t.avatarId));
+  const pool = gender === 'male' ? MALE_AVATAR_IDS : FEMALE_AVATAR_IDS;
+  const freePool = pool.filter(id => !usedIds.has(id));
+  const avatarId = freePool.length > 0 ? randomItem(freePool) : randomItem(pool);
+
+  const stats: TalentStats =
+    role === 'showrunner' ? makeShowrunnerStats(tier)
+    : role === 'director' ? makeDirectorStats(tier)
+    : makeActorStats(tier);
+
+  // Fresh entrant — younger than the initial pool
+  const age = role === 'actor' ? randomBetween(20, 32) : randomBetween(26, 38);
+  const yearsActive = randomBetween(0, Math.max(0, age - 20));
+  const debutYear = currentYear - yearsActive;
+  const popularity = popularityForTier(tier);
+
+  const { legacyCredits, legacyAwards, priorCareerEarnings } =
+    generateLegacyCareer(role, tier, popularity, yearsActive, debutYear, gender);
+
+  return {
+    id: nanoid(),
+    name: randomName(gender),
+    gender,
+    avatarId,
+    role,
+    age,
+    popularity,
+    stats,
+    chemistryColor: randomItem(CHEMISTRY_COLORS),
+    available: true,
+    bookedForSeasonID: null,
+    bookedByCompetitorShowID: null,
+    awards: [],
+    careerShowIDs: [],
+    prestigeRequired: prestigeRequiredForTier(tier),
+    birthplace: randomBirthplace(),
+    debutYear,
+    quirk: randomQuirk(),
+    legacyCredits,
+    legacyAwards,
+    priorCareerEarnings,
+  };
+}

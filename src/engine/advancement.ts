@@ -16,6 +16,7 @@ import { advanceCompetitors } from './competitors';
 import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
 import { tryGenerateStreamingOffer, scheduleNextOfferCheck } from './streaming';
 import { generatePitch } from './pitches';
+import { generateReplacementTalent } from './talent';
 import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews, makeSeriesFinaleNews } from './news';
 import { tryGenerateStudioEvent } from './events';
 import { nanoid } from '../utils/nanoid';
@@ -458,6 +459,46 @@ export function advanceWeek(state: GameState): GameState {
   const prunedDeals = state.talentDeals.filter(
     d => bookedTalentIDs.has(d.talentID) || d.revenueSharePercent > 0,
   );
+
+  // ─── Talent aging & retirement (once per year at week 1) ─────────────────
+  if (newWeek === 1) {
+    // Increment every talent's age by 1
+    talent = talent.map(t => ({ ...t, age: t.age + 1 }));
+
+    // Retire available talent at age 72+ and generate replacements
+    const retirees = talent.filter(t => t.age >= 72 && t.available);
+    if (retirees.length > 0) {
+      const retiredIDs = new Set(retirees.map(t => t.id));
+      const talentAfterRetirement = talent.filter(t => !retiredIDs.has(t.id));
+
+      const replacements = retirees.map(retiree => {
+        const tier =
+          retiree.prestigeRequired >= 61 ? 'high'
+          : retiree.prestigeRequired >= 21 ? 'mid'
+          : 'low';
+        return generateReplacementTalent(
+          retiree.role, tier, talentAfterRetirement, newYear,
+        );
+      });
+
+      talent = [...talentAfterRetirement, ...replacements];
+
+      // One news item listing all retirees this year
+      const names = retirees.map(t => t.name).join(', ');
+      newNewsItems.push({
+        id: nanoid(),
+        week: newWeek,
+        year: newYear,
+        type: 'industry',
+        read: false,
+        headline: retirees.length === 1
+          ? `${retirees[0].name} retires from the industry`
+          : `${retirees.length} industry veterans retire`,
+        body: `${names} ${retirees.length === 1 ? 'has' : 'have'} stepped away from the industry. Fresh talent is entering the market to fill the void.`,
+        byline: 'Trade Wire Staff',
+      });
+    }
+  }
 
   // ─── Studio events ────────────────────────────────────────────────────────
   const partialState = {
