@@ -21,7 +21,12 @@ import { makeStreamingDealNews } from '../engine/news';
 import {
   generatePremiereDateAnnouncedPosts,
   generateRenewalPosts,
+  generateCancellationPosts,
+  generateDirectorCastingPosts,
+  generateActorCastingPosts,
+  generateFinalSeasonAnnouncedPosts,
 } from '../engine/milestonesocial';
+import { makeFinalSeasonAnnouncedNews } from '../engine/news';
 import {
   STARTING_CASH,
   STARTING_PRESTIGE,
@@ -32,6 +37,7 @@ import {
   SUPPORTING_ACTOR_FEES,
   MARKETING_CHANNELS,
   WEEKS_PER_YEAR,
+  GENRE_CONFIG,
 } from '../constants/game';
 import { nanoid } from '../utils/nanoid';
 import { randomBetween, randomFloat, clamp } from '../utils/random';
@@ -54,7 +60,7 @@ interface GameStore extends GameState {
   hireActor: (showID: string, talentID: string, flatFee: number, revenueSharePercent: number, actorType: 'lead' | 'supporting') => boolean;
 
   // Talent negotiation: returns whether talent accepts the offer
-  evaluateOffer: (talentID: string, offeredFee: number, networkPrestige: number, actorType?: 'lead' | 'supporting') => boolean;
+  evaluateOffer: (talentID: string, flatFee: number, revenueSharePercent: number, networkPrestige: number, showID: string, actorType?: 'lead' | 'supporting') => boolean;
 
   // Marketing
   setAirDate: (showID: string, week: number, year: number) => void;
@@ -65,7 +71,7 @@ interface GameStore extends GameState {
   passPitch: (pitchID: string) => void;
 
   // Renewal / cancellation
-  renewShow: (showID: string, newEpisodeCount: number, newLeadSlots?: number, newSupportingSlots?: number, keepShowrunner?: boolean) => void;
+  renewShow: (showID: string, newEpisodeCount: number, newLeadSlots?: number, newSupportingSlots?: number, keepShowrunner?: boolean, isFinalSeason?: boolean) => void;
   cancelShow: (showID: string) => void;
 
   // Streaming
@@ -253,7 +259,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Talent Negotiation ─────────────────────────────────────────────────────
 
-  evaluateOffer: (talentID, offeredFee, networkPrestige, actorType = 'lead') => {
+  evaluateOffer: (talentID, flatFee, revenueSharePercent, networkPrestige, showID, actorType = 'lead') => {
+    if (flatFee <= 0) return false; // cash is always required
+
     const state = get();
     const talent = state.talent.find(t => t.id === talentID);
     if (!talent) return false;
@@ -261,19 +269,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const role = talent.role;
     const popularity = talent.popularity;
 
-    // Determine talent's expected minimum based on popularity
     const tierIndex = popularity < 40 ? 'low' : popularity < 70 ? 'mid' : 'high';
     const feeRange = (role === 'actor' && actorType === 'supporting')
       ? SUPPORTING_ACTOR_FEES[tierIndex]
       : TALENT_FEES[role][tierIndex];
-    const minAcceptable = feeRange[0] * 0.85; // will accept down to 85% of range floor
-    const askingPrice = feeRange[0] + (feeRange[1] - feeRange[0]) * (popularity / 100);
 
-    // Prestige factor: high prestige network makes talent more flexible
     const prestigeMod = 1 - clamp((networkPrestige - talent.prestigeRequired) / 200, 0, 0.15);
-    const effectiveMin = minAcceptable * prestigeMod;
+    const effectiveMin = feeRange[0] * prestigeMod;
 
-    return offeredFee >= effectiveMin;
+    // Convert revenue share % to cash-equivalent value using expected season ad revenue
+    let revShareValue = 0;
+    if (revenueSharePercent > 0) {
+      const show = state.shows.find(s => s.id === showID);
+      if (show) {
+        const season = show.seasons[show.currentSeasonIndex];
+        const episodeCount = season?.episodeCount ?? 10;
+        const cfg = GENRE_CONFIG[show.genre];
+        const perEpisode = Math.round((cfg.baseViewers / 1000) * cfg.cpm * (1 + (7 - 5) / 10));
+        revShareValue = (revenueSharePercent / 100) * perEpisode * episodeCount;
+      }
+    }
+
+    const combinedValue = flatFee + revShareValue;
+    return combinedValue >= effectiveMin * 0.85;
   },
 
   // ── Talent Hiring ──────────────────────────────────────────────────────────
@@ -353,6 +371,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       productionCost: season.productionCost + flatFee,
     };
 
+    const directorPosts = generateDirectorCastingPosts(
+      show.title, talent.name, talent.popularity,
+      state.network.currentWeek, state.network.currentYear,
+    );
+
     set(s => ({
       network: { ...s.network, cashOnHand: s.network.cashOnHand - flatFee },
       talent: s.talent.map(t =>
@@ -366,6 +389,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           : sh,
       ),
       talentDeals: [...s.talentDeals, deal],
+      ambientSocialPosts: [...s.ambientSocialPosts, ...directorPosts].slice(-300),
     }));
 
     return true;
@@ -400,6 +424,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       productionCost: season.productionCost + flatFee,
     };
 
+    const actorPosts = generateActorCastingPosts(
+      show.title, talent.name, actorType, talent.popularity,
+      state.network.currentWeek, state.network.currentYear,
+    );
+
     set(s => ({
       network: { ...s.network, cashOnHand: s.network.cashOnHand - flatFee },
       talent: s.talent.map(t =>
@@ -413,6 +442,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           : sh,
       ),
       talentDeals: [...s.talentDeals, deal],
+      ambientSocialPosts: [...s.ambientSocialPosts, ...actorPosts].slice(-300),
     }));
 
     return true;
@@ -599,7 +629,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Renewal ───────────────────────────────────────────────────────────────
 
-  renewShow: (showID, newEpisodeCount, newLeadSlots, newSupportingSlots, keepShowrunner = true) => {
+  renewShow: (showID, newEpisodeCount, newLeadSlots, newSupportingSlots, keepShowrunner = true, isFinalSeason = false) => {
     const state = get();
     const show = state.shows.find(s => s.id === showID);
     if (!show || show.status !== 'renewal-pending') return;
@@ -607,7 +637,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const prevSeason = show.seasons[show.currentSeasonIndex];
     const newSeasonNumber = prevSeason.seasonNumber + 1;
     const { currentWeek, currentYear } = state.network;
-    const renewalPosts = generateRenewalPosts(show.title, newSeasonNumber, currentWeek, currentYear);
+    const ratedEps = prevSeason.episodes.filter(e => e.rating !== null);
+    const avgRating = ratedEps.length > 0
+      ? ratedEps.reduce((sum, e) => sum + (e.rating ?? 0), 0) / ratedEps.length
+      : undefined;
+    const socialPosts = isFinalSeason
+      ? generateFinalSeasonAnnouncedPosts(show.title, newSeasonNumber, currentWeek, currentYear)
+      : generateRenewalPosts(show.title, newSeasonNumber, currentWeek, currentYear, avgRating);
     const newSeasonID = nanoid();
     const resolvedLeadSlots = newLeadSlots ?? prevSeason.leadActorSlots;
     const resolvedSupportingSlots = newSupportingSlots ?? prevSeason.supportingActorSlots;
@@ -658,6 +694,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       suggestedDirectorID: prevSeason.directorID,
       suggestedLeadActorIDs: [...prevSeason.leadActorIDs],
       suggestedSupportingActorIDs: [...prevSeason.supportingActorIDs],
+      isFinalSeason,
     };
 
     // Free up talent from previous season now that filming is long done
@@ -674,18 +711,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ? `${(viewers / 1_000).toFixed(0)}K`
       : String(viewers);
 
-    const renewalNews: NewsItem = {
-      id: nanoid(),
-      week: state.network.currentWeek,
-      year: state.network.currentYear,
-      type: 'player',
-      read: false,
-      headline: viewers > 0
-        ? `"${show.title}" renewed for Season ${newSeasonNumber} — ${vStr} viewers watched S${prevSeason.seasonNumber}`
-        : `"${show.title}" renewed for Season ${newSeasonNumber}`,
-      body: `The network has officially greenlit another season. Pre-production begins immediately.`,
-      byline: 'Trade Wire Staff',
-    };
+    const renewalNews: NewsItem = isFinalSeason
+      ? makeFinalSeasonAnnouncedNews(show.title, newSeasonNumber, { week: state.network.currentWeek, year: state.network.currentYear })
+      : {
+          id: nanoid(),
+          week: state.network.currentWeek,
+          year: state.network.currentYear,
+          type: 'player',
+          read: false,
+          headline: viewers > 0
+            ? `"${show.title}" renewed for Season ${newSeasonNumber} — ${vStr} viewers watched S${prevSeason.seasonNumber}`
+            : `"${show.title}" renewed for Season ${newSeasonNumber}`,
+          body: `The network has officially greenlit another season. Pre-production begins immediately.`,
+          byline: 'Trade Wire Staff',
+        };
 
     set(s => ({
       shows: s.shows.map(sh =>
@@ -715,7 +754,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return t;
       }),
       newsItems: [...s.newsItems, renewalNews].slice(-150),
-      ambientSocialPosts: [...s.ambientSocialPosts, ...renewalPosts].slice(-300),
+      ambientSocialPosts: [...s.ambientSocialPosts, ...socialPosts].slice(-300),
     }));
   },
 
@@ -735,6 +774,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Cancelling from renewal-pending = clean; mid-production = unclean
     const cancelledClean = show.status === 'renewal-pending';
 
+    const ratedEps = season.episodes.filter(e => e.rating !== null);
+    const avgRating = ratedEps.length > 0
+      ? ratedEps.reduce((sum, e) => sum + (e.rating ?? 0), 0) / ratedEps.length
+      : undefined;
+    const { currentWeek, currentYear } = state.network;
+    const cancellationPosts = generateCancellationPosts(show.title, cancelledClean, currentWeek, currentYear, avgRating);
+
     set(s => ({
       shows: s.shows.map(sh =>
         sh.id === showID ? { ...sh, status: 'cancelled' as ShowStatus, cancelledClean } : sh,
@@ -748,6 +794,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ...s.network,
         totalShowsProduced: s.network.totalShowsProduced + 1,
       },
+      ambientSocialPosts: [...s.ambientSocialPosts, ...cancellationPosts].slice(-300),
     }));
   },
 

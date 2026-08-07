@@ -62,7 +62,7 @@ function HeatmapDot({ ep, empty }: { ep?: Episode; empty?: boolean }) {
 export default function SeasonDetailScreen() {
   const router = useRouter();
   const { showID, seasonNumber } = useLocalSearchParams<{ showID: string; seasonNumber: string }>();
-  const { shows, talent } = useGameStore();
+  const { shows, talent, talentDeals } = useGameStore();
 
   const show = shows.find(sh => sh.id === showID);
   const season = show?.seasons.find(se => se.seasonNumber === Number(seasonNumber));
@@ -95,7 +95,10 @@ export default function SeasonDetailScreen() {
     ? Math.round(season.totalViewers / airedEpisodes.length)
     : 0;
 
-  const netProfit = season.totalAdRevenue + season.streamingRevenue - season.productionCost - season.marketingSpend;
+  const revShareExpense = talentDeals
+    .filter(d => d.seasonID === season.id && d.revenueSharePercent > 0)
+    .reduce((sum, d) => sum + Math.round(d.revenueSharePercent / 100 * season.totalAdRevenue), 0);
+  const netProfit = season.totalAdRevenue + season.streamingRevenue - season.productionCost - season.marketingSpend - revShareExpense;
 
   const peakEp = airedEpisodes.reduce<Episode | null>(
     (best, e) => (!best || (e.rating ?? 0) > (best.rating ?? 0) ? e : best), null
@@ -207,6 +210,12 @@ export default function SeasonDetailScreen() {
             <View style={s.finRow}>
               <Text style={s.finLabel}>Streaming deal</Text>
               <Text style={[s.finValue, { color: C.green }]}>{fmt(season.streamingRevenue)}</Text>
+            </View>
+          )}
+          {revShareExpense > 0 && (
+            <View style={s.finRow}>
+              <Text style={s.finLabel}>Revenue share paid</Text>
+              <Text style={[s.finValue, { color: C.red }]}>−{fmt(revShareExpense)}</Text>
             </View>
           )}
           <View style={[s.finRow, s.finTotal]}>

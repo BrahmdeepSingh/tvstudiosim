@@ -273,3 +273,33 @@ export function makeFinaleNews(showTitle: string, seasonNumber: number, ctx: Ctx
     body: randomItem(lines),
   };
 }
+
+export function makeFinalSeasonAnnouncedNews(showTitle: string, seasonNumber: number, ctx: Ctx): NewsItem {
+  const lines = [
+    `The network confirmed today that the upcoming season of "${showTitle}" will serve as its final chapter. The creative team will have the rare opportunity to conclude the series on their own terms.`,
+    `After ${seasonNumber - 1} season${seasonNumber - 1 === 1 ? '' : 's'}, "${showTitle}" will come to a planned end. Sources say the decision was driven by a desire to close the story while it's still at its peak.`,
+    `"${showTitle}" is ending — by choice. The announcement puts the series in rare company: a show that gets to say goodbye before the audience says it first.`,
+    `The network has greenlit a final season of "${showTitle}." Industry observers note that a deliberate ending is increasingly seen as a mark of creative integrity.`,
+    `A final season of "${showTitle}" has been confirmed. The creative team is expected to use the full order to deliver a conclusion they've been building toward.`,
+  ];
+  return {
+    id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false, byline: byline(),
+    headline: `"${showTitle}" to end with Season ${seasonNumber}`,
+    body: randomItem(lines),
+  };
+}
+
+export function makeSeriesFinaleNews(showTitle: string, seasonNumber: number, ctx: Ctx): NewsItem {
+  const lines = [
+    `The series finale of "${showTitle}" has aired, bringing a ${seasonNumber}-season run to a close. Reaction online is immediate and passionate.`,
+    `It's over. "${showTitle}" signed off tonight with its series finale, completing a run that will be debated and celebrated for years.`,
+    `"${showTitle}" aired its final episode tonight after ${seasonNumber} seasons. Whether the ending delivers is already being argued everywhere — which means it mattered.`,
+    `The finale of "${showTitle}" is in the books. The show ends where all great series should: with the audience wanting to talk about it.`,
+    `${seasonNumber} seasons. It's done. "${showTitle}" aired its series finale tonight, and the television landscape is a little quieter for it.`,
+  ];
+  return {
+    id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false, byline: byline(),
+    headline: `"${showTitle}" airs its series finale`,
+    body: randomItem(lines),
+  };
+}

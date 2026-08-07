@@ -105,6 +105,7 @@ function getCandidatesForCategory(
 
   for (const { show, season } of eligible) {
     const avgRating = getAverageRating(season);
+    if (avgRating < 6.5) continue; // below Emmy-nomination caliber
     const config = GENRE_CONFIG[show.genre];
     const base = avgRating + randomFloat(0, 1.5); // variance for snubs/surprises
 

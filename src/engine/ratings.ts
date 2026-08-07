@@ -8,6 +8,37 @@ export interface EpisodeResult {
   adRevenue: number;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Season decay: each genre has a sweet-spot window where the ceiling is fully
+// available. Past that window, the ceiling compresses gradually. The player
+// fights this through shorter seasons (episode count) and final-season bonus.
+//
+// Index 0 = season 1. Last entry applies to all seasons beyond the array length.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DECAY_TABLE: Record<Genre, number[]> = {
+  'drama':          [1.00, 1.00, 1.00, 0.95, 0.88, 0.80, 0.72, 0.64, 0.58],
+  'procedural':     [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 0.97, 0.93],
+  'comedy':         [1.00, 1.00, 1.00, 1.00, 0.97, 0.92, 0.86, 0.80, 0.74],
+  'sci-fi':         [1.00, 1.00, 1.00, 1.00, 0.97, 0.92, 0.85, 0.78, 0.72],
+  'limited-series': [1.00, 0.82, 0.68, 0.55, 0.44, 0.35, 0.28, 0.22, 0.18],
+  'reality':        [1.00, 1.00, 0.90, 0.80, 0.70, 0.62, 0.55, 0.49, 0.44],
+};
+
+// Episode count micro-modifier: shorter seasons age the show slightly slower.
+// Baseline is 10 episodes; ±0.01 per episode away from baseline, capped at ±0.02.
+function episodeCountModifier(episodeCount: number): number {
+  const delta = 10 - episodeCount; // positive when fewer than 10
+  return Math.max(-0.02, Math.min(0.02, delta * 0.01));
+}
+
+export function getSeasonDecayMultiplier(genre: Genre, seasonNumber: number, episodeCount: number): number {
+  const table = DECAY_TABLE[genre];
+  const idx = Math.max(0, seasonNumber - 1);
+  const base = table[Math.min(idx, table.length - 1)];
+  return Math.max(0.15, base + episodeCountModifier(episodeCount));
+}
+
 export function calculateEpisodeRating(
   season: Season,
   episodeNumber: number,
@@ -22,7 +53,12 @@ export function calculateEpisodeRating(
       ? season.scriptScore * 0.45 + season.qualityScore * 0.55
       : season.qualityScore;
 
-  const baseRating = (combinedQuality / 100) * config.ratingCeiling;
+  // Decay compresses the ceiling over seasons; final season partially offsets it
+  const decayMultiplier = getSeasonDecayMultiplier(genre, season.seasonNumber, season.episodeCount);
+  const finalBonus = season.isFinalSeason ? 0.08 : 0;
+  const effectiveCeiling = config.ratingCeiling * Math.min(1.0, decayMultiplier + finalBonus);
+
+  const baseRating = (combinedQuality / 100) * effectiveCeiling;
 
   const momentum = calculateMomentum(previousEpisodes);
 

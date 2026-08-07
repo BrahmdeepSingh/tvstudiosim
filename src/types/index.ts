@@ -225,6 +225,8 @@ export interface Season {
   suggestedDirectorID: string | null;
   suggestedLeadActorIDs: string[];
   suggestedSupportingActorIDs: string[];
+
+  isFinalSeason?: boolean; // player declared this the last season at renewal time
 }
 
 // ─── Show ─────────────────────────────────────────────────────────────────────

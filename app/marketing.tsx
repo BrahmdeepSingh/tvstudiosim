@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { MARKETING_CHANNELS, WEEKS_PER_YEAR } from '../src/constants/game';
+import { getThemeWindow, isInThemeWindow } from '../src/constants/schedule';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
@@ -172,6 +173,40 @@ export default function MarketingScreen() {
             <Text style={s.targetDate}>
               Premieres: Week {targetWeek}, Year {targetYear}
             </Text>
+
+            {/* Theme window indicator */}
+            {(() => {
+              const win = getThemeWindow(show.theme, targetWeek);
+              if (!win) return null;
+              const allAirWeeks = Array.from({ length: season.episodeCount }, (_, i) => {
+                const raw = targetWeek + i;
+                return ((raw - 1) % WEEKS_PER_YEAR) + 1;
+              });
+              const overlapCount = allAirWeeks.filter(w => isInThemeWindow(show.theme, w)).length;
+              if (overlapCount === 0) {
+                return (
+                  <View style={s.noWinRow}>
+                    <Text style={s.noWinText}>
+                      No {win.emoji} {win.label} overlap (Wks {win.startWeek}–{win.endWeek})
+                    </Text>
+                  </View>
+                );
+              }
+              const pct = Math.round((overlapCount / season.episodeCount) * 100);
+              const multiplier = win.viewershipMultiplier === 1.25 ? '+25%' : '+15%';
+              const color = win.type === 'cultural' ? '#e6b254' : '#3db8a8';
+              return (
+                <View style={[s.winRow, { borderColor: color + '55', backgroundColor: color + '12' }]}>
+                  <Text style={s.winEmoji}>{win.emoji}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.winLabel, { color }]}>{win.label}</Text>
+                    <Text style={s.winSub}>
+                      {overlapCount} of {season.episodeCount} episodes in window · {multiplier} viewers · {pct}% overlap
+                    </Text>
+                  </View>
+                </View>
+              );
+            })()}
             <View style={s.airDateActions}>
               {isEditing && (
                 <TouchableOpacity style={s.cancelBtn} onPress={() => setIsEditing(false)}>
@@ -336,6 +371,13 @@ const s = StyleSheet.create({
   stepValue:        { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 40, letterSpacing: 0.5, lineHeight: 46 },
   stepUnit:         { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
   targetDate:       { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 14, textAlign: 'center', marginBottom: 16 },
+  winRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 8, padding: 8, marginBottom: 12 },
+  winEmoji:   { fontSize: 18 },
+  winLabel:   { fontFamily: 'Manrope_700Bold', fontSize: 12 },
+  winSub:     { fontFamily: 'Manrope_400Regular', color: '#9a958e', fontSize: 11, marginTop: 2 },
+  noWinRow:   { marginBottom: 12, paddingVertical: 4 },
+  noWinText:  { fontFamily: 'Manrope_400Regular', color: '#6b6880', fontSize: 11, textAlign: 'center' },
+
   airDateActions:   { flexDirection: 'row', gap: 10 },
   cancelBtn:        { borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
   cancelBtnText:    { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },

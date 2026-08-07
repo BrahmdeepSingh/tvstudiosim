@@ -1,4 +1,4 @@
-import { GameState, Show, Season, Episode, ShowStatus, InboxItem } from '../types';
+import { GameState, Show, Season, Episode, ShowStatus, InboxItem, TalentDeal } from '../types';
 import {
   WRITING_WEEKS,
   WEEKS_PER_YEAR,
@@ -11,15 +11,16 @@ import { calculateScriptScore, calculateQualityScore } from './quality';
 import { calculateEpisodeRating } from './ratings';
 import { generateSocialReactions, SOCIAL_TEMPLATE_COOLDOWN } from './social';
 import { generateAmbientSocialPosts, AMBIENT_TEMPLATE_COOLDOWN, AmbientSocialPost } from './ambientsocial';
-import { generateEmmyNominationPosts, generateEmmyWinPosts } from './milestonesocial';
+import { generateEmmyNominationPosts, generateEmmyWinPosts, generateSeriesFinaleAiredPosts } from './milestonesocial';
 import { advanceCompetitors } from './competitors';
 import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
 import { tryGenerateStreamingOffer, scheduleNextOfferCheck } from './streaming';
 import { generatePitch } from './pitches';
-import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews } from './news';
+import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews, makeSeriesFinaleNews } from './news';
 import { tryGenerateStudioEvent } from './events';
 import { nanoid } from '../utils/nanoid';
 import { randomChance, randomBetween } from '../utils/random';
+import { getViewershipMultiplier } from '../constants/schedule';
 
 export function advanceWeek(state: GameState): GameState {
   const { currentWeek, currentYear } = state.network;
@@ -70,16 +71,35 @@ export function advanceWeek(state: GameState): GameState {
     }
   }
 
-  // Detect premiere and finale episode airings
+  // Detect premiere, season finale, and series finale airings
   for (let i = 0; i < state.shows.length; i++) {
     const before = state.shows[i].seasons[state.shows[i].currentSeasonIndex];
     const after = shows[i].seasons[shows[i].currentSeasonIndex];
     if (!before || !after) continue;
-    if (state.shows[i].status === 'airing' || shows[i].status === 'renewal-pending') {
+
+    const wasAiring = state.shows[i].status === 'airing';
+    const nowEnded = shows[i].status === 'renewal-pending' || shows[i].status === 'cancelled';
+
+    if (wasAiring || nowEnded) {
       if (before.episodesAired === 0 && after.episodesAired === 1) {
         newNewsItems.push(makePremiereNews(shows[i].title, shows[i].genre, { week: newWeek, year: newYear }));
       } else if (before.episodesAired === before.episodeCount - 1 && after.episodesAired === after.episodeCount) {
-        newNewsItems.push(makeFinaleNews(shows[i].title, after.seasonNumber, { week: newWeek, year: newYear }));
+        if (after.isFinalSeason) {
+          // Series finale — distinct news, social posts, and showrunner release
+          newNewsItems.push(makeSeriesFinaleNews(shows[i].title, after.seasonNumber, { week: newWeek, year: newYear }));
+          milestoneAmbientPosts.push(
+            ...generateSeriesFinaleAiredPosts(shows[i].title, after.seasonNumber, newWeek, newYear),
+          );
+          // Free the showrunner (cast/director were already freed at filming→marketing)
+          const showrunnerID = after.showrunnerID;
+          if (showrunnerID) {
+            talent = talent.map(t =>
+              t.id === showrunnerID ? { ...t, available: true, bookedForSeasonID: null } : t,
+            );
+          }
+        } else {
+          newNewsItems.push(makeFinaleNews(shows[i].title, after.seasonNumber, { week: newWeek, year: newYear }));
+        }
       }
     }
   }
@@ -102,6 +122,55 @@ export function advanceWeek(state: GameState): GameState {
     cashOnHand: network.cashOnHand + revenueThisWeek,
     careerEarnings: network.careerEarnings + revenueThisWeek,
   };
+
+  // ─── Revenue share payout: deduct from cash when a season finishes airing ──
+  // Fires once per season when the show transitions airing → renewal-pending/cancelled.
+  // totalAdRevenue on the updated season already includes the finale episode.
+  let revenueShareTotal = 0;
+  const revenueShareInboxItems: InboxItem[] = [];
+  for (let i = 0; i < state.shows.length; i++) {
+    const wasAiring = state.shows[i].status === 'airing';
+    const nowFinished = shows[i].status === 'renewal-pending' ||
+      (shows[i].status === 'cancelled' && shows[i].cancelledClean);
+    if (!wasAiring || !nowFinished) continue;
+
+    const season = shows[i].seasons[shows[i].currentSeasonIndex];
+    if (!season) continue;
+
+    const deals: TalentDeal[] = state.talentDeals.filter(
+      d => d.seasonID === season.id && d.revenueSharePercent > 0,
+    );
+    if (deals.length === 0) continue;
+
+    let seasonPayout = 0;
+    const lineItems: string[] = [];
+    for (const deal of deals) {
+      const payout = Math.round(deal.revenueSharePercent / 100 * season.totalAdRevenue);
+      if (payout > 0) {
+        seasonPayout += payout;
+        const talentName = state.talent.find(t => t.id === deal.talentID)?.name ?? 'Talent';
+        lineItems.push(`${talentName} (${deal.revenueSharePercent}%): $${(payout / 1_000_000).toFixed(2)}M`);
+      }
+    }
+
+    if (seasonPayout > 0) {
+      revenueShareTotal += seasonPayout;
+      revenueShareInboxItems.push({
+        id: nanoid(),
+        type: 'revenue-share-payout',
+        week: newWeek,
+        year: newYear,
+        read: false,
+        refID: shows[i].id,
+        title: `Revenue share paid — ${shows[i].title} S${season.seasonNumber}`,
+        preview: `Total paid out: $${(seasonPayout / 1_000_000).toFixed(2)}M · ${lineItems.join(' · ')}`,
+      });
+    }
+  }
+  if (revenueShareTotal > 0) {
+    network = { ...network, cashOnHand: network.cashOnHand - revenueShareTotal };
+    newInboxItems.push(...revenueShareInboxItems);
+  }
 
   // ─── Streaming: expire offers, run scheduled checks, generate offers ─────────
   const updatedShows = shows.map(show => {
@@ -382,9 +451,13 @@ export function advanceWeek(state: GameState): GameState {
     emmyCeremonyPendingYear = newYear;
   }
 
-  // Prune TalentDeal records for talent that is no longer booked
+  // Prune TalentDeal records for talent that is no longer booked.
+  // Keep deals with revenueSharePercent > 0 permanently — they serve as
+  // historical records for the season financials display.
   const bookedTalentIDs = new Set(talent.filter(t => !t.available).map(t => t.id));
-  const prunedDeals = state.talentDeals.filter(d => bookedTalentIDs.has(d.talentID));
+  const prunedDeals = state.talentDeals.filter(
+    d => bookedTalentIDs.has(d.talentID) || d.revenueSharePercent > 0,
+  );
 
   // ─── Studio events ────────────────────────────────────────────────────────
   const partialState = {
@@ -519,16 +592,25 @@ function tickAiring(
   }
 
   const prevEpisodes = season.episodes.filter(ep => ep.rating !== null);
-  const { rating, viewers, adRevenue } = calculateEpisodeRating(
+  const { rating, viewers: baseViewers, adRevenue: baseAdRevenue } = calculateEpisodeRating(
     season,
     nextIndex + 1,
     show.genre,
     prevEpisodes,
   );
 
+  // Apply theme window viewership boost — only viewers/revenue are affected, not the rating
+  const scheduleMultiplier = getViewershipMultiplier(show.theme, newWeek);
+  const viewers = scheduleMultiplier !== 1.0 ? Math.round(baseViewers * scheduleMultiplier) : baseViewers;
+  const adRevenue = scheduleMultiplier !== 1.0 ? Math.round(baseAdRevenue * scheduleMultiplier) : baseAdRevenue;
+
+  const isFinale = (nextIndex + 1) === season.episodeCount;
+  const prevRating = nextIndex > 0 ? (season.episodes[nextIndex - 1]?.rating ?? undefined) : undefined;
   const socialResult = generateSocialReactions(
     show.title, nextIndex + 1, rating, show.genre,
     socialTemplateTracker.ids,
+    isFinale,
+    prevRating,
   );
   const reactions = socialResult.reactions;
   socialTemplateTracker.ids = [...socialTemplateTracker.ids, ...socialResult.usedTemplateIds]
@@ -554,10 +636,17 @@ function tickAiring(
     totalAdRevenue: season.totalAdRevenue + adRevenue,
   };
 
-  const status: ShowStatus =
-    newEpisodesAired >= season.episodeCount ? 'renewal-pending' : 'airing';
-
-  return updateShow(show, updatedSeason, status);
+  if (newEpisodesAired >= season.episodeCount) {
+    if (updatedSeason.isFinalSeason) {
+      // Final season complete — close the show as cancelled (clean) immediately,
+      // skipping the renewal-pending step. Showrunner is freed in advanceWeek.
+      const seasons = [...show.seasons];
+      seasons[show.currentSeasonIndex] = updatedSeason;
+      return { ...show, status: 'cancelled', cancelledClean: true, seasons };
+    }
+    return updateShow(show, updatedSeason, 'renewal-pending');
+  }
+  return updateShow(show, updatedSeason, 'airing');
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

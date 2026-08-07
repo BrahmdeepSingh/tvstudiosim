@@ -1,256 +1,1428 @@
 import { SocialReaction, Genre } from '../types';
 import { randomBetween, randomItem } from '../utils/random';
-import { Blueprint, Fragment, FragmentLibrary, PersonaToneProfile, assemblePost, applyPersonaTone } from './fragmentassembler';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Third category converted to the assembly engine, and the highest-frequency
-// one by far — fires for every aired episode of every airing show, every
-// week, guaranteed. Gets the biggest opener pool of the three category files
-// for exactly that reason: this is the content players will see the most of,
-// so it's the most exposed to repetition.
+// Per-persona episode reaction system — v2.
 //
-// Revised after a real gameplay log showed the same root problem as the
-// other two files: too few persona-unrestricted openers ("ok but",
-// "genuinely," carrying 3 personas' worth of posts) and several anaphoric
-// reaction fragments ("nobody is bringing this up enough", "this needs to be
-// talked about more") that hadn't gotten the canLeadPost: false treatment
-// even though they read backwards when leading a post, same bug shape as the
-// "not complaining though" fix from earlier — that fix only ever got applied
-// to the one fragment that was reported, not audited across the whole pool.
-// Also wired in fragment-level cooldown and purged noun-phrase tone entries.
+// v1 split the shared fragment library into per-persona pools, which fixed
+// voice distinctiveness. v2 fixes the remaining problems found in testing:
+//
+// 1. The mid tier (5.0–7.4) was too wide. A 7.3 episode and a 5.2 episode
+//    used the same template pool. Split into midHigh (6.5–7.4) and midLow
+//    (5.0–6.4) with meaningfully different emotional registers.
+//
+// 2. Episode 1 premiere reactions referenced prior episodes that don't exist
+//    yet ("didn't hit the same", "execution keeps falling short of it").
+//    A dedicated 'premiere' tier fires only on episodeNumber === 1, with
+//    first-impression language only.
+//
+// 3. Finale templates fired at 55% probability regardless of rating, so a
+//    6.3 finale got "ended the season like THAT" energy alongside a 9.1
+//    finale. Finales are now a deterministic tier with three rating bands:
+//    finaleHigh (≥ 7.5), finaleMid (5.5–7.4), finaleLow (< 5.5).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PERSONA_HANDLES: Record<string, { username: string; handle: string }> = {
-  stan: { username: 'unhinged tv stan', handle: '@watchingrn' },
-  critic: { username: 'Critics Desk', handle: '@criticsdesk' },
-  insider: { username: 'The Wrap Line', handle: '@thewrapline' },
-  numbers: { username: 'PrimeTimeFeed', handle: '@primetimefeed' },
-  meme: { username: 'tv memes daily', handle: '@tvmemesdaily' },
-  hatewatcher: { username: 'StreamNerve', handle: '@streamnerve' },
-  recapper: { username: 'TV Obsessed', handle: '@tvobsessed' },
-  parasocial: { username: 'ride or die', handle: '@notokaythough' },
-};
-const PERSONA_KEYS = Object.keys(PERSONA_HANDLES);
+type T = (show: string, ep: number, genre: Genre, hook: string, complaint: string) => string;
 
-function normalizeRating(rating: number): number {
-  return Math.min(1, Math.max(0, (rating - 1) / 9));
+export type Tier =
+  | 'premiere'
+  | 'high'
+  | 'midHigh'
+  | 'midLow'
+  | 'low'
+  | 'finaleHigh'
+  | 'finaleMid'
+  | 'finaleLow';
+
+function getTier(rating: number, isFinale: boolean, isPremiereEp: boolean): Tier {
+  if (isPremiereEp) return 'premiere';
+  if (isFinale) {
+    return rating >= 7.5 ? 'finaleHigh' : rating >= 5.5 ? 'finaleMid' : 'finaleLow';
+  }
+  return rating >= 7.5 ? 'high' : rating >= 6.5 ? 'midHigh' : rating >= 5.0 ? 'midLow' : 'low';
 }
 
-const GENRE_FLAVOR: Record<Genre, { unit: string; hook: string; complaint: string }> = {
-  drama: { unit: 'episode', hook: 'that ending', complaint: 'the pacing in the back half' },
-  comedy: { unit: 'episode', hook: 'that cold open', complaint: 'the jokes not landing this week' },
-  'sci-fi': { unit: 'episode', hook: 'that lore drop', complaint: 'the worldbuilding getting away from itself' },
-  procedural: { unit: 'case', hook: 'that twist in the case', complaint: "this week's case feeling like a rerun" },
-  reality: { unit: 'episode', hook: 'that elimination', complaint: 'the edit being so obviously rigged' },
-  'limited-series': { unit: 'episode', hook: 'that reveal', complaint: 'how slow this is moving for something with an ending' },
+// Maps a tier to a likes/reposts bucket for range lookups.
+type RangeKey = 'high' | 'midHigh' | 'midLow' | 'low';
+function rangeKeyFor(tier: Tier): RangeKey {
+  if (tier === 'high' || tier === 'finaleHigh') return 'high';
+  if (tier === 'premiere' || tier === 'midHigh' || tier === 'finaleMid') return 'midHigh';
+  if (tier === 'midLow' || tier === 'finaleLow') return 'midLow';
+  return 'low';
+}
+
+interface PersonaConfig {
+  username: string;
+  handle: string;
+  premiere: T[];
+  high: T[];
+  midHigh: T[];
+  midLow: T[];
+  low: T[];
+  finaleHigh: T[];
+  finaleMid: T[];
+  finaleLow: T[];
+  trendUp: T[];   // fires when rating rose ≥ 0.2 from prior episode
+  trendDown: T[]; // fires when rating fell ≥ 0.2 from prior episode
+  likes: Record<RangeKey, [number, number]>;
+  reposts: Record<RangeKey, [number, number]>;
+}
+
+const GENRE_FLAVOR: Record<Genre, { hook: string; complaint: string }> = {
+  drama:           { hook: 'that ending',                      complaint: 'the pacing in the back half' },
+  comedy:          { hook: 'that cold open',                   complaint: 'the jokes not landing lately' },
+  'sci-fi':        { hook: 'that lore drop',                   complaint: 'the worldbuilding getting away from itself' },
+  procedural:      { hook: 'that twist',                       complaint: "this week's case feeling recycled" },
+  reality:         { hook: 'that elimination',                 complaint: 'the edit being so obviously rigged' },
+  'limited-series':{ hook: 'that reveal',                     complaint: 'how slow this is moving given the episode count' },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FRAGMENT LIBRARY
-// ─────────────────────────────────────────────────────────────────────────────
+const PERSONAS: Record<string, PersonaConfig> = {
 
-const openers: Fragment[] = [
-  { text: 'okay I have to say this,', personas: ['*'] },
-  { text: 'just finished watching and', personas: ['*'], followsWith: ['observation'] },
-  { text: 'no way I stay quiet about this,', personas: ['*'] },
-  { text: 'thinking about this way too much but,', personas: ['*'] },
-  { text: 'real quick,', personas: ['*'] },
-  { text: 'not gonna lie,', personas: ['hatewatcher', 'critic'] },
-  { text: 'quick thought —', personas: ['insider', 'numbers'] },
-  { text: 'unpopular opinion,', personas: ['hatewatcher', 'critic'], followsWith: ['observation'] },
-  { text: 'hot take incoming,', personas: ['meme', 'hatewatcher'], followsWith: ['observation'] },
-  { text: 'hearing things and', personas: ['insider'], followsWith: ['observation'] },
-  { text: 'watching the numbers on this one,', personas: ['numbers', 'insider'], followsWith: ['observation'] },
-  { text: 'okay this cast though,', personas: ['stan', 'parasocial'], followsWith: ['observation'] },
-  { text: 'not me rewatching this already but,', personas: ['stan', 'parasocial'] },
-  { text: 'ok so,', personas: ['recapper', 'meme'] },
-  { text: 'putting this out into the universe,', personas: ['recapper', 'stan'] },
-];
-
-const observations: Fragment[] = [
-  { text: '{SHOW_NAME} {UNIT} {EPISODE} is {good}', personas: ['*'] },
-  { text: '{HOOK} in {SHOW_NAME} {UNIT} {EPISODE} was {good}', personas: ['recapper', 'stan'] },
-  { text: 'the writing on {SHOW_NAME} has been {good} lately', personas: ['critic', 'recapper'] },
-  { text: "{SHOW_NAME}'s ratings this stretch have been {good}", personas: ['numbers', 'insider'] },
-  { text: 'whoever is running {SHOW_NAME} deserves real credit after this one', personas: ['critic', 'insider'], intensityRange: [0.75, 1] },
-  { text: '{COMPLAINT} is becoming a real problem on {SHOW_NAME}', personas: ['critic', 'hatewatcher'], intensityRange: [0, 0.4] },
-  { text: '{SHOW_NAME} keeps finding new ways to be {bad}', personas: ['hatewatcher', 'meme'], intensityRange: [0, 0.45] },
-  { text: 'the cast on {SHOW_NAME} understood the assignment this {UNIT}', personas: ['stan', 'parasocial'], intensityRange: [0.65, 1] },
-  { text: "{SHOW_NAME} still hasn't given these characters anything new to do", personas: ['parasocial', 'critic'], intensityRange: [0, 0.5] },
-  { text: "{SHOW_NAME} is coasting on a premise it hasn't fully earned yet", personas: ['critic', 'hatewatcher'], intensityRange: [0.25, 0.6] },
-  { text: '{SHOW_NAME} {UNIT} {EPISODE} genuinely surprised me in the best way', personas: ['recapper', 'stan'], intensityRange: [0.6, 1] },
-  { text: '{SHOW_NAME} {UNIT} {EPISODE} left me with more questions than answers and not in a good way', personas: ['parasocial', 'hatewatcher'], intensityRange: [0, 0.45] },
-];
-
-const reactions: Fragment[] = [
-  { text: 'I am fully invested at this point', personas: ['stan', 'recapper'], intensityRange: [0.6, 1], canLeadPost: false },
-  { text: "it's exhausting to keep defending this show", personas: ['hatewatcher', 'critic'], intensityRange: [0, 0.45], canLeadPost: false },
-  { text: 'not complaining though', personas: ['stan', 'numbers', 'recapper'], intensityRange: [0.35, 1], canLeadPost: false },
-  { text: "this show needs to be talked about more", personas: ['insider', 'numbers'], intensityRange: [0.6, 1], canLeadPost: false },
-  { text: "it might be time to call it on this one", personas: ['hatewatcher', 'meme'], intensityRange: [0, 0.3] },
-  { text: 'nobody is bringing this show up enough', personas: ['insider', 'numbers'], canLeadPost: false },
-  { text: 'the show deserves better than this honestly', personas: ['critic', 'hatewatcher'], intensityRange: [0, 0.4] },
-  { text: 'I need everyone to see this', personas: ['stan', 'meme'] },
-  { text: "I'll be thinking about this one for a while", personas: ['stan', 'parasocial'], intensityRange: [0.6, 1] },
-  { text: 'someone needed to say that out loud', personas: ['critic', 'hatewatcher'], canLeadPost: false },
-];
-
-const fillers: Fragment[] = [
-  { text: 'the fandom for this show never sleeps', personas: ['stan', 'recapper'] },
-  { text: 'the discourse around this one has been a lot lately', personas: ['meme', 'hatewatcher'] },
-  { text: 'the trades are going to have opinions about this one', personas: ['insider', 'critic'] },
-  { text: 'rewatch pod when, I need to talk about this with someone', personas: ['recapper', 'stan'] },
-];
-
-const signoffs: Fragment[] = [
-  { text: '#{GENRE}TV', personas: ['*'] },
-  { text: '👀🍿', personas: ['stan', 'hatewatcher', 'meme'] },
-  { text: 'thoughts?', personas: ['critic', 'insider'] },
-  { text: '📺', personas: ['recapper', 'stan'] },
-];
-
-const LIBRARY: FragmentLibrary = {
-  opener: openers,
-  observation: observations,
-  reaction: reactions,
-  filler: fillers,
-  signoff: signoffs,
-};
-
-// No bare ['opener', 'reaction'] blueprint — every blueprint guarantees an
-// 'observation' slot, the only slot type carrying show/episode-specific
-// content (SHOW_NAME, EPISODE, HOOK, COMPLAINT tokens).
-const BLUEPRINTS: Blueprint[] = [
-  ['opener', 'observation', 'reaction', 'signoff'],
-  ['reaction', 'observation', 'signoff'],
-  ['observation', 'filler'],
-  ['observation', 'reaction', 'signoff'],
-  ['opener', 'observation', 'signoff'],
-];
-
-// Purged of noun-phrase-only entries — every option is a plain adjective or
-// adjective phrase, safe in any predicate slot this token appears in.
-const TONE: Record<string, PersonaToneProfile> = {
+  // ── unhinged tv stan ───────────────────────────────────────────────────────
   stan: {
-    capsProbability: 0.2,
-    synonyms: {
-      '{good}': ['nice', 'really solid', 'genuinely great', 'goated', 'literally perfect'],
-      '{bad}': ['a little off', 'not it', 'rough', 'disastrous', 'actually unforgivable'],
-    },
+    username: 'unhinged tv stan',
+    handle: '@watchingrn',
+    premiere: [
+      (s) => `okay so ${s} just dropped episode 1 and I have thoughts. mostly excited ones. mostly.`,
+      (s) => `first episode of ${s} is here and it did not disappoint. I need more immediately.`,
+      (s) => `${s} episode 1 is giving. not everything yet. but giving. I am in.`,
+      (s) => `not me staying up to watch ${s} episode 1 on a work night and feeling zero guilt about it`,
+      (s) => `episode 1 of ${s} and I am already forming parasocial attachments. this is fine. (it is not fine.)`,
+      (s) => `${s} premiere just dropped and I have watched the opening scene three times already`,
+      (s) => `okay ${s} episode 1 has me. it really has me. I wasn't expecting to feel like this so fast.`,
+      (s) => `the first episode of ${s} did something to me and I'm still figuring out what`,
+      (s) => `${s} episode 1: the show I didn't know I needed. I need it.`,
+      (s) => `just watched ${s} ep 1 and I am already in the group chat screaming about it and there are only 3 of us in the group chat`,
+    ],
+    high: [
+      (s, ep)          => `ok so I JUST finished ${s} episode ${ep} and I need a minute. I need SEVERAL minutes.`,
+      (s, ep)          => `${s} episode ${ep} is GOATED and I will die on this hill. not changing my mind.`,
+      (s, ep)          => `not me rewatching ${s} ep ${ep} immediately after it ends. I have a problem and I do not care`,
+      (s, ep, _, hook) => `${hook} in ${s} episode ${ep} has me in my feelings. I cannot explain this to anyone in my life`,
+      (s, ep)          => `${s} episode ${ep} > everything else on TV right now and I said what I said 👀`,
+      (s, ep)          => `whoever wrote ${s} episode ${ep} I owe you everything`,
+      (s, ep)          => `${s} episode ${ep} is making me feel things I can't explain to people who haven't seen it. so I'm explaining it anyway.`,
+      (s, ep)          => `the ${s} writers said "let's break everyone in episode ${ep}" and they did. they fully did.`,
+      (s, ep)          => `I have watched ${s} episode ${ep} twice already and I'm going in for a third. send help`,
+      (s, ep)          => `every week ${s} ep ${ep} makes me feel like I discovered this show for the first time again`,
+      (s, ep)          => `okay whoever is in that writers room for ${s} episode ${ep} deserves everything they're asking for`,
+      (s, ep)          => `${s} episode ${ep} went somewhere I did NOT see coming and I am a changed person`,
+      (s, ep)          => `I cannot explain to my coworkers why I cried at ${s} episode ${ep} but I cried. I cried at a TV show.`,
+      (s, ep)          => `the way ${s} episode ${ep} is living in my head rent free. I have not been okay since it dropped.`,
+      (s, ep)          => `episode ${ep} of ${s} is the reason I tell everyone to watch this show. EVERYONE.`,
+    ],
+    midHigh: [
+      (s, ep) => `${s} episode ${ep} was fine. doing its job. I'll keep showing up.`,
+      (s, ep) => `not the episode I needed from ${s} but ep ${ep} kept me here. that's enough for now.`,
+      (s, ep) => `${s} ep ${ep} was solid. not a season highlight but solid.`,
+      (s, ep) => `okay ${s} episode ${ep} wasn't amazing but I'm not mad about it. decent hour.`,
+      (s, ep) => `${s} episode ${ep} hit differently this week in a generally good way. I'm satisfied.`,
+      (s, ep) => `not the best ${s} episode ever but ep ${ep} did what it needed to and I'm not complaining`,
+      (s, ep) => `A perfectly pleasant way to spend an hour. that's it. that's the tweet.`,
+      (s, ep) => `honestly ${s} ep ${ep} surprised me a little. more than I expected.`,
+      (s, ep) => `okay ${s} episode ${ep} wasn't the highlight of the season but I left it feeling good. that counts.`,
+      (s, ep) => `${s} ep ${ep} did a lot of small things really well this week. noticed that.`,
+      (s, ep) => `the vibes were right for ${s} episode ${ep}. not everything has to be a masterpiece.`,
+      (s, ep) => `Comfortable, consistent, capable. I show up every week for a reason.`,
+      (s, ep) => `I would describe ${s} ep ${ep} as "dependable" and I mean that in a positive way`,
+      (s, ep) => `${s} episode ${ep} gave me exactly what I wanted from this show and sometimes that's the whole job`,
+      (s, ep) => `ep ${ep} of ${s} is a strong mid. not an insult. a strong mid is valuable.`,
+      (s, ep) => `The episode where nothing went wrong and something occasionally went right.`,
+      (s, ep) => `okay I liked ${s} episode ${ep}. I didn't love it but I liked it and that's a perfectly valid response.`,
+      (s, ep) => `${s} episode ${ep} felt like a deep breath. the season needed that.`,
+      (s, ep) => `${s} ep ${ep} doing its thing. consistent. reliable. I appreciate a show that shows up every week.`,
+      (s, ep) => `casual watch on ${s} ep ${ep} this week. not every episode needs to wreck me. this didn't. it was good.`,
+    ],
+    midLow: [
+      (s, ep) => `${s} episode ${ep} was fine. the season started stronger but I'm still here aren't I`,
+      (s, ep) => `idk ${s} ep ${ep} didn't hit the same for me this week? hoping it picks back up`,
+      (s, ep) => `${s} ep ${ep} felt a bit slow. hoping this is a bridge episode and not a trend.`,
+      (s, ep) => `${s} ep ${ep} was okay. just okay. I wanted more and I got okay. moving on.`,
+      (s, ep) => `${s} episode ${ep} didn't quite get there for me this week. hoping it's just a bridge.`,
+      (s, ep) => `I'm not gonna lie ${s} ep ${ep} felt a little off? still watching. just noting it.`,
+      (s, ep) => `ep ${ep} of ${s} was the "remember when it was better" episode. it happens. I'll live.`,
+      (s, ep) => `${s} episode ${ep} exists and I watched it and I have no strong feelings about that, which is strange`,
+      (s, ep) => `${s} ep ${ep} had me checking how much time was left a little more than usual. I love this show though.`,
+      (s, ep) => `this isn't the ${s} episode I wanted but it's the one I got and I'm processing that`,
+      (s, ep) => `${s} ep ${ep} came out and the group chat was mostly quiet. that's never a great sign.`,
+      (s, ep) => `something was off about ${s} episode ${ep} and I can't fully put my finger on what. just felt it.`,
+      (s, ep) => `${s} ep ${ep} tried things. not all of those things worked. we move.`,
+      (s, ep) => `I keep telling people to watch ${s} and then episode ${ep} happens and I'm like... next week will be better`,
+      (s, ep) => `the midseason energy is hitting ${s} (ep ${ep}) and I'm trying to be chill about it. mostly succeeding.`,
+      (s, ep) => `${s} episode ${ep} felt like a filler episode and I'm not mad but I'm also not not mad`,
+      (s, ep) => `episodes like ${s} ep ${ep} are the ones you forget when you're recapping a good season. hoping that's the case.`,
+      (s, ep) => `${s} ep ${ep} needed one more draft honestly. still love the show. still noticed.`,
+      (s, ep) => `not enough happened in ${s} episode ${ep} for me to say I didn't watch it. but barely.`,
+      (s, ep) => `the ${s} writers took a week off emotionally in episode ${ep} and I'm allowing it once`,
+    ],
+    low: [
+      (s, ep)           => `okay ${s} episode ${ep} was rough and I love this show too much to pretend otherwise`,
+      (s, ep)           => `oof ${s} ep ${ep}. that was not it. that was very much not it.`,
+      (s, ep, _, __, c) => `${c} on ${s} and episode ${ep} really showed it. ouch.`,
+      (s, ep)           => `why is ${s} doing this to me. episode ${ep} hurt in a bad way`,
+      (s, ep)           => `${s} episode ${ep} is the worst kind of bad — the kind that made me feel nothing. I can work with bad. I can't work with nothing.`,
+      (s, ep)           => `I'm still watching ${s} but episode ${ep} is making me think hard about why`,
+      (s, ep)           => `${s} ep ${ep} failed its characters and that is my personal hill to die on`,
+      (s, ep)           => `when I say ${s} episode ${ep} disappointed me I am using that word in its most clinical sense`,
+      (s, ep)           => `episode ${ep} of ${s} should have been a turning point. it turned, just in the wrong direction.`,
+      (s, ep)           => `${s} ep ${ep} and I'm in the group chat trying to find ONE person who liked it. silence.`,
+      (s, ep)           => `they made episode ${ep} of ${s} and decided that was the version we were seeing. interesting call.`,
+      (s, ep)           => `I've been a ${s} defender for this whole season and ep ${ep} is really testing my convictions`,
+    ],
+    finaleHigh: [
+      (s) => `${s} season finale and I am DESTROYED. someone hold me.`,
+      (s) => `I cannot believe ${s} ended the season like that. I have so many questions and zero chill`,
+      (s) => `${s} season finale and I have entered a new era of emotional instability. the cast did THAT.`,
+      (s) => `whatever happens next season, the ${s} finale just secured this as one of my favorite shows ever. incredible.`,
+      (s) => `I will not recover from the ${s} season finale and I don't want to`,
+      (s) => `the ${s} finale just happened and I am texting everyone I know who watches this show. we have so much to discuss.`,
+    ],
+    finaleMid: [
+      (s) => `${s} season finale. not the ending I imagined but I respect what they tried to do. still here.`,
+      (s) => `mixed feelings on the ${s} finale honestly. good season, middling ending. I'll be back though.`,
+      (s) => `${s} wrapped the season. I have a lot of thoughts. most of them are "that was... fine." love this cast though.`,
+      (s) => `the ${s} finale gave me enough to chew on. not the ending I wrote in my head but an ending.`,
+      (s) => `honestly? the ${s} season finale was okay. not great. the season earned something better but okay.`,
+      (s) => `the ${s} finale landed in a place I can accept. not where I wanted. where I can accept.`,
+      (s) => `mixed feelings about the ${s} finale but the cast saved it for me. they always do.`,
+      (s) => `${s} season is done and the finale was workable. I'll be back next season regardless.`,
+    ],
+    finaleLow: [
+      (s) => `${s} finale and I'm like... okay? that's it? I wanted more from this ending.`,
+      (s) => `the ${s} finale was fine but this season deserved a better finish. still love this show though.`,
+      (s) => `the ${s} writers looked at their finale script and said "yes. perfect." I disagree with that.`,
+      (s) => `${s} finale went places that... honestly I need to sit with it. I don't think those were the right places.`,
+      (s) => `this show deserved a better finale. I love ${s}. this finale did not love us back.`,
+      (s) => `the ${s} season finale exists and I watched it and I'm choosing to focus on the episodes that were good`,
+    ],
+    trendUp: [
+      (s, ep) => `${s} episode ${ep} bounced back and I needed that. last week had me nervous`,
+      (s, ep) => `back on track with ${s} ep ${ep}. I love a recovery episode`,
+      (s, ep) => `${s} ep ${ep} found it again after last week. my trust is restored`,
+      (s, ep) => `THE SHOW IS BACK. ${s} ep ${ep} bounced back and I am not calm.`,
+      (s, ep) => `not me having faith in ${s} and being rewarded for it. ep ${ep} came through.`,
+      (s, ep) => `${s} ep ${ep} > last week and I needed that win. I genuinely needed it.`,
+      (s, ep) => `the comeback arc is real. ${s} episode ${ep} is evidence.`,
+      (s, ep) => `${s} ep ${ep} reminded me why I got attached to this show in the first place. thank you for this.`,
+      (s, ep) => `okay I was getting worried about ${s} and ep ${ep} just fixed that. just fixed it completely.`,
+      (s, ep) => `${s} episode ${ep} felt like the show taking a deep breath and remembering who it is`,
+      (s, ep) => `this is the ${s} I know. ep ${ep} has the thing back. what a relief.`,
+      (s, ep) => `coming back after last week's ${s} and episode ${ep} completely changed the vibe. up only.`,
+      (s, ep) => `The show remembered what made me fall for it. I appreciate that. genuinely.`,
+      (s, ep) => `I was ready to be worried and then ${s} ep ${ep} happened and I remembered why I'm loyal to this show`,
+      (s, ep) => `everyone who doubted ${s} after last week needs to watch ep ${ep}. the show showed up.`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} ep ${ep} is a step down from last week. I'm not spiraling. I'm almost not spiraling.`,
+      (s, ep) => `idk ${s} episode ${ep} didn't hit as hard as last week for me. hoping it picks back up`,
+      (s, ep) => `${s} ep ${ep} slipped a bit from last week. it's fine. everything is fine.`,
+      (s, ep) => `two steps forward one step back. ${s} ep ${ep} after such a good run hurts a little.`,
+      (s, ep) => `not me watching ${s} ep ${ep} and waiting for it to get good like last week and... it didn't quite get there`,
+      (s, ep) => `something feels slightly off with ${s} and ep ${ep} is the episode where I'm admitting I feel it`,
+      (s, ep) => `okay I'm not alarmed I'm just noting that ${s} ep ${ep} didn't hit as hard as I wanted.`,
+      (s, ep) => `the momentum from last week didn't carry into ${s} ep ${ep} and I'm trying not to overthink it`,
+      (s, ep) => `A minor disappointment after a really good stretch. I'll allow it. once.`,
+      (s, ep) => `please ${s} let last week be a high point and not just a peak before a long drop`,
+      (s, ep) => `ep ${ep} of ${s} slipped a little. my parasocial relationship with this show is being tested.`,
+      (s, ep) => `${s} wrote a great episode last week and then this week did ep ${ep}. okay.`,
+      (s, ep) => `I hate when I can tell something's off with ${s} and ep ${ep} is one of those weeks.`,
+      (s, ep) => `the group chat after ${s} ep ${ep}: "it was okay." last week the group chat was on fire. noted.`,
+      (s, ep) => `ep ${ep} of ${s} is a dip and I need the next one to pick it back up. please.`,
+    ],
+    likes:   { high: [200, 2000], midHigh: [100, 1000], midLow: [60, 600], low: [40, 400] },
+    reposts: { high: [80, 700],   midHigh: [35, 300],   midLow: [20, 180], low: [15, 120] },
   },
+
+  // ── Critics Desk ───────────────────────────────────────────────────────────
   critic: {
-    capsProbability: 0,
-    synonyms: {
-      '{good}': ['decent', 'well-executed', 'quite strong', 'sublime', 'masterful'],
-      '{bad}': ['uneven', 'underwhelming', 'derivative', 'tonally confused', 'a genuine misfire'],
-    },
+    username: 'Critics Desk',
+    handle: '@criticsdesk',
+    premiere: [
+      (s) => `First episode of ${s}: a promising setup. The real test is whether the execution holds.`,
+      (s) => `${s} episode 1 establishes its premise efficiently. Cautiously intrigued.`,
+      (s) => `Debut episode of ${s} makes a strong opening argument. Now let's see if it can sustain it.`,
+      (s) => `${s} premieres. The pilot is doing real work — grounding characters, earning stakes. Promising.`,
+      (s) => `One episode of ${s} in. The craft is there. Whether the story earns it remains to be seen.`,
+      (s) => `${s} episode 1 is a controlled, precise piece of television. Confident debut.`,
+      (s) => `First look at ${s}: the premise lands cleanly. The cast is doing the work. Worth continuing.`,
+      (s) => `${s} pilot: not everything is resolved, but everything is set up with intention. Good sign.`,
+      (s) => `An above-average premiere for ${s}. Establishing episodes rarely do more than promise. This one delivers early.`,
+      (s) => `${s} opens with a pilot that trusts its audience. Rare. Encouraging.`,
+    ],
+    high: [
+      (s, ep)          => `${s} episode ${ep} is a textbook example of what this genre can do when it's firing. Remarkable work.`,
+      (s, ep, _, hook) => `${hook} in ${s} episode ${ep} is the kind of narrative pivot this genre rarely gets right. They got it right.`,
+      (s, ep)          => `The writing on ${s} has been building toward episode ${ep} all season. That landing paid off.`,
+      (s, ep)          => `${s} episode ${ep} is doing something genuinely difficult and making it look effortless.`,
+      (s, ep)          => `Strong episode. ${s} episode ${ep} earns every minute of its runtime. Take notes.`,
+      (s, ep)          => `The season's best hour so far. The show is operating at a level few manage.`,
+      (s, ep)          => `The direction on ${s} episode ${ep} is worth discussing on its own. Exceptional craft on display here.`,
+      (s, ep)          => `${s} episode ${ep} resolves something the season has been building. The patience paid off.`,
+      (s, ep)          => `What ${s} does in episode ${ep} is structurally impressive and emotionally coherent. Both at once. That's the job.`,
+      (s, ep)          => `This is why television is worth taking seriously. A complete hour of work.`,
+      (s, ep)          => `Episode ${ep} of ${s} is not trying to impress you. It's just doing the work. That's more impressive.`,
+      (s, ep)          => `The character work in ${s} episode ${ep} is doing what plot rarely can. An unusually good hour.`,
+      (s, ep)          => `Formally ambitious, emotionally grounded. Both things. Simultaneously.`,
+      (s, ep)          => `${s} has been building toward episode ${ep} without telegraphing it. That's craft. That's trust in the audience.`,
+      (s, ep)          => `${s} episode ${ep} lands as one of the season's defining hours. Will matter when the final picture becomes clear.`,
+    ],
+    midHigh: [
+      (s, ep) => `${s} episode ${ep} is doing what it needs to do. Competent, controlled, functional.`,
+      (s, ep) => `Solid ${s} episode ${ep}. This is a show that knows what it is. Reliable if not revelatory.`,
+      (s, ep) => `${s} episode ${ep} is well-crafted. Doesn't swing for anything new, but what it attempts it lands.`,
+      (s, ep) => `Episode ${ep} of ${s} is professionally assembled. No complaints. No particular excitement either.`,
+      (s, ep) => `A mid-season hour doing mid-season work. The show is in control.`,
+      (s, ep) => `Episode ${ep} of ${s} is efficient. That's praise. The show doesn't waste what it has.`,
+      (s, ep) => `Nothing surprising here. The show knows its lane and stays in it. That's not nothing.`,
+      (s, ep) => `This is what a well-run series looks like in its middle episodes. ${s} ep ${ep} is a reliable hour.`,
+      (s, ep) => `Sturdy craft in service of a story that earns modest rewards. Fine television.`,
+      (s, ep) => `Episode ${ep} of ${s} advances the season without stumbling. Workmanlike but not lazy.`,
+      (s, ep) => `Three strong scenes and a serviceable connective tissue. The show is consistent.`,
+      (s, ep) => `The performances are carrying ${s} episode ${ep} more than the script, but the script holds up.`,
+      (s, ep) => `The narrative legwork episode. Not exciting. Necessary. Well-executed.`,
+      (s, ep) => `Episode ${ep} of ${s}: the season's average episode, which is better than most shows' best.`,
+      (s, ep) => `${s} episode ${ep} is doing things correctly and doing them with care. That still counts.`,
+      (s, ep) => `Structurally sound, emotionally honest, narratively steady: ${s} episode ${ep} is doing its job.`,
+      (s, ep) => `Not a landmark hour. A quiet, well-made one. Some weeks that's the show.`,
+      (s, ep) => `Episode ${ep} of ${s}: the kind of week where you appreciate the consistency more than the peaks.`,
+      (s, ep) => `${s} episode ${ep} earns a recommendation without generating urgency. That's where this season is.`,
+      (s, ep) => `Every piece doing exactly what it should. No more, no less. Good television.`,
+    ],
+    midLow: [
+      (s, ep) => `Mixed on ${s} episode ${ep}. The premise remains strong. The execution keeps falling short of it.`,
+      (s, ep) => `${s} episode ${ep} is competent but uninspired. The bones are there; the execution keeps wavering.`,
+      (s, ep) => `${s} episode ${ep} passes. Doesn't distinguish itself. That may be enough for some audiences.`,
+      (s, ep) => `${s} is spinning its wheels in episode ${ep}. A show unsure of what it wants to be this week.`,
+      (s, ep) => `The writing is doing fine work around a story beat that isn't pulling its weight.`,
+      (s, ep) => `Episode ${ep} of ${s} has the moves but not the conviction. Technical success, dramatic near-miss.`,
+      (s, ep) => `The scenes are well-executed; the episode they add up to is less certain about itself.`,
+      (s, ep) => `The pieces are there in ${s} episode ${ep}. They're just not assembled into something that coheres.`,
+      (s, ep) => `${s} episode ${ep} is trying harder than the result would suggest. The effort is visible. The payoff isn't.`,
+      (s, ep) => `What ${s} episode ${ep} is going for is clear. Whether it gets there is less clear.`,
+      (s, ep) => `A capable hour with an ending that doesn't land. The show can do this better.`,
+      (s, ep) => `Episode ${ep} of ${s}: functional, occasionally dull, well-intentioned throughout. A mixed-bag week.`,
+      (s, ep) => `${s} ep ${ep} is not the season's best argument for itself. The season's best argument is still on the table.`,
+      (s, ep) => `The direction is doing work the script hasn't finished. A gap worth watching.`,
+      (s, ep) => `Episode ${ep} of ${s}: this show is capable of better. This week is evidence of that, not against it.`,
+      (s, ep) => `A serviceable hour that doesn't deepen what the season has been building. Watching.`,
+      (s, ep) => `The season's structural strain is showing in ${s} episode ${ep}. Not critical yet. Worth noting.`,
+      (s, ep) => `${s} episode ${ep} passes without incident, which is not the same as succeeding.`,
+      (s, ep) => `Competent in parts, soft in others. The aggregate is below where the season has been.`,
+      (s, ep) => `${s} episode ${ep} is the week the show's limitations become visible. It'll recover. It better.`,
+    ],
+    low: [
+      (s, ep)           => `${s} episode ${ep} is a structural mess. I've been charitable about this season but this stretched my goodwill.`,
+      (s, ep, _, __, c) => `${c} has been a problem since episode one of ${s}. Episode ${ep} makes it impossible to ignore.`,
+      (s, ep)           => `${s} has written itself into a corner. Episode ${ep} shows exactly what that looks like. Frustrating viewing.`,
+      (s, ep)           => `The show is not doing what it set out to do, and this week, it's not even trying to.`,
+      (s, ep)           => `Episode ${ep} of ${s} is a failure of craft and intention simultaneously. That's harder to do than it sounds.`,
+      (s, ep)           => `The writing room lost the thread. This is what that looks like on screen.`,
+      (s, ep)           => `The gap between what ${s} wants to be and what episode ${ep} is — that gap is the story now.`,
+      (s, ep)           => `${s} episode ${ep} is not the work this show is capable of. That's the most charitable framing I have.`,
+      (s, ep)           => `Episode ${ep} of ${s} is where patience runs out. The show has more to offer. It's not offering it.`,
+      (s, ep)           => `An hour that doesn't trust its audience, its story, or itself. All three problems at once.`,
+      (s, ep)           => `${s} episode ${ep} raises the question of whether the season has a plan. The answer isn't here.`,
+      (s, ep)           => `What happens in ${s} episode ${ep} would work on a different show. On this one, it's a misfire.`,
+    ],
+    finaleHigh: [
+      (s) => `${s} season finale: the end earned what the season promised. The season as a whole holds up.`,
+      (s) => `${s} wraps here. The question is whether this team can sustain it. Strong evidence that they can.`,
+      (s) => `${s} finale: a finale that justifies the season that preceded it. The arc lands where it should.`,
+      (s) => `The ${s} finale is doing the hardest thing a finale can do: making the whole season feel inevitable. It does.`,
+      (s) => `${s} closes its season with its best episode. That's a coherent argument for everything that came before.`,
+      (s) => `${s} season finale: structurally complete, emotionally earned. This is what good television looks like when it ends.`,
+    ],
+    finaleMid: [
+      (s) => `${s} finale: an acceptable end to an uneven season. The series has more to offer than this year suggested.`,
+      (s) => `${s} closes its season with a finale as solid as the show's been — which is to say, fine. Forgettable in a week.`,
+      (s) => `${s} season finale: it resolves what it set up. Doesn't illuminate anything new. A functional ending to a functional season.`,
+      (s) => `The ${s} finale closes the loop without deepening it. Satisfying in a narrow sense. Not more than that.`,
+      (s) => `${s} ends its season competently. The show's better moments deserved a finale that matched them.`,
+      (s) => `${s} finale: what it promises it delivers. What the season deserved it doesn't quite reach. An honest split.`,
+      (s) => `The season of ${s} ends somewhere in the middle of its own ambitions. Not a failure. Not a landing either.`,
+      (s) => `${s} season finale: decent resolution, missed opportunity. The show is still worth watching. It just knows it can do more.`,
+    ],
+    finaleLow: [
+      (s) => `${s} season finale lands with a thud. A rough end to a rough stretch. The show owes its audience more.`,
+      (s) => `${s} closes its season here. Not where the premiere promised we'd be. Hard to call this a landing.`,
+      (s) => `${s} finale: the season's weakest hour arriving at the worst moment. The show has a lot to answer for next year.`,
+      (s) => `The ${s} finale doesn't earn its ending. The season didn't build toward this. It fell toward it.`,
+      (s) => `${s} wraps here with a finale that retroactively weakens the stronger episodes that preceded it.`,
+      (s) => `${s} season finale: what went wrong this season is on full display. Unclear if anyone in that room noticed.`,
+    ],
+    trendUp: [
+      (s, ep) => `${s} course-corrects with episode ${ep}. A meaningful improvement after a weaker stretch.`,
+      (s, ep) => `Episode ${ep} of ${s} recovers ground the show had been losing. Notable uptick.`,
+      (s, ep) => `${s} finds its footing again in episode ${ep}. Worth acknowledging after the recent wobble.`,
+      (s, ep) => `${s} episode ${ep} is the kind of recovery that suggests the weaker episodes were an aberration, not a trend.`,
+      (s, ep) => `Episode ${ep} of ${s}: a genuine step forward after a soft stretch. The show remembers what it is.`,
+      (s, ep) => `${s} ep ${ep} is materially better than the week before. The improvement is in the writing, not the luck.`,
+      (s, ep) => `The season isn't lost. This week confirms that. A meaningful correction.`,
+      (s, ep) => `Episode ${ep} of ${s} is where the show stops apologizing and starts doing the work again.`,
+      (s, ep) => `${s} ep ${ep} is a reminder of what this show can be. The reminder is well-timed.`,
+      (s, ep) => `The craft in ${s} episode ${ep} is sharper than last week. The reason matters: the script is doing more.`,
+      (s, ep) => `The direction was always there. The writing caught up. That's the difference.`,
+      (s, ep) => `Episode ${ep} of ${s} bounces back in a way that makes the prior dip feel navigable. Good week.`,
+      (s, ep) => `${s} ep ${ep} is evidence that last week was a pothole, not a cliff. Glad to have it.`,
+      (s, ep) => `The recovery in ${s} episode ${ep} is not just statistical — the creative choices are more confident this week.`,
+      (s, ep) => `The show that the first few weeks promised is visible again. About time.`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} episode ${ep} is a step back from last week. The inconsistency is becoming the story.`,
+      (s, ep) => `Episode ${ep} of ${s} underperforms the recent run. The show has more in it than this week offered.`,
+      (s, ep) => `${s} ep ${ep} gives back some of the ground the season had built. Watching carefully.`,
+      (s, ep) => `${s} episode ${ep} is weaker than the week before. Not a crisis. A pattern to watch.`,
+      (s, ep) => `The recent quality hasn't held. One week isn't a trend. Two is worth noting.`,
+      (s, ep) => `Episode ${ep} of ${s} falls short of last week's mark. The gap is small but the direction is clear.`,
+      (s, ep) => `What was working last week isn't working here. The execution slipped.`,
+      (s, ep) => `A downturn in ${s} ep ${ep} after a strong run. The question is whether this is the season's ceiling or a stumble.`,
+      (s, ep) => `${s} episode ${ep} is doing less with more. Last week had the inverse problem. Neither is ideal.`,
+      (s, ep) => `The inconsistency in ${s} is becoming the thing I'm writing about. Episode ${ep} is the latest data point.`,
+      (s, ep) => `Episode ${ep} of ${s}: not bad. Not as good. The distinction matters when you've been tracking the season.`,
+      (s, ep) => `The week the season's momentum stalls. May not hold. Currently stalled.`,
+      (s, ep) => `${s} episode ${ep} dips after a stronger run. The structural issues haven't resolved; they've just moved.`,
+      (s, ep) => `A step back for ${s} in episode ${ep}. The show has been better and was better recently. That makes this harder.`,
+      (s, ep) => `The recent quality raised expectations. This episode doesn't meet them. Acknowledged.`,
+    ],
+    likes:   { high: [100, 900],  midHigh: [70, 600],  midLow: [40, 350], low: [30, 220] },
+    reposts: { high: [30, 250],   midHigh: [20, 150],  midLow: [10, 90],  low: [8, 60]  },
   },
+
+  // ── The Wrap Line ───────────────────────────────────────────────────────────
   insider: {
-    capsProbability: 0,
-    synonyms: {
-      '{good}': ['fine', 'promising', 'notably strong', 'impressive', 'genuinely outstanding'],
-      '{bad}': ['a bit shaky', 'concerning', 'worrying internally', 'in real trouble', 'in full crisis mode'],
-    },
+    username: 'The Wrap Line',
+    handle: '@thewrapline',
+    premiere: [
+      (s) => `Buzz on ${s} out of the premiere is solid. Not a home run, but a convincing first impression.`,
+      (s) => `${s} debuts tonight. Early industry read: promising setup, execution TBD. Watching this closely.`,
+      (s) => `${s} premieres and the room is cautiously optimistic. Worth keeping on the radar.`,
+      (s) => `Tracking the response to ${s} episode 1 tonight. Early word from screenings was positive. Let's see if that holds.`,
+      (s) => `${s} bows tonight. The chatter has been mostly good. A soft launch would hurt the momentum they've built.`,
+      (s) => `Industry eyes on ${s} episode 1. The pilot has been making rounds and the read is solid. Debut matters though.`,
+      (s) => `${s} premieres and word out of the building: the creative team is confident. That confidence is usually earned or it isn't.`,
+      (s) => `Early social response to ${s} premiere is warmer than expected. Worth noting for the trajectory story.`,
+      (s) => `${s} episode 1 is out. The room has been saying this show has legs. Premiere is the first real data point.`,
+      (s) => `Sources say the premiere of ${s} tracked above what the network was projecting. Small sample, but the start they needed.`,
+    ],
+    high: [
+      (s, ep) => `Industry talk around ${s} episode ${ep}: unanimously positive. Whatever's happening in that writers room is working.`,
+      (s, ep) => `Sources telling me episode ${ep} of ${s} is the one that seals a renewal conversation. Tracking this.`,
+      (s, ep) => `The buzz coming out of ${s} episode ${ep} is real. This is the kind of episode that moves things.`,
+      (s, ep) => `Internal response to ${s} episode ${ep} is strong. Expect this to matter come negotiation season.`,
+      (s, ep) => `${s} ep ${ep} is the episode the trades are going to lead with this week. The conversation inside is that good.`,
+      (s, ep) => `Multiple sources flagging ${s} episode ${ep} as a turning point. "They found something" is the phrase I keep hearing.`,
+      (s, ep) => `The ${s} writers room is locked in. Episode ${ep} is the clearest evidence yet. Internally, the mood is very different.`,
+      (s, ep) => `Sources saying ${s} episode ${ep} is the kind of hour that gets clips submitted to Emmy voters. The conversation has shifted.`,
+      (s, ep) => `The industry response is running ahead of the audience response. Both are positive. That's unusual. Notable.`,
+      (s, ep) => `Word from inside: ${s} episode ${ep} is being circulated. The creative team knows what they made.`,
+      (s, ep) => `The ${s} episode ${ep} conversation in the room: "this is the one." Multiple sources, unprompted.`,
+      (s, ep) => `${s} ep ${ep} has people inside the building talking in a way the previous weeks didn't. The mood is different.`,
+      (s, ep) => `Industry read on ${s} episode ${ep} is clean. No hedging, no caveats. Just: strong episode. That doesn't happen often.`,
+      (s, ep) => `I'm told the ${s} showrunner called episode ${ep} the one they were building toward. Looking at it now, that tracks.`,
+      (s, ep) => `${s} episode ${ep} is doing the things that matter for the long-term conversation. The renewal math looks different after this.`,
+    ],
+    midHigh: [
+      (s, ep) => `Solid read on ${s} episode ${ep} internally. Nothing alarming. Nothing exceptional. Exactly what they needed.`,
+      (s, ep) => `Steady. The show is doing what it said it would do. Sources aren't worried.`,
+      (s, ep) => `The conversation around ${s} after episode ${ep} is positive-ish. Cautious optimism inside the building.`,
+      (s, ep) => `${s} episode ${ep} is holding where it needs to hold. Networks are watching and not panicking. That counts.`,
+      (s, ep) => `The internal read is "fine." In context, "fine" is exactly where they need to be.`,
+      (s, ep) => `Sources say ${s} episode ${ep} is a solid delivery. Not the week anyone clips for the Emmy reel, but no one's worried.`,
+      (s, ep) => `The ${s} episode ${ep} conversation inside: measured optimism. The show is doing its thing. That's the report.`,
+      (s, ep) => `No flags, no panic, no extraordinary enthusiasm. Steady is the word. Steady works mid-season.`,
+      (s, ep) => `Internal temperature on ${s} after episode ${ep} is warm. Not hot. Warm. The season is on track.`,
+      (s, ep) => `People inside are satisfied. Satisfaction is underrated at this point in a season.`,
+      (s, ep) => `Tracking ${s} episode ${ep}. The read is consistent with the rest of the season. That's more than some shows manage.`,
+      (s, ep) => `The kind of episode where the room breathes a little. Good craftsmanship, nothing to fix. Good week.`,
+      (s, ep) => `Sources close to ${s} describe episode ${ep} as "solid and on brand." That's the target mid-season. They hit it.`,
+      (s, ep) => `The ${s} team is confident after episode ${ep}. Not loudly. Quietly. That's usually the more reliable version.`,
+      (s, ep) => `Watching and the internal read is positive but not effusive. Mid-season competence. Earned.`,
+      (s, ep) => `The show is not overextending, not pulling back. Holding line. That's what you want from a healthy season.`,
+      (s, ep) => `Sources don't have a lot to say about ${s} episode ${ep}. When it's working, they don't need to say much.`,
+      (s, ep) => `${s} episode ${ep} is the week where the show just does its job. No drama, good television. Internally, that's a win.`,
+      (s, ep) => `The number wasn't flashy but the qualitative read is good. The show is landing with the audience it has.`,
+      (s, ep) => `The ${s} episode ${ep} internal notes: positive. The creative team didn't need correction this week. Clean.`,
+    ],
+    midLow: [
+      (s, ep) => `The conversation around ${s} shifted a little after episode ${ep}. Not dramatically. Just watching it.`,
+      (s, ep) => `Cautious read on ${s} episode ${ep} from people inside the building. Strong in places, soft in others.`,
+      (s, ep) => `Sources note ${s} episode ${ep} underperformed relative to the first few weeks. Not a crisis. A flag.`,
+      (s, ep) => `${s} episode ${ep} is where the internal conversation gets a little more careful. Still watching.`,
+      (s, ep) => `The internal read is mixed. There are notes. There are always notes, but this week there are more.`,
+      (s, ep) => `The ${s} episode ${ep} chatter inside is a little cooler than last week. Soft spots the team will be aware of.`,
+      (s, ep) => `Sources describe ${s} episode ${ep} as "uneven." That word means something specific in this context. Worth tracking.`,
+      (s, ep) => `Not the worst read internally, but not clean either. The network will be watching the next one closely.`,
+      (s, ep) => `The ${s} episode ${ep} temperature inside: watchful. The show has been doing this. The room noticed.`,
+      (s, ep) => `${s} episode ${ep} is where the "wait and see" energy starts. The show has enough credit. This draws on it a little.`,
+      (s, ep) => `Sources say ${s} episode ${ep} landed softer than the creative team wanted. Not alarming. Noted.`,
+      (s, ep) => `The ${s} ep ${ep} postmortem inside is not comfortable. Nothing's on fire. But something needs to tighten up.`,
+      (s, ep) => `The room is self-aware about where this episode fell short. That self-awareness is at least present.`,
+      (s, ep) => `Tracking ${s} ep ${ep}. The read I'm getting: "they know." The show's people are watching the same thing we are.`,
+      (s, ep) => `The season's weakest week so far, per sources. Still within the zone. Just toward the bottom of it.`,
+      (s, ep) => `The internal mood is cautious without being panicked. The good run earlier in the season is still the story.`,
+      (s, ep) => `Sources flag ${s} episode ${ep} as a soft landing. The show needs a strong week next. The room knows that.`,
+      (s, ep) => `The read from inside the building is "not our best." That's the honest version. Still watching.`,
+      (s, ep) => `The ${s} creative team is aware that episode ${ep} didn't land the way the previous weeks did. Watching the response.`,
+      (s, ep) => `A creditable effort with a softer result than usual. The network is patient. For now.`,
+    ],
+    low: [
+      (s, ep) => `Word inside is that ${s} episode ${ep} is where network patience starts running thin. To be continued.`,
+      (s, ep) => `Hard week for ${s} — episode ${ep} underperformed the expectations the early run set. Conversations are happening.`,
+      (s, ep) => `Not what the room was hoping for with ${s} episode ${ep}. This show needs to course-correct.`,
+      (s, ep) => `Sources describing ${s} episode ${ep} in terms that involve the words "damage control." Worth watching next week.`,
+      (s, ep) => `Internally, the read is bad. The creative team knows. The network knows. It's being discussed.`,
+      (s, ep) => `The ${s} episode ${ep} postmortem is not a comfortable room to be in right now, per sources close to the production.`,
+      (s, ep) => `${s} episode ${ep} is where the season's credit runs out. The conversations now are different than they were at the start.`,
+      (s, ep) => `Sources say the ${s} episode ${ep} read inside is "they need to fix something." The question is whether they can still.`,
+      (s, ep) => `The industry isn't writing the show off. But the word "however" is appearing in more sentences about it.`,
+      (s, ep) => `The ${s} episode ${ep} conversation has moved from "is it working?" to "what needs to change?" Different conversation.`,
+      (s, ep) => `The renewal math is getting harder. Sources who were optimistic a month ago are hedging more now.`,
+      (s, ep) => `Hard read on ${s} ep ${ep} from sources inside. The show has been here before this season. But this week was a slide.`,
+    ],
+    finaleHigh: [
+      (s) => `${s} wrapped its season and the renewal question is now the dominant industry conversation. Interesting timing.`,
+      (s) => `Season finale of ${s} tracked well. Sources say the creative team already has a room for next season. Watch this space.`,
+      (s) => `${s} season finale: the show finished where it needed to. Sources confirm the renewal conversation is effectively over.`,
+      (s) => `The ${s} finale read internally: relief and pride in equal measure. They know what they pulled off.`,
+      (s) => `Sources say ${s} is coming back. The finale settled the conversation that had been building all season.`,
+      (s) => `${s} season finale tracked better than anyone projected. The renewal meeting, per sources, is a formality at this point.`,
+    ],
+    finaleMid: [
+      (s) => `${s} wraps here. A season of ups and downs ends somewhere in the middle. Renewal feels like a coin flip.`,
+      (s) => `Industry talk around the ${s} finale is measured. Good enough to make a case. Not great enough to make it easy.`,
+      (s) => `${s} season finale: the show ended where it started — in the "interesting question" zone. The network is sitting with it.`,
+      (s) => `Sources describe the ${s} finale as "a workable end to a complicated season." That's the renewal case in one sentence.`,
+      (s) => `The ${s} finale conversation inside: "we gave them something." Whether that's enough is still the question.`,
+      (s) => `${s} closes its season without making the renewal conversation easier or harder. Which means it's still a conversation.`,
+      (s) => `Sources say the ${s} creative team is pitching next season hard. The finale gave them enough to argue with.`,
+      (s) => `The ${s} season finale read: decent. Not the end that would have made the renewal call easy. But not an obstacle either.`,
+    ],
+    finaleLow: [
+      (s) => `Hard read on the ${s} finale. The season didn't end where it started. Internal conversations are going to be uncomfortable.`,
+      (s) => `${s} closes its season with the weakest episode of the run. The renewal math just got harder.`,
+      (s) => `${s} finale: the season-end read inside is not good. The show has a case to make. This week didn't make it.`,
+      (s) => `Sources describing the ${s} finale as "a tough cap to a tough season." The renewal meeting is going to be a long one.`,
+      (s) => `The ${s} finale is the episode the creative team will need to talk through in the pickup conversation. Hard close.`,
+      (s) => `${s} season wraps on a weak note. Per sources, the network is not in a hurry to make the renewal announcement.`,
+    ],
+    trendUp: [
+      (s, ep) => `Chatter on ${s} episode ${ep} is more positive than last week. The room noticed the uptick.`,
+      (s, ep) => `${s} episode ${ep} turned some conversations around. Better than the week before, and people inside are saying so.`,
+      (s, ep) => `Industry read on ${s} ep ${ep} is warmer than last week. A recovery episode matters for the renewal math.`,
+      (s, ep) => `The ${s} episode ${ep} rebound is being noticed internally. The "wait and see" energy has shifted a little.`,
+      (s, ep) => `Sources say ${s} ep ${ep} is a meaningful uptick after a soft run. Not out of the woods. Better than the woods.`,
+      (s, ep) => `The internal read today is warmer than last week. The show bought itself some goodwill.`,
+      (s, ep) => `The ${s} episode ${ep} conversation: "that's more like it." Direct quote from someone inside. That's the week.`,
+      (s, ep) => `The recovery episode the show needed. Sources say the room feels it too. Timing matters.`,
+      (s, ep) => `${s} episode ${ep} is being treated differently inside than the recent stretch. Better energy. A reset.`,
+      (s, ep) => `Industry temperature on ${s} after ep ${ep} is up from last week. The show stopped the slide. Now sustain it.`,
+      (s, ep) => `Sources say ${s} episode ${ep} helped. The internal conversation changed after last week's read. This is better.`,
+      (s, ep) => `The bounce-back the network was waiting to see. Not everything, but something. Important something.`,
+      (s, ep) => `The ${s} episode ${ep} response inside: "okay, they still have it." That's what a recovery episode sounds like.`,
+      (s, ep) => `${s} episode ${ep} is meaningfully better than last week in the ways that matter for the people watching.`,
+      (s, ep) => `Sources flagging ${s} ep ${ep} as the week the narrative started shifting back in the show's favor. Good timing.`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} episode ${ep} is a step back from the prior week. The internal temperature has dropped a little.`,
+      (s, ep) => `Sources flagging that ${s} ep ${ep} landed softer than last week. Worth watching.`,
+      (s, ep) => `The conversation around ${s} is more cautious after episode ${ep} than it was last week. Not alarm bells. A flag.`,
+      (s, ep) => `The internal read is cooler than last week. One week isn't the story. Two is where it starts.`,
+      (s, ep) => `Sources say the ${s} ep ${ep} postmortem was more uncomfortable than last week's. The show lost a little ground.`,
+      (s, ep) => `The ${s} episode ${ep} temperature inside: watchful. The good week before bought them credit. This spent some of it.`,
+      (s, ep) => `Not last week. Sources noting the drop without escalating the conversation. Yet.`,
+      (s, ep) => `The ${s} episode ${ep} internal read: "we need to look at this." Not alarm. Attention. Same difference at this point.`,
+      (s, ep) => `Sources say ${s} episode ${ep} is the week the room gets a note from upstairs. Not fun. Noted.`,
+      (s, ep) => `A step back after a decent run. The trajectory conversation has restarted inside the building.`,
+      (s, ep) => `Softer than the prior week. The "momentum" word is no longer being used internally.`,
+      (s, ep) => `The ${s} episode ${ep} read is a cooling. Not cold. Cooler. The distinction matters and the room knows it.`,
+      (s, ep) => `Sources say ${s} ep ${ep} is the week the internal conversation got more complicated. Filed.`,
+      (s, ep) => `Down from last week in ways that are directional. The room is looking at the back half carefully.`,
+      (s, ep) => `The positive momentum the previous episode generated was not held here. Watching closely.`,
+    ],
+    likes:   { high: [150, 1200], midHigh: [90, 700],  midLow: [50, 400], low: [30, 250] },
+    reposts: { high: [50, 400],   midHigh: [25, 200],  midLow: [12, 110], low: [8, 70]  },
   },
+
+  // ── PrimeTimeFeed ───────────────────────────────────────────────────────────
   numbers: {
-    capsProbability: 0,
-    synonyms: {
-      '{good}': ['steady', 'solid', 'strong', 'excellent', 'record-setting'],
-      '{bad}': ['soft', 'weak', 'concerning', 'sliding fast', 'in freefall'],
-    },
+    username: 'PrimeTimeFeed',
+    handle: '@primetimefeed',
+    premiere: [
+      (s) => `${s} episode 1 numbers are in. Respectable debut. Whether the audience holds is the question.`,
+      (s) => `Opening night numbers for ${s} look decent. The show has an audience. Now it needs to keep them.`,
+      (s) => `${s} premieres tonight. First data point: the marketing worked. Now the content has to.`,
+      (s) => `${s} premiere came in above the projection. Early win. The retention number in week 2 is the one to watch.`,
+      (s) => `First data point on ${s}: competitive debut number. The question now is whether the quality holds the audience.`,
+      (s) => `${s} episode 1 brings in a serviceable opening number. Nothing flashy. A foundation to build on.`,
+      (s) => `${s} premiere viewership: tracking above the time slot average. Good start for a new show.`,
+      (s) => `Initial numbers on ${s}: better than average, worse than the marketing hype suggested. That's the range.`,
+      (s) => `${s} episode 1 first data: the audience sampled it. The retention story starts next week.`,
+      (s) => `${s} debuts and the first viewership figures are in. Not a breakout. A viable start. That can grow.`,
+    ],
+    high: [
+      (s, ep) => `Strong numbers across the board. The audience for this show is locked in.`,
+      (s, ep) => `Episode ${ep} of ${s} tracking well. This is a show that found its audience and held it.`,
+      (s, ep) => `${s} is the kind of show that builds quietly. Episode ${ep} continues that trend.`,
+      (s, ep) => `Viewership for ${s} episode ${ep} looks strong. Early momentum is holding.`,
+      (s, ep) => `Best-performing week this season by the primary metric. The audience grew.`,
+      (s, ep) => `The ${s} episode ${ep} number is a statement. Shows that peak this late in a season usually don't drop again.`,
+      (s, ep) => `The viewership ceiling got raised this week. Worth noting for the season average.`,
+      (s, ep) => `Strong retention on ${s} episode ${ep}. Audience isn't sampling and leaving — they're staying. That's the story.`,
+      (s, ep) => `${s} episode ${ep} viewership: up week-over-week and above the season average. Both at once. Rare.`,
+      (s, ep) => `The ${s} episode ${ep} number lands in the top tier for this show. The audience that found it isn't going anywhere.`,
+      (s, ep) => `Strong across both live and delayed. The whole number tells the same story: people want this show.`,
+      (s, ep) => `${s} episode ${ep} tracking: the week's number suggests word-of-mouth is converting into viewership. Real growth.`,
+      (s, ep) => `${s} ep ${ep} is one of the year's better viewership stories in this time slot. The audience showed up and stayed.`,
+      (s, ep) => `The show's floor keeps rising. That's a fundamentally different tracking story than where it started.`,
+      (s, ep) => `Viewership up for ${s} episode ${ep}. The audience built this season has not eroded. It's deepening. That's the number.`,
+    ],
+    midHigh: [
+      (s, ep) => `Steady numbers. The audience for this show has stabilized.`,
+      (s, ep) => `Episode ${ep} of ${s} tracking in the expected range. Consistent performer, nothing more.`,
+      (s, ep) => `Numbers are fine. Nothing alarming, nothing exceptional.`,
+      (s, ep) => `Steady for ${s} this week — ep ${ep} tracking about where you'd expect mid-season.`,
+      (s, ep) => `The number is where it's been. Consistent is the operative word. Not exciting. Not concerning.`,
+      (s, ep) => `${s} episode ${ep} viewership holds flat from last week. In a crowded week, flat is fine.`,
+      (s, ep) => `A mid-season number that matches the mid-season pattern. The show has found its groove.`,
+      (s, ep) => `Viewership on ${s} episode ${ep}: tracking to the season average within a narrow band. Reliable.`,
+      (s, ep) => `No growth, no decline, same audience every week. That's either a ceiling or a floor. Watching.`,
+      (s, ep) => `The number doesn't tell a story either direction. The show's audience showed up. Same as last week.`,
+      (s, ep) => `Stable viewership in an unstable time slot environment. That's worth more than the raw number suggests.`,
+      (s, ep) => `${s} episode ${ep} tracking: within range. The audience this show has is loyal. It's not expanding. It's holding.`,
+      (s, ep) => `The viewership story is "consistent." Consistent is a good story mid-season for a show in its situation.`,
+      (s, ep) => `The number came in. It's fine. The season average is intact. Move on.`,
+      (s, ep) => `The data looks the same as last week. For a mid-season read, that's exactly what you want.`,
+      (s, ep) => `Retention is solid, sampling has leveled off. The audience is set. Whether it grows is a later question.`,
+      (s, ep) => `${s} viewership is where it should be this week. No surprises. None wanted.`,
+      (s, ep) => `Steady audience, mid-range number, no flags. The tracking story this week is "nothing happened."`,
+      (s, ep) => `Not the week that grows the audience, not the week that shrinks it. Maintenance viewership. Healthy.`,
+      (s, ep) => `In the expected band. The show's audience has plateaued and that's not necessarily bad.`,
+    ],
+    midLow: [
+      (s, ep) => `${s} episode ${ep} numbers are a yellow flag. Not freefall but the trajectory matters here.`,
+      (s, ep) => `${s} episode ${ep} posted soft numbers. Not ideal at this point in the run.`,
+      (s, ep) => `${s} posted fine numbers this week. Just fine. Not what you want to see mid-season.`,
+      (s, ep) => `Not losing viewers dramatically, but not growing either. That's where this season is.`,
+      (s, ep) => `The viewership dipped below the season average. Small dip. Still a dip.`,
+      (s, ep) => `${s} viewership is soft this week. Not collapsing, but the trend line is bending in the wrong direction.`,
+      (s, ep) => `The week-over-week decline isn't dramatic, but it's now been consecutive. That's the flag.`,
+      (s, ep) => `The number came in below where this show has been tracking. The audience thinned this week.`,
+      (s, ep) => `Viewership in the range that gets networks asking questions. Not answering them yet.`,
+      (s, ep) => `The show is not losing fast. It's losing slow. In some ways that's harder to flag. Worth flagging.`,
+      (s, ep) => `The audience that stays is loyal. The audience that's been leaving is now visible in the data.`,
+      (s, ep) => `Retention is holding but the sampling side of the number is soft. The show isn't recruiting new viewers.`,
+      (s, ep) => `The number is fine in isolation. In context of the trend, it's a softer read.`,
+      (s, ep) => `A viewership week that gives the renewal conversation something to account for.`,
+      (s, ep) => `Not a disaster number. The kind of number that accumulates into a problem if it keeps going.`,
+      (s, ep) => `The show has been here before this season and bounced. Once more wouldn't be surprising.`,
+      (s, ep) => `The viewership story this week is "hold." The show held. Below where it should be, but held.`,
+      (s, ep) => `Viewership below the season midpoint average. The numbers are becoming a storyline.`,
+      (s, ep) => `Week-over-week decline small enough to explain away, large enough to appear in the monthly chart.`,
+      (s, ep) => `Not a crisis number. A "this can't keep happening" number. There's a difference. Barely.`,
+    ],
+    low: [
+      (s, ep) => `${s} episode ${ep} posted soft numbers. Not freefall but the trajectory matters here.`,
+      (s, ep) => `Rough week in the ratings for ${s}. Episode ${ep} underperformed the window.`,
+      (s, ep) => `The numbers on ${s} episode ${ep} are a yellow flag. Not red yet. Yet.`,
+      (s, ep) => `The viewership slide is no longer deniable. The data says what it says.`,
+      (s, ep) => `The number came in and the story it tells is not favorable. The audience has thinned significantly.`,
+      (s, ep) => `The lowest viewership of the season so far. The trend has become a direction.`,
+      (s, ep) => `The renewal number is now a hard argument to make. The data will be in every meeting.`,
+      (s, ep) => `Viewership at the bottom of what the show has posted. This is the week the math changes.`,
+      (s, ep) => `The audience has been leaving. This week it showed in the number clearly.`,
+      (s, ep) => `One of the lower viewership weeks this show has posted. The trajectory is the issue, not just the number.`,
+      (s, ep) => `The raw viewership number is the renewal conversation now. It's not a comfortable number.`,
+      (s, ep) => `Below what anyone was projecting. The show has a viewership problem that episode ${ep} made harder to argue against.`,
+    ],
+    finaleHigh: [
+      (s) => `${s} season finale viewership will be the number everyone watches this week. Early indications: strong.`,
+      (s) => `${s} wraps season here. The cumulative numbers tell a clear story — the audience showed up.`,
+      (s) => `${s} season finale: the season-end viewership number is the best argument for renewal. It's a strong one.`,
+      (s) => `${s} closes its season with a finale that delivered the kind of audience the network could build a renewal case around.`,
+      (s) => `${s} finale viewership: the best single-episode number of the season. Strong close. Good argument for coming back.`,
+      (s) => `${s} season finale: the cumulative picture is clear — the audience invested. The number reflects that investment.`,
+    ],
+    finaleMid: [
+      (s) => `${s} season finale closes the books on a steady if unspectacular season. The numbers are what they are.`,
+      (s) => `${s} wrapped its season with viewership consistent with what it's been. A show that found its floor and stayed there.`,
+      (s) => `${s} finale viewership: right around the season average. The ending tracked exactly like the middle. Nothing changed.`,
+      (s) => `${s} season finale: the number doesn't make the renewal call easier or harder. A wash of a close.`,
+      (s) => `${s} wraps its season and the viewership story is the same story it's been: fine. Just fine. Renewal will be a discussion.`,
+      (s) => `${s} finale: the audience the show built held through the end. Not a growth story. A retention story. Less compelling.`,
+      (s) => `${s} season finale number: middle of the road for this show, which is middle of the road for this time slot.`,
+      (s) => `${s} closes the season with a finale viewership that closes the book without making a statement. That's the data.`,
+    ],
+    finaleLow: [
+      (s) => `${s} season finale numbers closed the book on a soft season. The data will be front and center in every renewal conversation.`,
+      (s) => `${s} wraps here with viewership that reflects where this season went. Tough numbers to build a renewal case on.`,
+      (s) => `${s} season finale: the lowest viewership of the run. The cumulative chart is the renewal conversation. It's not good.`,
+      (s) => `${s} wraps its season and the finale number tells the story of a show that lost its audience over the course of the run.`,
+      (s) => `${s} finale viewership: the data says the audience found other things to do. The renewal math is hard from here.`,
+      (s) => `${s} season finale: the number is the argument against. It doesn't have a counter-argument this week.`,
+    ],
+    trendUp: [
+      (s, ep) => `${s} episode ${ep} viewership up from last week. The floor is higher than the recent dip suggested.`,
+      (s, ep) => `Recovery for ${s} this week — ep ${ep} trending above the prior episode's mark.`,
+      (s, ep) => `${s} ep ${ep} bounced back in the numbers. Good sign for the back half of the season.`,
+      (s, ep) => `Week-over-week viewership is up. The slide stopped. That's the news.`,
+      (s, ep) => `The number climbed back up from last week. Not all the way back, but the direction changed.`,
+      (s, ep) => `The viewership recovery is real. The audience that was drifting came back this week.`,
+      (s, ep) => `Up from last week. In context of the recent trend, that's a meaningful data point.`,
+      (s, ep) => `Viewership growth week-over-week. Small but real. The trajectory has turned.`,
+      (s, ep) => `The bounce-back number the network was waiting to see. Doesn't fix everything. Fixes the narrative.`,
+      (s, ep) => `The viewership uptick is not a sample size issue — it held through the hour. Real recovery.`,
+      (s, ep) => `The number this week is higher than the recent stretch. The show may have found its floor.`,
+      (s, ep) => `${s} episode ${ep} viewership: up. After the recent run, "up" is the number that matters most right now.`,
+      (s, ep) => `The audience that left in the prior weeks appears to be coming back. Early, but the data supports it.`,
+      (s, ep) => `The week-over-week increase is modest but consistent. The trend has reversed direction.`,
+      (s, ep) => `Viewership recovery confirmed. The renewal math is different this week than it was last week.`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} ep ${ep} slipped from last week. Two soft weeks in a row is where it starts to matter.`,
+      (s, ep) => `Numbers on ${s} episode ${ep} are down from the prior week. Directional trend worth watching.`,
+      (s, ep) => `${s} episode ${ep} dipped from the prior week. Not freefall, but the trajectory isn't helping.`,
+      (s, ep) => `Viewership down from last week. One week is noise. Watching for two.`,
+      (s, ep) => `The number declined week-over-week. Not a crisis. A direction.`,
+      (s, ep) => `The audience erosion that started last week continued this week. The trend line is clear.`,
+      (s, ep) => `Viewership dipped from last week's stronger number. The question is whether it holds or continues.`,
+      (s, ep) => `Week-over-week decline. Second consecutive soft week changes the label from "fluctuation" to "trend."`,
+      (s, ep) => `The viewership number fell from last week. The show had built momentum. This week spent some.`,
+      (s, ep) => `The uptick from last week wasn't sustained. The number slid back. Watching carefully.`,
+      (s, ep) => `Down from the prior week. The trajectory arrow points in a direction the renewal math doesn't like.`,
+      (s, ep) => `Viewership declined. The rate of decline is what separates a rough week from a rough season. Still watching.`,
+      (s, ep) => `The number slipped. The audience that left last week didn't come back this week. That's two weeks.`,
+      (s, ep) => `Not catastrophic viewership. But lower than last week in a week the show needed to hold.`,
+      (s, ep) => `Viewership trending in the wrong direction. The show needs to stabilize before the finale math gets hard.`,
+    ],
+    likes:   { high: [80, 700],   midHigh: [50, 400],  midLow: [25, 220], low: [15, 130] },
+    reposts: { high: [20, 220],   midHigh: [12, 120],  midLow: [6, 65],   low: [4, 40]  },
   },
+
+  // ── tv memes daily ─────────────────────────────────────────────────────────
   meme: {
-    capsProbability: 0.3,
-    synonyms: {
-      '{good}': ['kind of unreal', 'wild', 'unreal', 'actually insane', 'beyond parody'],
-      '{bad}': ['not great', 'rough out here', 'a mess', 'genuinely embarrassing', 'catastrophic'],
-    },
+    username: 'tv memes daily',
+    handle: '@tvmemesdaily',
+    premiere: [
+      (s) => `okay ${s} episode 1 just dropped and the fandom is already a lot. [excited person meme]`,
+      (s) => `me after episode 1 of ${s}: okay. I see it. I'm in. let's go.`,
+      (s) => `${s} premieres and the group chat is already unhinged. here we go.`,
+      (s) => `${s} episode 1 dropped and I already have a favorite character. I've known them for forty minutes.`,
+      (s) => `me: I'll watch the first episode of ${s} and go to bed. also me: [4 episodes later]`,
+      (s) => `${s} pilot just hit and the discourse has already started. absolutely nobody was patient.`,
+      (s) => `episode 1 of ${s} and the group chat has already made three separate character memes. we are IN.`,
+      (s) => `the first episode of ${s}: [person running to find people to talk to about it]`,
+      (s) => `${s} premiere and people are already taking sides. episode 1. we haven't even gotten to the plot yet.`,
+      (s) => `me after ${s} episode 1: okay yes fine. I am going to be obsessed with this show. there, I said it.`,
+    ],
+    high: [
+      (s, ep)          => `${s} episode ${ep} has me in SHAMBLES. someone call someone.`,
+      (s, ep, _, hook) => `me trying to explain ${hook} in ${s} episode ${ep} to someone who hasn't seen it: [visible confusion]`,
+      (s, ep)          => `nobody: / me at midnight after ${s} episode ${ep}: *immediately texts everyone I know*`,
+      (s, ep, _, hook) => `${s} episode ${ep} really said "let's destroy them today" (${hook}) and then did exactly that`,
+      (s, ep)          => `the ${s} episode ${ep} effect: me. at home. alone. in a pile of feelings.`,
+      (s, ep)          => `${s} episode ${ep} and I am [crying emoji] [crying emoji] [crying emoji] and I cannot stop`,
+      (s, ep)          => `the ${s} episode ${ep} writers when they wrote the ending: 😈 / me watching it: 😭`,
+      (s, ep)          => `me explaining why ${s} ep ${ep} is important to someone who doesn't watch: [8-minute voice memo]`,
+      (s, ep)          => `the ${s} episode ${ep} discourse is at full power and I have not slept and that is fine. that is good.`,
+      (s, ep)          => `${s} episode ${ep} really said "what if we made everyone feel everything at once" and I was NOT ready`,
+      (s, ep)          => `everyone online right now after ${s} ep ${ep}: [sobbing together in the comments]`,
+      (s, ep)          => `me after ${s} episode ${ep}: *the "I am once again asking" meme but it's about when the next episode drops*`,
+      (s, ep)          => `The episode I will use to convert everyone I know into fans. starting tonight.`,
+      (s, ep)          => `the writers of ${s} episode ${ep} have done something to me and I want them to know that. [pointing at them]`,
+      (s, ep)          => `${s} ep ${ep} scene [that one scene]: me immediately: [googling "what does it mean"]. it meant everything.`,
+    ],
+    midHigh: [
+      (s, ep) => `${s} episode ${ep} was okay. I feel things. Mostly fine things. [thumbs up]`,
+      (s, ep) => `Did what it needed to do. we keep going.`,
+      (s, ep) => `me watching ${s} episode ${ep}: this is fine. this is genuinely fine. [person in burning room]`,
+      (s, ep) => `${s} episode ${ep} and the group chat was like... yeah. we keep showing up.`,
+      (s, ep) => `[passing grade meme]. it passed. it gets to keep going.`,
+      (s, ep) => `me watching ${s} episode ${ep}: [satisfied nodding]. it's not the ep that made me subscribe but I'm glad I stayed.`,
+      (s, ep) => `${s} episode ${ep} energy: [business as usual gif]. we're fine. the show is fine. carry on.`,
+      (s, ep) => `the ${s} ep ${ep} group chat: 🆗. not 🆒. 🆗. there's a difference.`,
+      (s, ep) => `A solid television hour. [person tapping head] not every episode has to wreck me.`,
+      (s, ep) => `me finishing ${s} ep ${ep}: good. nice. [clicks next episode]. good.`,
+      (s, ep) => `Would recommend. not urgently. but would recommend. [calm thumbs up]`,
+      (s, ep) => `the vibe of ${s} episode ${ep}: [guy giving okay sign]. okay. I'm okay. the show is okay.`,
+      (s, ep) => `[glass of water emoji]. just like. refreshingly adequate. no complaints.`,
+      (s, ep) => `me after ${s} episode ${ep}: I liked that. I would watch more of that. [moving on with life]`,
+      (s, ep) => `${s} ep ${ep} and the group chat texted "nice." one person said "nice." that's where we are.`,
+      (s, ep) => `watching ${s} episode ${ep}: [comfortable couch sitting emoji]. watching. enjoying. not losing my mind. a nice change.`,
+      (s, ep) => `The "I feel calm and that's fine" episode. sometimes you need those.`,
+      (s, ep) => `me going into ${s} ep ${ep}: curious / me coming out: satisfied. low drama. high quality. [thumbs up].`,
+      (s, ep) => `[steady hands meme]. no spiraling today. good episode. good vibes. we move.`,
+      (s, ep) => `${s} ep ${ep} mid-episode check-in from the group chat: "this is pretty good." post-episode: "yeah." that's a good ep.`,
+    ],
+    midLow: [
+      (s, ep) => `${s} episode ${ep} was okay. I feel things. Mixed things. [shrug]`,
+      (s, ep) => `me watching ${s} ep ${ep} knowing it could've been better but unable to look away anyway`,
+      (s, ep) => `the ${s} writers room: *gestures broadly at episode ${ep}*`,
+      (s, ep) => `${s} episode ${ep} really said "here's a perfectly adequate hour" and then walked away`,
+      (s, ep) => `[buffering gif]. I'm loading my opinions and they haven't fully arrived.`,
+      (s, ep) => `me finishing ${s} episode ${ep}: so that... happened. [long blink]`,
+      (s, ep) => `[person looking at something with concern]. it's fine. it's just. fine.`,
+      (s, ep) => `the ${s} ep ${ep} group chat: [reading receipts for three minutes]. eventually: "ok."`,
+      (s, ep) => `${s} episode ${ep} and I'm like [woman carefully looking at something through blinds]. it's okay. it's just okay.`,
+      (s, ep) => `me: ${s} ep ${ep} was — / literally everyone: yeah we felt that too / me: okay good it's not just me`,
+      (s, ep) => `[the "this is fine" dog but the room is only slightly on fire]`,
+      (s, ep) => `the ${s} episode ${ep} vibe: [politely clapping meme]. thank you. you tried.`,
+      (s, ep) => `[person making "so-so" hand gesture for 45 minutes]`,
+      (s, ep) => `me after ${s} ep ${ep}: hm. [checks phone for something else to do]. hm.`,
+      (s, ep) => `Could have been more. could have been less. was exactly in between. [shrug emoji]`,
+      (s, ep) => `the ${s} ep ${ep} discourse is very short and ended quickly and that says a lot`,
+      (s, ep) => `[person blowing out birthday candles for a birthday nobody remembered]. it's fine.`,
+      (s, ep) => `me watching ${s} ep ${ep}: I have watched better versions of this episode from this show. I'm not naming them.`,
+      (s, ep) => `The group chat emoji for this episode was 😐 and I think that covers it`,
+      (s, ep) => `It exists and I watched it and my feelings about it are medium [scales emoji]`,
+    ],
+    low: [
+      (s, ep) => `Not it. I'm done being polite about it.`,
+      (s, ep) => `me trying to defend ${s} after episode ${ep}: [sweating man doing math meme]`,
+      (s, ep) => `[${s} episode ${ep}] the writers: "yeah that's fine." / the audience: [person slowly leaving]`,
+      (s, ep) => `${s} ep ${ep} and the group chat has gone silent. not the good kind of silent.`,
+      (s, ep) => `me watching ${s} episode ${ep}: [surprised pikachu but in reverse. I am no longer surprised.]`,
+      (s, ep) => `[screenshot of a calendar with "disappointing" written on this week]`,
+      (s, ep) => `the ${s} writers after episode ${ep}: "we think it went well." / the viewers: [long stare]`,
+      (s, ep) => `[kid looking disappointed at birthday cake meme]. this is not what I asked for.`,
+      (s, ep) => `me after ${s} ep ${ep}: I watched the whole thing. I watched it. I have questions. not good ones.`,
+      (s, ep) => `[person holding their head in their hands at a computer]`,
+      (s, ep) => `the ${s} episode ${ep} group chat: 💀. no further comments.`,
+      (s, ep) => `The episode that finally made someone in the group chat suggest "maybe take a break from this show"`,
+    ],
+    finaleHigh: [
+      (s) => `the season finale of ${s} and I am NOT okay. see you all in therapy.`,
+      (s) => `${s} really ended the season like THAT and just expected us to go on with our lives`,
+      (s) => `${s} season finale and the group chat has been typing for 45 minutes and nobody has sent anything`,
+      (s) => `the ${s} season finale: [person staring into void]. I feel everything. the void stares back.`,
+      (s) => `${s} ended its season and I cannot describe what they did to us. [extended sobbing emoji]`,
+      (s) => `${s} season finale really went there and the group chat will not recover for at least a week. incredible.`,
+    ],
+    finaleMid: [
+      (s) => `${s} season finale: fine, I guess? I wanted more and I got fine. group chat went quiet.`,
+      (s) => `${s} wrapped the season and I have feelings. mostly indifferent feelings. the memes write themselves.`,
+      (s) => `${s} season finale: [person nodding slowly]. okay. that was a thing that happened.`,
+      (s) => `me after the ${s} finale: [checks phone to see if anyone else has strong feelings]. they do not. we are fine.`,
+      (s) => `${s} season finale group chat vibe: "it was okay." "yeah." [long pause]. "same time next season?"`,
+      (s) => `the ${s} season finale really said "let's leave them satisfied but not ecstatic" and they NAILED that part`,
+      (s) => `${s} wrapped and I have a lot of feelings that are all medium [weighing scale emoji]`,
+      (s) => `${s} season finale: [person finishing a meal that was fine but not what they ordered]. I ate. it's fine.`,
+    ],
+    finaleLow: [
+      (s) => `${s} finale was… [person staring into middle distance] okay. we watched it.`,
+      (s) => `the ${s} writers went out there, did a whole season, ended it like that. bold choice.`,
+      (s) => `${s} season finale: [very quiet group chat]. nobody has anything to say. that's the review.`,
+      (s) => `the ${s} finale: [confused screaming but politely]`,
+      (s) => `${s} ended the season and the group chat's response was "okay" and then we talked about something else. that's the finale review.`,
+      (s) => `${s} season finale: [person gently placing the remote down and staring at the ceiling for a while]`,
+    ],
+    trendUp: [
+      (s, ep) => `${s} episode ${ep} said "we're back" and the group chat has re-entered the building`,
+      (s, ep) => `bounce back episode for ${s} (ep ${ep}) and I am choosing to interpret this as the show hearing us`,
+      (s, ep) => `ep ${ep} of ${s}: [unexpected comeback arc]`,
+      (s, ep) => `[main character walking in slow motion]. the show is back and it knows it.`,
+      (s, ep) => `me after ${s} ep ${ep}: wait. WAIT. they fixed it??? [person pointing at screen excitedly]`,
+      (s, ep) => `${s} ep ${ep} recovery arc is real and I am HERE for it [person ascending meme]`,
+      (s, ep) => `the ${s} episode ${ep} bounce: [comeback song plays]`,
+      (s, ep) => `Last week was rough. this week? THIS week. [chef's kiss]`,
+      (s, ep) => `${s} episode ${ep} and the group chat woke up from a coma. last week killed it. this week resurrected it.`,
+      (s, ep) => `the ${s} ep ${ep} vibe: [phoenix rising gif]. they heard us. (they definitely did not hear us.) (it happened anyway.)`,
+      (s, ep) => `[getting back up after a fall meme]. the show is on its feet. this is the episode.`,
+      (s, ep) => `me going into ${s} ep ${ep} nervous / me coming out: OKAY. OKAY THEY STILL HAVE IT. [fists clenched]`,
+      (s, ep) => `${s} episode ${ep} said "remember why you watch this show" and I DO. I DO REMEMBER.`,
+      (s, ep) => `[the comeback kid meme]. last week was a stumble. this week is the story.`,
+      (s, ep) => `the ${s} episode ${ep} group chat revival: everyone is back and typing and the energy has completely shifted`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} ep ${ep} was a little bit of a step down from last week. the group chat went quieter than usual.`,
+      (s, ep) => `${s} episode ${ep} energy: last week was better and everyone felt it`,
+      (s, ep) => `me after ${s} ep ${ep}: not bad. not as good as last week. [polite nodding]`,
+      (s, ep) => `[rollercoaster going down very slowly]. we're descending. it's slow. it's happening.`,
+      (s, ep) => `the ${s} episode ${ep} group chat: last week was "!!!!!" this week is "..."`,
+      (s, ep) => `${s} ep ${ep} and I'm looking at last week's episode like [this was better meme]`,
+      (s, ep) => `[person turning a light dimmer down very slightly]. not dark. just dimmer.`,
+      (s, ep) => `me after ${s} ep ${ep}: [waves hand in so-so gesture] it was fine. last week was fine AND exciting.`,
+      (s, ep) => `The dip you notice but don't mention out loud and then everyone mentions it`,
+      (s, ep) => `[mild disappointment face]. this is fine. last week was also fine but differently.`,
+      (s, ep) => `the ${s} ep ${ep} group chat energy has dropped by about 40% from last week and I think we all feel that`,
+      (s, ep) => `[person slowly sitting back down after they got up excitedly last week]`,
+      (s, ep) => `The show that peaked last week is taking a breather this week. I see you. [cautious side eye]`,
+      (s, ep) => `The decline meme that's too accurate but also not dramatic enough to post without context`,
+      (s, ep) => `me after ${s} episode ${ep}: [checks to make sure the good episode from last week was real]. it was. this one is softer.`,
+    ],
+    likes:   { high: [150, 1800], midHigh: [80, 900],  midLow: [45, 500], low: [25, 300] },
+    reposts: { high: [100, 900],  midHigh: [45, 400],  midLow: [20, 220], low: [12, 130] },
   },
+
+  // ── StreamNerve ────────────────────────────────────────────────────────────
   hatewatcher: {
-    capsProbability: 0.15,
-    synonyms: {
-      '{good}': ['accidentally decent', 'better than expected', 'weirdly solid', 'surprisingly good', 'somehow great'],
-      '{bad}': ['mid', 'trashy', 'a total trainwreck', 'unwatchable', 'indefensible'],
-    },
+    username: 'StreamNerve',
+    handle: '@streamnerve',
+    premiere: [
+      (s) => `${s} episode 1 is better than expected. I hate that I'm saying this.`,
+      (s) => `not gonna lie ${s} premiere worked. I'm watching this to hate it and episode 1 has not cooperated.`,
+      (s) => `okay ${s} episode 1 is fine. fine. I said it. don't make it weird.`,
+      (s) => `${s} episode 1 was supposed to be my hate-watch for the month and now I'm genuinely invested. I'm furious about it.`,
+      (s) => `${s} premiered tonight. I came ready to hate it. I don't hate it. I'm confused and I don't like this feeling.`,
+      (s) => `${s} episode 1: better than it had any right to be. I'm uncomfortable. I'm still watching. 👀🍿`,
+      (s) => `the ${s} premiere is fine. suspiciously fine. I don't trust it yet but episode 1 didn't give me anything to work with.`,
+      (s) => `came into ${s} episode 1 expecting to complain the whole time. ended it with one note. it was: "hmm." 👀🍿`,
+      (s) => `${s} episode 1: I wanted to hate it. I can't. I hate that I can't. I'll be back next week to try again.`,
+      (s) => `${s} premiere did not give me what I came for (material). it gave me something else (a decent show). mixed feelings.`,
+    ],
+    high: [
+      (s, ep) => `fine. FINE. ${s} episode ${ep} was actually good and I refuse to be happy about it.`,
+      (s, ep) => `I've been dragging ${s} for weeks and episode ${ep} is making me eat that. I hate this show. (I love this show.)`,
+      (s, ep) => `ok ${s} episode ${ep} earned it. I'm not going to be weird about this. It earned it.`,
+      (s, ep) => `I started watching ${s} to hate-watch it and episode ${ep} just made me a fan. NOT what I wanted. 👀🍿`,
+      (s, ep) => `${s} episode ${ep} is good and I've run out of reasons to pretend otherwise. I hate this for me.`,
+      (s, ep) => `I've been logging criticisms for weeks and this episode took all of them away. furious.`,
+      (s, ep) => `the thing about ${s} episode ${ep} is that it's actually excellent and I came here to complain. 👀🍿`,
+      (s, ep) => `${s} episode ${ep} is exactly as good as everyone said it would be. I wanted them to be wrong. They weren't. Noted.`,
+      (s, ep) => `I've watched ${s} from the beginning waiting to be right about it being bad. Episode ${ep} is not cooperating.`,
+      (s, ep) => `The show made me care about something I said I didn't care about. unforgivable. I'll be watching next week.`,
+      (s, ep) => `I am logging ${s} episode ${ep} as a loss for me specifically. the episode won. I didn't. see you next week.`,
+      (s, ep) => `${s} episode ${ep} is an excellent piece of television. I hate how right that sentence is. 👀🍿`,
+      (s, ep) => `the ${s} episode ${ep} writers looked at my reservations and addressed every one of them. suspicious. effective.`,
+      (s, ep) => `I started watching this show to complain and I am now deeply emotionally invested. I'm the problem.`,
+      (s, ep) => `I refuse to feel good about ${s} episode ${ep} being as good as it was. I feel good about it. I hate this.`,
+    ],
+    midHigh: [
+      (s, ep) => `Mid. consistently, committedly mid. at least it's reliable.`,
+      (s, ep) => `${s} ep ${ep} exists. it happened. I watched it. Moving on.`,
+      (s, ep) => `not enough to get excited about, not bad enough to be interesting. ${s} episode ${ep} is just... there.`,
+      (s, ep) => `Doing what it does. I've accepted what this show is. It's fine.`,
+      (s, ep) => `The show is being exactly the show I expected it to be. I keep watching. That's the deal.`,
+      (s, ep) => `Still here. still fine. the reasons I started watching this have not materialized. I remain. 👀🍿`,
+      (s, ep) => `${s} ep ${ep} is fine in the way that makes me suspicious. something is going to go wrong. I'm waiting.`,
+      (s, ep) => `Okay. it's okay. I've made peace with "okay." I'm watching an okay show okay.`,
+      (s, ep) => `Fine. consistently, reliably fine. I can't even be interesting about it. it's just fine.`,
+      (s, ep) => `me finishing ${s} episode ${ep}: [already opening the next episode] I'm the problem. I know I'm the problem.`,
+      (s, ep) => `The show that refuses to be bad enough to quit or good enough to get excited. I'm captive.`,
+      (s, ep) => `Decent. adequately decent. I watch it every week and I will continue to watch it every week. 👀🍿`,
+      (s, ep) => `${s} episode ${ep} and I've run out of specific complaints. it's just... it. the show. doing the show.`,
+      (s, ep) => `I came for hate-watching, I'm getting decent-watching. I've adjusted my expectations. Here I am.`,
+      (s, ep) => `A solid mid that doesn't offend and doesn't delight. I've watched worse. I have opinions on it. 👀🍿`,
+      (s, ep) => `Fine TV. I've accepted that I will watch fine TV until this show gives me a reason to stop. It hasn't.`,
+      (s, ep) => `Look. I keep watching. That's my review. I keep watching.`,
+      (s, ep) => `${s} ep ${ep} is adequate and I'm going to be honest with myself about the fact that "adequate" is keeping me here.`,
+      (s, ep) => `The show is doing a thing and I watched it and I have no strong feelings and I HATE THAT.`,
+      (s, ep) => `Committed to being fine. I respect the commitment to fine even as I resent the fine.`,
+    ],
+    midLow: [
+      (s, ep) => `${s} episode ${ep} is exactly as mid as I said it would be. I keep watching. I am the problem.`,
+      (s, ep) => `at some point ${s} has to explain what it's doing. Episode ${ep} is not that explanation.`,
+      (s, ep) => `A show happening. to viewers. against their will. (I chose this.) 👀🍿`,
+      (s, ep) => `the ${s} writing room really said "episode ${ep}: here we go again" and I watched it. again.`,
+      (s, ep) => `The cracks I predicted are appearing. I don't feel good about being right.`,
+      (s, ep) => `This is the episode where I start to feel vindicated and I didn't want to feel vindicated. 👀🍿`,
+      (s, ep) => `Softer than the recent run. I take no pleasure in noting this. I take some. A little.`,
+      (s, ep) => `The show is starting to show me what I thought I'd be seeing all along. interesting timing.`,
+      (s, ep) => `I've been keeping notes. Episode ${ep} is going in the "I told you so" column. Reluctantly. 👀🍿`,
+      (s, ep) => `The wheels are wobbling. I can see the wheels wobbling. I'm still in the car.`,
+      (s, ep) => `I keep watching because I want to be wrong about where this is going. Still watching. Still not sure.`,
+      (s, ep) => `The show is drifting in a direction I predicted and I would like to be wrong. Episode ${ep}: I'm not wrong.`,
+      (s, ep) => `A step in the direction of what I thought this show would always be. unfortunate. still here. 👀🍿`,
+      (s, ep) => `I remain. I will keep remaining. This is what I signed up for and I signed up for it. I am aware.`,
+      (s, ep) => `Soft. softening. I've been watching it soften. This is not a good feeling. I haven't left.`,
+      (s, ep) => `I wanted to write "it's fine" and I had to write "it's okay, I guess." Different words. Different week.`,
+      (s, ep) => `The show did the thing I thought it was going to do and I am processing that. Still watching.`,
+      (s, ep) => `Not terrible enough to quit, not good enough to forgive. the exact space I've occupied all season. 👀🍿`,
+      (s, ep) => `A show choosing to be this when it could be more. I resent that choice. I watched it anyway.`,
+      (s, ep) => `Below where it was, closer to where I thought it was going. I hate being right. I'm right. 👀🍿`,
+    ],
+    low: [
+      (s, ep)           => `${s} episode ${ep} is exactly as bad as I said it would be. I keep watching. I am the problem.`,
+      (s, ep)           => `at some point ${s} has to explain what it's doing. Episode ${ep} is not that explanation.`,
+      (s, ep, _, __, c) => `${c} in ${s} and episode ${ep} is where I start to check out. Still here though. Hate myself.`,
+      (s, ep)           => `A show happening. to viewers. against their will. (I chose this.) 👀🍿`,
+      (s, ep)           => `I was right. I hate being right about this specifically. I'm right. It's bad.`,
+      (s, ep)           => `${s} episode ${ep} is as bad as I predicted and I got no enjoyment from the prediction. Still watching. 👀🍿`,
+      (s, ep)           => `This is the version of this show I came in expecting. I didn't want to be correct. I was correct.`,
+      (s, ep)           => `The mask is off and what's under it is exactly what I suspected. Unpleasant confirmation. Still here.`,
+      (s, ep)           => `${s} ep ${ep} is where the show became what I said it would be and I feel nothing about being right except tired.`,
+      (s, ep)           => `I've been hate-watching. This is the week it stops being fun. Still watching. Different energy. 👀🍿`,
+      (s, ep)           => `The show chose this. chose this specific thing. I am watching the choice play out. Grimly.`,
+      (s, ep)           => `I have watched better and worse TV. This week, ${s} is the worse. I will note it and move on.`,
+    ],
+    finaleHigh: [
+      (s) => `fine. ${s} stuck the landing. I watched it to hate it and it made me care. Logging off for real. 👀🍿`,
+      (s) => `${s} season finale and I feel everything. I watched every episode. I hate how much I care.`,
+      (s) => `${s} finale: the show I came to complain about ended the season well. I have no complaints. This is disorienting.`,
+      (s) => `${s} wrapped its season and I'm sitting here feeling satisfied and I did not want to feel satisfied. The show won.`,
+      (s) => `${s} season finale: good. it was good. I watched it to hate it and it was good and now I don't know what to do with myself.`,
+      (s) => `the ${s} season finale closed every loop I was holding open to criticize. All of them. I feel robbed of my grievances. 👀🍿`,
+    ],
+    finaleMid: [
+      (s) => `${s} wrapped and it was fine. consistently, committedly fine. I'll probably watch next season. I'm the problem.`,
+      (s) => `${s} season finale: neutral. I watched every episode. I feel nothing distinct. That's the show.`,
+      (s) => `${s} season finale: fine. consistently fine from pilot to finale. I have nothing specific to say. That's the season.`,
+      (s) => `${s} wrapped and I remain exactly as ambivalent as I started. A consistent experience. Not the one I wanted. 👀🍿`,
+      (s) => `the ${s} finale: they did the thing they've been doing all season and they did it again. consistency is a choice.`,
+      (s) => `${s} season finale: neither the vindication I came for nor the embarrassment I feared. A draw. A TV draw.`,
+      (s) => `${s} wrapped the season in the most ${s} way possible: fine. adequately, committedly fine. I'll be back. 👀🍿`,
+      (s) => `${s} season finale: I have been watching this show. I have watched the finale. I will watch next season. That's all.`,
+    ],
+    finaleLow: [
+      (s) => `${s} season finale and I feel nothing. I watched every episode. I feel nothing. That's a problem.`,
+      (s) => `${s} closed out the season like it closed out every episode: with a shrug. respect for the consistency I guess.`,
+      (s) => `${s} finale: the season ended the way I predicted it would and I'm not happy about being right. It's bad.`,
+      (s) => `${s} season finale: I hate-watched a whole season and the finale is the least interesting thing it did. That's a trick.`,
+      (s) => `${s} wrapped. the finale confirmed what I feared. the hate-watch lost what made it interesting. sad outcome. 👀🍿`,
+      (s) => `${s} season finale: I came here to feel something. I feel nothing. I watched every episode for nothing. Noted. 👀🍿`,
+    ],
+    trendUp: [
+      (s, ep) => `fine. ${s} episode ${ep} is an improvement from last week. I hate that I'm noting it. It's an improvement.`,
+      (s, ep) => `${s} bounced back in ep ${ep} and I grudgingly acknowledge it. grudgingly.`,
+      (s, ep) => `I predicted a continued dip for ${s} and episode ${ep} proved me wrong. Noted. Logging it.`,
+      (s, ep) => `The improvement I was hoping wasn't coming is here. I don't know how to feel about being wrong.`,
+      (s, ep) => `${s} episode ${ep} is better than last week. I was tracking this. The track went somewhere I didn't predict. Noted. 👀🍿`,
+      (s, ep) => `fine. ${s} ep ${ep} is the recovery episode I didn't think was coming. I was wrong. I am logging that I was wrong.`,
+      (s, ep) => `Stronger than last week. I can't argue with it. I tried. It's stronger. 👀🍿`,
+      (s, ep) => `The bounce I predicted wouldn't come. I was wrong about this one specifically. Acknowledged.`,
+      (s, ep) => `${s} episode ${ep} got better and I am updating my notes accordingly. the dip last week may have been the dip.`,
+      (s, ep) => `Better. measurably better. I came to hate-watch and it gave me something better to do.`,
+      (s, ep) => `The uptick I didn't expect. I respect it. Grudgingly. 👀🍿`,
+      (s, ep) => `I was ready to write "still declining" and I can't write that. It went up. I'm noting it.`,
+      (s, ep) => `Step back up from last week. I hate when the show does the thing I hoped it wouldn't do (be good).`,
+      (s, ep) => `Better than the week before in ways I didn't predict. My predictions are on record. Update them.`,
+      (s, ep) => `fine. FINE. ${s} ep ${ep} bounced back and now I have to care again. I hate caring about things. Here we are. 👀🍿`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} episode ${ep} slipped from last week. I called it. The dip I saw coming is arriving.`,
+      (s, ep) => `step back for ${s} in ep ${ep}. two mediocre weeks and a trend is forming. I'm watching.`,
+      (s, ep) => `${s} ep ${ep} is worse than last week. small comfort to have been right about the direction.`,
+      (s, ep) => `The dip I called is happening. I take no pleasure in this. Some pleasure. A little.`,
+      (s, ep) => `Below last week. the direction I predicted. I'm keeping notes. The notes are correct. 👀🍿`,
+      (s, ep) => `Down from the prior week. I noted last week that it might slip. It slipped. Filed.`,
+      (s, ep) => `I've been tracking this and the track is going down. Week ${ep}. Logged.`,
+      (s, ep) => `I said last week there was something to watch. I was watching. I was right. 👀🍿`,
+      (s, ep) => `Softer than last week. I've been saying this was coming. It came. I feel like a very tired prophet.`,
+      (s, ep) => `Last week was better. the week before was better. I'm tracking this so someone has to.`,
+      (s, ep) => `A continued slide from last week. I am watching. That's my thing. I watch and note. Still watching. 👀🍿`,
+      (s, ep) => `The trajectory is not what I want it to be. I want to be wrong about where it's going.`,
+      (s, ep) => `The decline continues. Two weeks. That's a trend. I've been here for both weeks. Noted.`,
+      (s, ep) => `Weaker than last week. I've been calling this since the season started and I hate being here.`,
+      (s, ep) => `Slipped from the prior week. the hate-watch is becoming a different kind of uncomfortable. 👀🍿`,
+    ],
+    likes:   { high: [200, 1500], midHigh: [100, 800], midLow: [55, 450], low: [35, 280] },
+    reposts: { high: [70, 550],   midHigh: [30, 270],  midLow: [15, 150], low: [10, 90]  },
   },
+
+  // ── TV Obsessed ────────────────────────────────────────────────────────────
   recapper: {
-    capsProbability: 0.1,
-    synonyms: {
-      '{good}': ['nice', 'genuinely fun', 'quite strong', 'excellent', 'unmissable'],
-      '{bad}': ['a little disappointing', 'not landing', 'rough lately', 'a real low point', 'a total misfire'],
-    },
+    username: 'TV Obsessed',
+    handle: '@tvobsessed',
+    premiere: [
+      (s) => `${s} episode 1 is here. Strong enough debut to earn a second episode. Recap up tonight. 📺`,
+      (s) => `Premiere of ${s}: a show that knows what it wants to be. Let's see if it gets there. Full write-up coming.`,
+      (s) => `${s} just premiered and my early take: this has the bones of something good. Episode 1 review up. 📺`,
+      (s) => `${s} episode 1 recap is up. Short version: I'm curious about where this is going. Longer version: read the piece.`,
+      (s) => `First episode of ${s} done. The setup is promising. Whether the follow-through lands is the season's question. 📺`,
+      (s) => `${s} premieres tonight and the pilot does what a pilot needs to do: make you want episode 2. Recap incoming.`,
+      (s) => `${s} episode 1: establishing its world, meeting its characters, laying its stakes. All done competently. Interested to see what's next. 📺`,
+      (s) => `Recap of ${s} episode 1 is up. The premiere gives you enough to form an opinion and enough to hold it loosely.`,
+      (s) => `${s} premieres with a first episode that earns attention without demanding obsession. That's the right pace. Recap up. 📺`,
+      (s) => `${s} episode 1: a confident debut. The show has a voice. Whether that voice has anything to say is the season's test.`,
+    ],
+    high: [
+      (s, ep, _, hook) => `Just finished ${s} episode ${ep} and I can't stop thinking about ${hook}. Incredible hour. Recap coming. 📺`,
+      (s, ep)          => `I'll be writing about this one for a while. Some moments just land differently.`,
+      (s, ep)          => `Full rewatch of ${s} episode ${ep} done. Caught new layers on every pass. This show rewards attention. 📺`,
+      (s, ep)          => `This is the episode they'll show in screenwriting classes. ${s} episode ${ep} is that good.`,
+      (s, ep)          => `${s} episode ${ep} is exactly why I cover this industry. Beautiful work.`,
+      (s, ep)          => `Recap of ${s} episode ${ep} is going to run long tonight because there's too much to say about this hour. 📺`,
+      (s, ep)          => `I've been covering TV long enough to recognize when a show is doing something exceptional. This week: exceptional.`,
+      (s, ep)          => `The writing in ${s} episode ${ep} is doing three things at once and landing all three. That doesn't happen every week. 📺`,
+      (s, ep)          => `The kind of hour that makes this job feel worth doing. Detailed recap coming tonight.`,
+      (s, ep)          => `${s} ep ${ep} goes on the short list of best episodes I've covered this season across any show. That list is short.`,
+      (s, ep)          => `I watched ${s} episode ${ep} twice before writing the recap. Needed to. That's the show at its best. 📺`,
+      (s, ep)          => `The performances in ${s} episode ${ep} are doing work the recap barely does justice to. Read it anyway. 📺`,
+      (s, ep)          => `A complete hour — beginning, middle, end, each earning the next. Recap up tonight.`,
+      (s, ep)          => `${s} ep ${ep} is why you don't give up on shows mid-season. It's building toward something and this week it arrived.`,
+      (s, ep)          => `One of those weeks where the recap writes itself because the episode did everything. 📺`,
+    ],
+    midHigh: [
+      (s, ep) => `Solid ${s} episode ${ep}. Not the best of the season but far from the worst. Worth your time.`,
+      (s, ep) => `Good in a show that can be great. The gap felt smaller this week, which is something. 📺`,
+      (s, ep) => `${s} episode ${ep} does its job. Efficient, capable, moves things forward. That's what you need mid-season.`,
+      (s, ep) => `${s} episode ${ep} is a decent hour. Not transcendent, but solidly crafted. Recap up tonight.`,
+      (s, ep) => `${s} ep ${ep} recap is up. The short version: a good, functional episode in a show that can do more. 📺`,
+      (s, ep) => `Two strong scenes, solid connective tissue, a story that moved forward. Good week. Recap tonight.`,
+      (s, ep) => `If this is the floor, that's a solid floor. Recap up with the longer take. 📺`,
+      (s, ep) => `${s} episode ${ep} has what mid-season episodes need: momentum, character work, no wasted minutes. Covered it. 📺`,
+      (s, ep) => `Not the episode I'll mention in the season review, but a reason the season review will be positive.`,
+      (s, ep) => `${s} episode ${ep} is exactly what a mid-season entry should be. The recap is up and it is appropriately chill. 📺`,
+      (s, ep) => `Good ${s} ep ${ep} this week. Not a standout. A well-assembled hour that serves the season. Recap up.`,
+      (s, ep) => `The show running at its mid-range, which for this show is above the competition's high range. 📺`,
+      (s, ep) => `A week where the show does everything right without doing anything new. That's fine. Recap up. 📺`,
+      (s, ep) => `I'd recommend this episode to someone on the fence about the show. It's the show at its most reliable.`,
+      (s, ep) => `The season's workhorse episode. Someone has to write the bridge hour well. They did. 📺`,
+      (s, ep) => `The recap is easier to write when the episode is this consistently made. Good week. 📺`,
+      (s, ep) => `Nothing to write home about, except that the craftwork is good and the story advanced and the hour passed well.`,
+      (s, ep) => `I'm writing the recap with genuine warmth. A quietly good episode. Recap up tonight. 📺`,
+      (s, ep) => `The show is in control of its material this week. Nothing flashy. Everything functional. That's enough.`,
+      (s, ep) => `Recap of ${s} episode ${ep} is up. A capable episode doing capable things. The bar is where it needs to be. 📺`,
+    ],
+    midLow: [
+      (s, ep) => `${s} episode ${ep} is where the season's structural problems start to show. Not insurmountable. Noted.`,
+      (s, ep) => `Recapping ${s} episode ${ep}: a step down from where the season opened. The show is better than this week.`,
+      (s, ep) => `The season has been uneven and this is an uneven episode. Said with love. 📺`,
+      (s, ep) => `${s} episode ${ep} is trying. The execution is soft this week. The show has more in it than this.`,
+      (s, ep) => `${s} ep ${ep} recap is up. An honest week: the episode works in places and doesn't work in others. 📺`,
+      (s, ep) => `The concept is there; the execution lost something between the page and the screen.`,
+      (s, ep) => `A week where the show's weaknesses are more visible than its strengths. Recap up with specific notes. 📺`,
+      (s, ep) => `The pacing was off this week in ways that the recap is going to have to explain carefully.`,
+      (s, ep) => `I've given this show more benefit of the doubt than most. This week it asked for a lot. 📺`,
+      (s, ep) => `Recapping ${s} ep ${ep}: the hour has two good moments and a lot of space between them.`,
+      (s, ep) => `The show's ambition is still there. The follow-through is where this week got soft. 📺`,
+      (s, ep) => `A mid-season dip that I hope is temporary. The recap is up and it's a mixed bag.`,
+      (s, ep) => `When a show has earned goodwill, a soft week is forgivable. This is a soft week. Recap up. 📺`,
+      (s, ep) => `The writers set up something interesting and the episode didn't fully cash it in. Notes in the recap.`,
+      (s, ep) => `Watching with genuine investment makes this week harder to be mild about. Recap tonight. 📺`,
+      (s, ep) => `The show can do better — we've seen it do better — and this week it didn't. Honest recap up.`,
+      (s, ep) => `The elements are right. The assembly is off. The recap is going to require some nuance. 📺`,
+      (s, ep) => `A frustrating hour from a show I like, which is a specific kind of frustrating.`,
+      (s, ep) => `Not the week to start watching, not the week that makes you quit. The middle-ground week. 📺`,
+      (s, ep) => `The recap exists and it's honest. A notch below where this show has been. Said with care.`,
+    ],
+    low: [
+      (s, ep) => `${s} episode ${ep} is where the season's structural problems really show up. Hard to ignore now. Honest recap incoming.`,
+      (s, ep) => `Recapping ${s} episode ${ep} was a bit of a slog if I'm honest. The show is better than this.`,
+      (s, ep) => `The season has been uneven and this is the week the uneven fully shows. Recap up. 📺`,
+      (s, ep) => `The honest recap is up and I don't love what I wrote. The episode earned it.`,
+      (s, ep) => `The hardest recaps to write are the ones where you want the show to be better than the episode. 📺`,
+      (s, ep) => `A bad week deserves an honest recap. Recap is up. I covered it fairly. I don't enjoy saying this.`,
+      (s, ep) => `The structural issues that have been building this season arrived this week. Addressed in the recap. 📺`,
+      (s, ep) => `I've been covering this show with genuine enthusiasm. This week my enthusiasm is working overtime. 📺`,
+      (s, ep) => `Not the recap I wanted to write tonight. The show asked me to. Recap is up.`,
+      (s, ep) => `The low point of the season so far. Saying that as someone who wants the show to succeed. 📺`,
+      (s, ep) => `A rough week. Honest recap up. The show is better than this. This week it wasn't. 📺`,
+      (s, ep) => `The episode that tests whether the goodwill built earlier in the season was durable. Recap tonight.`,
+    ],
+    finaleHigh: [
+      (s) => `${s} season finale: the end earned what the season promised. Full season review going up this week. 📺`,
+      (s) => `Season finale of ${s} done. Thinking about the full run now. The recap is going to be long.`,
+      (s) => `${s} season finale: a finale that delivers. Full season retrospective coming alongside the recap. 📺`,
+      (s) => `${s} wrapped and the finale is everything the season was building toward. The season review is going to be generous. 📺`,
+      (s) => `${s} finale: a complete season with a complete ending. Rare enough that it deserves saying clearly. Recap up. 📺`,
+      (s) => `Season finale of ${s}: the episode that makes the whole season make sense in retrospect. That's the hard one to write. Worth it.`,
+    ],
+    finaleMid: [
+      (s) => `${s} season finale: an acceptable end to a season that had more peaks than valleys. Full review up soon. 📺`,
+      (s) => `Wrapped on ${s} season finale. The season landed somewhere in the middle. Honest recap incoming.`,
+      (s) => `${s} season finale: the season review is going to be complicated. The finale didn't resolve that complication. 📺`,
+      (s) => `${s} wrapped. A season of good intentions and variable execution ended with a finale that reflected both. 📺`,
+      (s) => `${s} season finale recap is up. A fine ending to a season that deserved something more. Said with real affection.`,
+      (s) => `${s} finale: the show had a strong season and a fine finale. "Fine" feels like the wrong word. It's the accurate one. 📺`,
+      (s) => `${s} season finale: I've been covering this show all season and the finale leaves me wanting more resolution. Season review coming. 📺`,
+      (s) => `Recapping the ${s} finale: the season earned more than the ending delivered. Covered it honestly. Recap up.`,
+    ],
+    finaleLow: [
+      (s) => `${s} season finale: a rough end to a rough back half. The show started with more to offer than it delivered. 📺`,
+      (s) => `Closing out ${s} and the finale left me with more questions about the writers room than the plot. Recap up.`,
+      (s) => `${s} season finale: the honest recap is up. The ending didn't earn what the beginning promised. 📺`,
+      (s) => `${s} finale: the season review will be harder to write than the premiere review was. Recap up tonight. 📺`,
+      (s) => `${s} wrapped. The finale is the weakest episode of the run. That's not where you want the season to end. Recap up.`,
+      (s) => `Recapping the ${s} finale tonight. A disappointing close to a season that had more in it than this. 📺`,
+    ],
+    trendUp: [
+      (s, ep) => `${s} episode ${ep} is a genuine step up from last week. The show remembered what makes it good. Recap up. 📺`,
+      (s, ep) => `Bounce-back hour: ${s} ep ${ep} recovers from last week's stumble. Worth noting. 📺`,
+      (s, ep) => `${s} course-corrects in episode ${ep}. A recovery episode after a soft week is exactly what this season needed.`,
+      (s, ep) => `The bounce I was hoping for. Better than last week in the ways that matter. Recap tonight. 📺`,
+      (s, ep) => `After last week, I'm relieved. The show found its footing again. Detailed recap up. 📺`,
+      (s, ep) => `A meaningful step forward from the prior week. The problems last week are addressed this week.`,
+      (s, ep) => `The recovery episode done right. Not just okay — genuinely better. Recap coming tonight. 📺`,
+      (s, ep) => `The week the season earns back the credibility last week spent. Covered it tonight. 📺`,
+      (s, ep) => `A resurgence week. The show remembered what it's doing and why. Recap up. 📺`,
+      (s, ep) => `${s} ep ${ep} is the answer to last week's question. The show can still do it. Recap up.`,
+      (s, ep) => `The kind of week where recapping is a pleasure again. Solid bounce-back. Up tonight. 📺`,
+      (s, ep) => `A step back up after a soft patch. The season's trajectory just changed. Noted in the recap. 📺`,
+      (s, ep) => `I've been waiting for the show to do this. It did it. Recap up and I'm not unhappy writing it. 📺`,
+      (s, ep) => `The season just got more interesting. The recovery episode is here and it's a good one. 📺`,
+      (s, ep) => `Credit where it's due — a meaningful improvement after a rough stretch. Honest recap up. 📺`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} episode ${ep} steps back from last week. The uneven pattern is becoming the season's signature. 📺`,
+      (s, ep) => `Softer than the week before: ${s} episode ${ep}. The show has more in it. Said with genuine frustration.`,
+      (s, ep) => `A slip for ${s} in episode ${ep} after a decent stretch. Honest notes in tonight's recap. 📺`,
+      (s, ep) => `A step back from last week in ways the recap is going to have to document carefully. 📺`,
+      (s, ep) => `The uneven week after a solid week. The pattern is becoming harder to ignore. Recap tonight.`,
+      (s, ep) => `Not the follow-up the season needed. The recap tonight reflects that honestly. 📺`,
+      (s, ep) => `Last week set the bar and this week didn't clear it. The gap is specific and it's in the recap. 📺`,
+      (s, ep) => `A softer episode after a stronger one. The show has more in it than this week showed. Recap up.`,
+      (s, ep) => `The momentum from last week hasn't carried. Notes on why in tonight's recap. 📺`,
+      (s, ep) => `The back half of this season is going to need to answer for the recent stretch. Recap tonight. 📺`,
+      (s, ep) => `Below last week and below where the season has been tracking. Honest recap up. 📺`,
+      (s, ep) => `The dip week. Every season has one. This is this season's. Covering it honestly tonight.`,
+      (s, ep) => `Softer than the prior episode in ways that matter for the season as a whole. Recap up. 📺`,
+      (s, ep) => `A slip after a solid run. The show was building something. This week it paused the build. 📺`,
+      (s, ep) => `I'm covering this honestly and the honest version is that last week was better. Recap tonight.`,
+    ],
+    likes:   { high: [100, 800],  midHigh: [60, 450],  midLow: [30, 250], low: [20, 160] },
+    reposts: { high: [30, 220],   midHigh: [18, 120],  midLow: [8, 65],   low: [5, 40]  },
   },
+
+  // ── ride or die ────────────────────────────────────────────────────────────
   parasocial: {
-    capsProbability: 0.1,
-    synonyms: {
-      '{good}': ['sweet', 'wonderful', 'so good', 'perfect', 'exactly what I needed'],
-      '{bad}': ['a little flat', 'disappointing', 'rough', 'a real letdown', 'heartbreaking for the worst reasons'],
-    },
+    username: 'ride or die',
+    handle: '@notokaythough',
+    premiere: [
+      (s) => `${s} episode 1 is here and I am already too invested in these characters. I have known them for one hour.`,
+      (s) => `okay ${s} episode 1 just happened and I need to talk about it with literally anyone`,
+      (s) => `first episode of ${s} and I am already a little bit in love with this cast. this is fine. everything is fine.`,
+      (s) => `${s} episode 1 and I have already assigned myself a favorite character. I have known them for 42 minutes.`,
+      (s) => `I promised myself I would not get obsessed with a new show and then ${s} episode 1 happened`,
+      (s) => `${s} premiere tonight and I am emotionally prepared. (I am not prepared. I was never going to be prepared.)`,
+      (s) => `${s} episode 1: they introduced the cast and I already have opinions about all of them. all of them.`,
+      (s) => `first episode of ${s} done and I'm going to be honest: I'm already attached. I already have feelings. this is not a drill.`,
+      (s) => `the ${s} premiere has done something to me. I've known these characters for less than an hour and I would die for them.`,
+      (s) => `${s} episode 1 and I've already decided I am loyal to this entire cast and will be for however many seasons this runs.`,
+    ],
+    high: [
+      (s, ep)          => `${s} episode ${ep}. I'm not okay. I need everyone in this cast to know they ruined my life (affectionate)`,
+      (s, ep)          => `I've watched ${s} episode ${ep} three times and it gets better every time. I cannot be stopped.`,
+      (s, ep)          => `${s} episode ${ep} is exactly why I tell everyone to watch this show. THIS. RIGHT HERE.`,
+      (s, ep)          => `crying and rewinding at the same time at ${s} episode ${ep}. it's that kind of show.`,
+      (s, ep, _, hook) => `the way I gasped at ${hook} in ${s} episode ${ep}. I am a completely normal person.`,
+      (s, ep)          => `${s} episode ${ep} and I need this cast to know that I love them and I would do anything for them. anything.`,
+      (s, ep)          => `I don't know what to do with myself after ${s} episode ${ep}. I am just sitting here. feeling things.`,
+      (s, ep)          => `the thing about ${s} episode ${ep} is that it understood something about me that I don't fully understand about myself.`,
+      (s, ep)          => `${s} ep ${ep} and the parasocial attachment I have to this cast is getting genuinely concerning. I love them all.`,
+      (s, ep)          => `I have never felt this seen by a television show and then ${s} episode ${ep} happened and now I feel seen.`,
+      (s, ep)          => `${s} episode ${ep} did something to me that I won't be able to explain. I've been sitting here for twenty minutes.`,
+      (s, ep)          => `the cast of ${s} in episode ${ep}: unhinged and perfect and I would follow all of them anywhere.`,
+      (s, ep)          => `They made me care and then they did THAT and I need to take a walk. I won't though. I'll rewatch it.`,
+      (s, ep)          => `The episode where I admitted to myself that this show has changed me a little. it has.`,
+      (s, ep)          => `${s} ep ${ep} and I'm texting people who don't watch this show trying to explain why I'm crying. they don't get it. I get it.`,
+    ],
+    midHigh: [
+      (s, ep) => `${s} episode ${ep} was good! just. good. I wanted great. I got good. It's fine. I'm fine.`,
+      (s, ep) => `not the best ${s} episode (ep ${ep}) but I'm still here aren't I. that's love.`,
+      (s, ep) => `${s} ep ${ep} was solid. not the episode that made me fall for this show but solid.`,
+      (s, ep) => `I love this cast too much for ${s} episode ${ep} to disappoint me and it didn't! it was fine! it was good!`,
+      (s, ep) => `Good episode. I loved the cast in it. as I love the cast in all episodes. that's the thing about love.`,
+      (s, ep) => `Not the one that breaks me but one that keeps me coming back. that's a different kind of essential.`,
+      (s, ep) => `honestly ${s} ep ${ep} gave me exactly what I needed from it. a good hour with characters I love. that's enough.`,
+      (s, ep) => `I'm satisfied. a satisfied watch is underrated. this cast continues to have my heart.`,
+      (s, ep) => `${s} ep ${ep} was a nice episode and I appreciated spending time with this cast this week. I appreciate it every week.`,
+      (s, ep) => `good ${s} episode ${ep}! I'm not devastated or anything! I'm just happy! this is what a happy show-watch feels like!`,
+      (s, ep) => `I smiled a lot. I didn't cry. I love this show. this is a calm love and it feels good.`,
+      (s, ep) => `Solid and I mean that warmly. the cast showed up. they always show up. I love them for it.`,
+      (s, ep) => `not my favorite ${s} episode but ep ${ep} reminded me why I got into this in the first place. the cast, always the cast.`,
+      (s, ep) => `A week where the show did exactly what I needed. I needed a good hour. I got a good hour.`,
+      (s, ep) => `I am emotionally intact. the show is good. the cast is perfect. I'm fine. I'm great, actually.`,
+      (s, ep) => `A safe harbor episode. not the standout of the season. a show I love being a show I love. that's plenty.`,
+      (s, ep) => `${s} episode ${ep} gave me what I come here for: this cast, doing their thing, doing it well. I'm at peace with ep ${ep}.`,
+      (s, ep) => `Really good. I cared about the characters. I always care about the characters. it was a good week.`,
+      (s, ep) => `The episode I'd show someone to explain why I'm invested. it's just. good. they're good. I love them.`,
+      (s, ep) => `The cast continues to absolutely deliver. that's what I show up for. they kept showing up. I'm happy.`,
+    ],
+    midLow: [
+      (s, ep) => `okay ${s} episode ${ep} is testing me a little but I am LOYAL and I will not leave`,
+      (s, ep) => `${s} ep ${ep} felt a little off and I'm trying not to spiral about it. I trust this show.`,
+      (s, ep) => `I love ${s} too much to pretend episode ${ep} was the best it's ever been. it wasn't. still here.`,
+      (s, ep) => `${s} episode ${ep} was not it but I have been wrong to worry before and I will be wrong again.`,
+      (s, ep) => `Not the week I needed but I trust this cast and this cast is still the reason I'm here.`,
+      (s, ep) => `I watch ${s} for this cast and this cast was there in episode ${ep}. the episode could've been better. the cast: always them.`,
+      (s, ep) => `Soft week for the show. not a soft week for my attachment to the characters. that part is permanent.`,
+      (s, ep) => `${s} episode ${ep} was a little bit of a miss but I'm in it now and I don't leave shows I'm in. I've been in this one.`,
+      (s, ep) => `the show didn't fully earn ${s} ep ${ep} and I'm sitting with that. I'm still sitting here. I'm here.`,
+      (s, ep) => `The cast is doing everything they can with the material and I love them for it. the material was softer this week.`,
+      (s, ep) => `I've been here since the premiere. I will be here next week. this week was just not the best week.`,
+      (s, ep) => `${s} ep ${ep} didn't quite get there but my investment in this cast is not conditional on every episode being perfect.`,
+      (s, ep) => `I'm loyal to ${s} in a way that is probably unreasonable. ep ${ep} tested that loyalty. the loyalty survived.`,
+      (s, ep) => `I trust this show and this cast with my feelings and this week they required some patience. still here.`,
+      (s, ep) => `A softer week that required me to lean on my history with the show more than this week's episode.`,
+      (s, ep) => `This is the week you have to decide if you're in it or you're not. I decided a long time ago. I'm in it.`,
+      (s, ep) => `Not every episode is a favorite. this is not a favorite. I am still a fan. the distinction matters.`,
+      (s, ep) => `the ${s} cast continues to give everything in episode ${ep} and I love them for giving everything to softer material.`,
+      (s, ep) => `The week where I'm conscious of my loyalty rather than just living inside it. still loyal. just conscious.`,
+      (s, ep) => `A week that asks more of the fan than the show delivers. I gave more. I always give more. this cast.`,
+    ],
+    low: [
+      (s, ep) => `${s} episode ${ep} broke my heart and not in a good way. I need a minute with this.`,
+      (s, ep) => `the writers really looked at ${s} episode ${ep} and said "yeah that's fine." it is not fine.`,
+      (s, ep) => `I have been defending ${s} since day one and episode ${ep} is testing me. TESTING ME.`,
+      (s, ep) => `I love this cast more than I love most things. this episode made that love do some heavy lifting.`,
+      (s, ep) => `The bad week. every show has one. this show's bad week arrived. I'm still here. I'm hurt, but I'm here.`,
+      (s, ep) => `I've been loyal to ${s} through a lot of things and episode ${ep} is the thing that is testing what "loyal" means.`,
+      (s, ep) => `I chose to care about this show and this cast and they gave me episode ${ep} and I'm dealing with that.`,
+      (s, ep) => `The writers room let the cast down this week and the cast is giving everything and I love them anyway.`,
+      (s, ep) => `${s} episode ${ep} is the kind of disappointment you only feel when you love something. I love it. I'm disappointed.`,
+      (s, ep) => `I'm not leaving. I want to say that clearly. I'm not leaving. But. Episode ${ep}. I have notes.`,
+      (s, ep) => `I cannot believe ${s} made me feel this way about episode ${ep}. not the feeling I came here for. I'm still here though.`,
+      (s, ep) => `This cast deserved better material this week. I needed to say that. I love them. they deserved better.`,
+    ],
+    finaleHigh: [
+      (s) => `${s} season finale and I am a WRECK. I love this cast too much. This is a real problem.`,
+      (s) => `the finale of ${s} just happened and I don't know how to go back to regular life. how do people do that.`,
+      (s) => `${s} season finale and I have cried multiple times and the credits haven't even rolled yet. this cast. THIS CAST.`,
+      (s) => `${s} finale and I'm not okay. I love these characters in a way that is genuinely not healthy. no notes. pure love.`,
+      (s) => `${s} season finale: the cast gave everything and I gave everything watching it and I have nothing left. beautiful season.`,
+      (s) => `the ${s} finale just broke me open in the best way possible. I love this show. I love this cast. that's all.`,
+    ],
+    finaleMid: [
+      (s) => `${s} season finale and I have mixed feelings but I love this cast so much that I'm going to keep most of those to myself.`,
+      (s) => `okay ${s} wrapped the season and I wanted more from that finale but I am LOYAL so. next season. I will be here.`,
+      (s) => `${s} finale: not the ending I wrote in my head but the cast delivered it with everything they had and I love them for it.`,
+      (s) => `${s} season finale: mixed. the cast gave it their all. they always give it their all. the all they gave was the good part.`,
+      (s) => `the ${s} finale was okay and I love this show and those two things coexist and I'm making peace with that.`,
+      (s) => `${s} wrapped the season. the finale wasn't the best episode. the cast was still the best cast. see you next season.`,
+      (s) => `${s} season finale and I'm choosing to focus on the moments that worked because the cast made those moments everything.`,
+      (s) => `${s} finale: I needed more from it and I love it anyway. that's the specific feeling of caring about a show through thick and thin.`,
+    ],
+    finaleLow: [
+      (s) => `${s} finale and I needed more than that. I still love this show. The love is just complicated right now.`,
+      (s) => `they really ended ${s} like that. I am still here. I always will be. But I have questions.`,
+      (s) => `${s} season finale and it didn't land the way I needed it to and I'm spending tonight being sad about that specifically.`,
+      (s) => `${s} finale: the season deserved a better ending. the cast deserved a better episode. I love them through the bad ones too.`,
+      (s) => `${s} wrapped its season with a finale that tested my loyalty to this show. my loyalty survived. I'm still here. barely.`,
+      (s) => `${s} finale and I have complicated feelings that I will be processing for a while. I love this show. I love this cast. that doesn't change.`,
+    ],
+    trendUp: [
+      (s, ep) => `${s} episode ${ep} is SO MUCH BETTER than last week and I feel vindicated for never leaving`,
+      (s, ep) => `they HEARD US. I'm convinced they heard us. ${s} ep ${ep} bounced back and I am FINE.`,
+      (s, ep) => `${s} ep ${ep} got it back and I'm not going to pretend I wasn't a little worried last week. I was. I'm not now.`,
+      (s, ep) => `The bounce-back I needed. the cast delivered. they always deliver when the material lets them.`,
+      (s, ep) => `${s} episode ${ep} is BETTER and I am so relieved and I was never going to leave but I'm relieved.`,
+      (s, ep) => `the show remembered what it was doing in ${s} ep ${ep} and the cast is THRIVING and I am thriving.`,
+      (s, ep) => `${s} ep ${ep} and we are BACK. I never doubted it. (I doubted it for 48 hours. I doubted it a little.)`,
+      (s, ep) => `The recovery I was waiting for. the cast is doing the thing they do when the writing lets them.`,
+      (s, ep) => `I held on through the rough patch and ${s} ep ${ep} is the reason you hold on. I held. the show delivered. good trade.`,
+      (s, ep) => `Better. measurably, visibly better. the cast is RUNNING and I am running with them.`,
+      (s, ep) => `${s} episode ${ep} bounced back and I'm pretending I was calm about this the whole time. I wasn't. I am now.`,
+      (s, ep) => `The return. I was always here. the show came back to me. we are reunited. I'm not crying. I'm crying a little.`,
+      (s, ep) => `The improvement I needed to see. the cast grabbed this material and ran with it. I love them so much.`,
+      (s, ep) => `Back on track and my parasocial attachment has been renewed for another season. (I already renewed it.)`,
+      (s, ep) => `${s} episode ${ep} and I feel calm and good and the show is good and the cast is thriving. this is what good feels like.`,
+    ],
+    trendDown: [
+      (s, ep) => `${s} episode ${ep} wasn't as strong as last week and I'm trying very hard to stay calm about it`,
+      (s, ep) => `I love ${s} but ep ${ep} slipped a little from last week. I will remain loyal. Obviously I'll remain loyal.`,
+      (s, ep) => `${s} ep ${ep} is a step down from last week and I am holding it together. barely.`,
+      (s, ep) => `Not as good as last week and I'm doing my best not to spiral. doing okay. mostly.`,
+      (s, ep) => `I need ${s} to understand that ep ${ep} did not hit as hard as last week and I noticed and I care and I'm still here.`,
+      (s, ep) => `Last week had me SO excited and this week was good but not as good and I am processing that.`,
+      (s, ep) => `${s} episode ${ep} slipped from last week and I'm telling myself it's one episode. it is one episode. it better be.`,
+      (s, ep) => `I love this cast and this cast was great and the episode was softer than last week and those are both true.`,
+      (s, ep) => `A small dip from the week before and I'm cataloguing it and I'm still fully committed. always.`,
+      (s, ep) => `I came in riding the high from last week and I'm leaving at a slightly lower altitude. I'm okay. the show is okay.`,
+      (s, ep) => `${s} episode ${ep} wasn't the follow-up I needed and the cast gave everything and the everything wasn't quite as much this week.`,
+      (s, ep) => `The dip after the good week. I feel it. I'm not going anywhere. I just. feel it.`,
+      (s, ep) => `Last week built something and this week didn't quite continue it. I trust the show. I trust this cast.`,
+      (s, ep) => `A small step back from last week and I'm trying not to give that too much weight. giving it a little weight.`,
+      (s, ep) => `Not as strong as last week. I say that as someone who will be here regardless. I'll be here regardless.`,
+    ],
+    likes:   { high: [80, 600],   midHigh: [45, 320],  midLow: [20, 180], low: [12, 110] },
+    reposts: { high: [20, 200],   midHigh: [10, 100],  midLow: [5, 55],   low: [3, 35]  },
   },
 };
 
-// In-memory fragment-level cooldown — see competitorReaction.ts for why this
-// is intentionally not part of persisted GameState.
-const COOLDOWN_WINDOW = 20; // larger than the other two files since this
-                             // category fires far more often per session
-let recentFragmentKeys: string[] = [];
+const PERSONA_KEYS = Object.keys(PERSONAS);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PER-PERSONA COOLDOWN
+// In-memory, resets on app restart. Tracks "tier:index" keys per persona.
+// Per-persona rather than global because each persona's pool per tier is
+// small (~3-4 templates), and a global cooldown would silently empty pools
+// for personas with only 2-3 eligible entries.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const COOLDOWN_SIZE = 5;
+const personaCooldowns = new Map<string, string[]>();
+
+function pickTemplate(pool: T[], tierKey: string, personaKey: string): T | null {
+  if (pool.length === 0) return null;
+  const recent = personaCooldowns.get(personaKey) ?? [];
+  const recentSet = new Set(recent);
+  const indexed = pool.map((t, i) => ({ t, key: `${tierKey}:${i}` }));
+  const fresh = indexed.filter(x => !recentSet.has(x.key));
+  const usable = fresh.length > 0 ? fresh : indexed;
+  const picked = usable[Math.floor(Math.random() * usable.length)];
+  personaCooldowns.set(personaKey, [...recent, picked.key].slice(-COOLDOWN_SIZE));
+  return picked.t;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC API
 // ─────────────────────────────────────────────────────────────────────────────
 
-function generateOne(showTitle: string, episodeNumber: number, genre: Genre, rating: number, excludePersonas: Set<string>): SocialReaction {
-  const intensity = normalizeRating(rating);
-  const flavor = GENRE_FLAVOR[genre];
-  const tokens = {
-    SHOW_NAME: showTitle,
-    EPISODE: String(episodeNumber),
-    GENRE: genre,
-    UNIT: flavor.unit,
-    HOOK: flavor.hook,
-    COMPLAINT: flavor.complaint,
-  };
-
-  const availablePersonas = PERSONA_KEYS.filter(p => !excludePersonas.has(p));
-  const persona = randomItem(availablePersonas.length > 0 ? availablePersonas : PERSONA_KEYS);
-
-  const { text, usedKeys } = assemblePost(
-    BLUEPRINTS, LIBRARY, persona, tokens, intensity, new Set(recentFragmentKeys),
-  );
-  recentFragmentKeys = [...recentFragmentKeys, ...usedKeys].slice(-COOLDOWN_WINDOW);
-
-  const content = applyPersonaTone(text, TONE[persona], intensity);
-  const { username, handle } = PERSONA_HANDLES[persona];
-
-  return {
-    username,
-    handle,
-    content,
-    likes: randomBetween(80, rating >= 8 ? 5200 : rating >= 5.5 ? 900 : 1600),
-    reposts: randomBetween(20, rating >= 8 ? 1900 : rating >= 5.5 ? 280 : 550),
-  };
-}
-
-/**
- * Generates one episode's batch of reactions (3-5 posts), guaranteeing no
- * persona posts twice within the same batch.
- */
 export function generateEpisodeReactionBatch(
   showTitle: string,
   episodeNumber: number,
   genre: Genre,
   rating: number,
+  isFinale = false,
+  prevRating?: number,
 ): SocialReaction[] {
+  const isPremiereEp = episodeNumber === 1;
+  const tier = getTier(rating, isFinale, isPremiereEp);
+  const flavor = GENRE_FLAVOR[genre];
   const count = randomBetween(3, Math.min(5, PERSONA_KEYS.length));
+
+  // Trajectory: only fires for regular (non-premiere, non-finale) episodes with
+  // a meaningful delta. Threshold at 0.2 — smaller swings are noise.
+  const delta = prevRating !== undefined && !isPremiereEp && !isFinale
+    ? rating - prevRating
+    : 0;
+  const trend: 'rising' | 'falling' | 'flat' =
+    delta >= 0.2 ? 'rising' : delta <= -0.2 ? 'falling' : 'flat';
+
+  // Pick one persona to carry the trajectory post (if trend is non-flat).
+  const trendPersonaKey: string | null = trend !== 'flat' ? randomItem(PERSONA_KEYS) : null;
+
   const usedPersonas = new Set<string>();
-  const reactions: SocialReaction[] = [];
+  const results: SocialReaction[] = [];
+  let trendPosted = false;
 
   for (let i = 0; i < count; i++) {
-    const post = generateOne(showTitle, episodeNumber, genre, rating, usedPersonas);
-    const usedKey = PERSONA_KEYS.find(k => PERSONA_HANDLES[k].handle === post.handle)!;
-    usedPersonas.add(usedKey);
-    reactions.push(post);
+    const available = PERSONA_KEYS.filter(k => !usedPersonas.has(k));
+    if (available.length === 0) break;
+
+    // Ensure the designated trend persona gets picked while it's still available.
+    let personaKey: string;
+    if (trendPersonaKey && !trendPosted && available.includes(trendPersonaKey)) {
+      personaKey = trendPersonaKey;
+    } else {
+      personaKey = randomItem(available);
+    }
+    usedPersonas.add(personaKey);
+
+    const persona = PERSONAS[personaKey];
+
+    // Decide whether this post uses the trend pool or the tier pool.
+    const useTrend = personaKey === trendPersonaKey && !trendPosted && trend !== 'flat';
+    let pool: T[];
+    let tierKey: string;
+
+    if (useTrend) {
+      pool = trend === 'rising' ? persona.trendUp : persona.trendDown;
+      tierKey = trend === 'rising' ? 'trendUp' : 'trendDown';
+      trendPosted = true;
+    } else {
+      const raw = persona[tier];
+      pool = raw.length > 0 ? raw : persona.midHigh;
+      tierKey = raw.length > 0 ? tier : 'midHigh';
+    }
+
+    const template = pickTemplate(pool, tierKey, personaKey);
+    if (!template) continue;
+
+    const content = template(showTitle, episodeNumber, genre, flavor.hook, flavor.complaint);
+    const rk = rangeKeyFor(tier);
+    const lr = persona.likes[rk];
+    const rr = persona.reposts[rk];
+
+    results.push({
+      username: persona.username,
+      handle: persona.handle,
+      content,
+      likes: randomBetween(lr[0], lr[1]),
+      reposts: randomBetween(rr[0], rr[1]),
+    });
   }
 
-  return reactions;
+  return results;
 }
