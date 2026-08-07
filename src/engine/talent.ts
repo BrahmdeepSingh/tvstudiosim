@@ -221,8 +221,8 @@ function makeTalent(
       ? makeDirectorStats(tier)
       : makeActorStats(tier);
 
-  const age = role === 'actor' ? randomBetween(20, 60) : randomBetween(26, 64);
-  const yearsActive = randomBetween(0, Math.max(0, age - 20));
+  const age = randomBetween(18, 71);
+  const yearsActive = randomBetween(0, Math.max(0, age - 18));
   const debutYear = STARTING_YEAR - yearsActive;
   const popularity = popularityForTier(tier);
 
@@ -335,9 +335,9 @@ export function generateReplacementTalent(
     : role === 'director' ? makeDirectorStats(tier)
     : makeActorStats(tier);
 
-  // Fresh entrant — younger than the initial pool
-  const age = role === 'actor' ? randomBetween(20, 32) : randomBetween(26, 38);
-  const yearsActive = randomBetween(0, Math.max(0, age - 20));
+  // Age range matches the global rule: 18–71 (72 triggers retirement)
+  const age = randomBetween(18, 65);
+  const yearsActive = randomBetween(0, Math.max(0, age - 18));
   const debutYear = currentYear - yearsActive;
   const popularity = popularityForTier(tier);
 
