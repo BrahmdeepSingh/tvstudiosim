@@ -1,5 +1,5 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image, Switch,
 } from 'react-native';
 import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -247,7 +247,7 @@ export default function RenewScreen() {
         <TouchableOpacity
           style={[s.finalSeasonCard, isFinalSeason && s.finalSeasonCardOn]}
           onPress={() => setIsFinalSeason(v => !v)}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
           <View style={s.finalSeasonLeft}>
             <Text style={[s.finalSeasonTitle, isFinalSeason && { color: C.amber }]}>
@@ -256,14 +256,16 @@ export default function RenewScreen() {
             <Text style={s.finalSeasonSub}>
               {isFinalSeason
                 ? `Season ${newSeasonNumber} will be the last — show wraps after the finale airs.`
-                : 'Tap to declare this the show\'s final season.'}
+                : "Tap to declare this the show's final season."}
             </Text>
           </View>
-          <View style={[s.finalSeasonToggle, isFinalSeason && s.finalSeasonToggleOn]}>
-            <Text style={[s.finalSeasonToggleText, isFinalSeason && { color: C.amber }]}>
-              {isFinalSeason ? 'ON' : 'OFF'}
-            </Text>
-          </View>
+          <Switch
+            value={isFinalSeason}
+            onValueChange={setIsFinalSeason}
+            trackColor={{ false: '#2a2d3e', true: C.amber }}
+            thumbColor="#ffffff"
+            ios_backgroundColor="#2a2d3e"
+          />
         </TouchableOpacity>
 
         {/* Showrunner */}
@@ -534,7 +536,4 @@ const s = StyleSheet.create({
   finalSeasonLeft:       { flex: 1 },
   finalSeasonTitle:      { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 3 },
   finalSeasonSub:        { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, lineHeight: 17 },
-  finalSeasonToggle:     { backgroundColor: C.pageBg, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingHorizontal: 10, paddingVertical: 6 },
-  finalSeasonToggleOn:   { borderColor: C.amber + '88', backgroundColor: C.amber + '22' },
-  finalSeasonToggleText: { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 12 },
 });
