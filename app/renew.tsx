@@ -124,6 +124,7 @@ export default function RenewScreen() {
   const show = shows.find(s => s.id === showID);
   const prevSeason = show?.seasons[show.currentSeasonIndex];
 
+  const [isFinalSeason, setIsFinalSeason] = useState(false);
   const [episodeCount, setEpisodeCount] = useState(prevSeason?.episodeCount ?? 10);
   const [leadSlots, setLeadSlots] = useState(prevSeason?.leadActorSlots ?? 2);
   const [supportingSlots, setSupportingSlots] = useState(prevSeason?.supportingActorSlots ?? 2);
@@ -200,7 +201,7 @@ export default function RenewScreen() {
 
   function handleStartPreProduction() {
     // Pass keepShowrunner: renewShow handles booking/freeing internally
-    renewShow(showID!, episodeCount, leadSlots, supportingSlots, resignShowrunner && showrunnerReturnable);
+    renewShow(showID!, episodeCount, leadSlots, supportingSlots, resignShowrunner && showrunnerReturnable, isFinalSeason);
 
     if (resignDirector && returningDirector) {
       hireDirector(showID!, returningDirector.id, autoResignFee(returningDirector), 0);
@@ -241,6 +242,29 @@ export default function RenewScreen() {
             Season {prevSeasonNumber} → Season {newSeasonNumber}
           </Text>
         </View>
+
+        {/* Final season toggle */}
+        <TouchableOpacity
+          style={[s.finalSeasonCard, isFinalSeason && s.finalSeasonCardOn]}
+          onPress={() => setIsFinalSeason(v => !v)}
+          activeOpacity={0.8}
+        >
+          <View style={s.finalSeasonLeft}>
+            <Text style={[s.finalSeasonTitle, isFinalSeason && { color: C.amber }]}>
+              {isFinalSeason ? '⚑  Series Finale Season' : 'Mark as Final Season'}
+            </Text>
+            <Text style={s.finalSeasonSub}>
+              {isFinalSeason
+                ? `Season ${newSeasonNumber} will be the last — show wraps after the finale airs.`
+                : 'Tap to declare this the show\'s final season.'}
+            </Text>
+          </View>
+          <View style={[s.finalSeasonToggle, isFinalSeason && s.finalSeasonToggleOn]}>
+            <Text style={[s.finalSeasonToggleText, isFinalSeason && { color: C.amber }]}>
+              {isFinalSeason ? 'ON' : 'OFF'}
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         {/* Showrunner */}
         <Text style={s.sectionLabel}>SHOWRUNNER</Text>
@@ -418,7 +442,7 @@ export default function RenewScreen() {
               style={s.proceedBtnGrad}
             >
               <Text style={s.proceedBtnText}>
-                Start Season {newSeasonNumber} Pre-Production →
+                {isFinalSeason ? `Start Final Season ${newSeasonNumber} →` : `Start Season ${newSeasonNumber} Pre-Production →`}
               </Text>
             </LinearGradient>
           ) : (
@@ -504,4 +528,13 @@ const s = StyleSheet.create({
   proceedBtnGrad:      { padding: 16, alignItems: 'center' },
   proceedBtnText:      { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 15 },
   proceedBtnTextDisabled: { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+
+  finalSeasonCard:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 20, gap: 12 },
+  finalSeasonCardOn:     { borderColor: C.amber + '88', backgroundColor: C.amber + '12' },
+  finalSeasonLeft:       { flex: 1 },
+  finalSeasonTitle:      { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 3 },
+  finalSeasonSub:        { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, lineHeight: 17 },
+  finalSeasonToggle:     { backgroundColor: C.pageBg, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingHorizontal: 10, paddingVertical: 6 },
+  finalSeasonToggleOn:   { borderColor: C.amber + '88', backgroundColor: C.amber + '22' },
+  finalSeasonToggleText: { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 12 },
 });
