@@ -215,6 +215,16 @@ export function getPrestigeTierLabel(prestige: number): string {
   return 'Indie';
 }
 
+export function getShowCapacity(prestige: number): number {
+  if (prestige <= 20) return 2;
+  if (prestige <= 40) return 3;
+  return Infinity;
+}
+
+export const ACTIVE_SHOW_STATUSES = new Set([
+  'writing', 'filming', 'marketing', 'airing', 'renewal-pending',
+]);
+
 // ─── Emmy Categories ──────────────────────────────────────────────────────────
 
 export const EMMY_CATEGORIES = [
