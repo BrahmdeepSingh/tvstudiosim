@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, Animated, StyleSheet } from 'react-native';
+import { View, Text, Animated, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
 import { useGameStore } from '../store/gameStore';
 import { ACHIEVEMENTS_MAP, RARITY_COLOR, AchievementRarity } from '../constants/achievements';
 
@@ -20,11 +19,28 @@ const RARITY_LABEL: Record<AchievementRarity, string> = {
   legendary: 'LEGENDARY ACHIEVEMENT',
 };
 
+async function playChime() {
+  try {
+    // expo-av must be installed and linked via EAS/prebuild to use audio.
+    // Dynamically require so a missing native module never crashes the app.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Audio } = require('expo-av') as typeof import('expo-av');
+    const { sound } = await Audio.Sound.createAsync(
+      require('../../assets/sounds/achievement.wav'),
+      { shouldPlay: true, volume: 0.75 },
+    );
+    sound.setOnPlaybackStatusUpdate(status => {
+      if (status.isLoaded && status.didJustFinish) sound.unloadAsync();
+    });
+  } catch {
+    // Audio not available — silently skip
+  }
+}
+
 export function AchievementToast() {
   const { achievementQueue, dismissAchievement } = useGameStore();
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(-(TOAST_HEIGHT + 60))).current;
-  const soundRef = useRef<Audio.Sound | null>(null);
   const currentID = achievementQueue[0] ?? null;
 
   useEffect(() => {
@@ -36,24 +52,10 @@ export function AchievementToast() {
       return;
     }
 
-    // Reset position before slide-in (handles rapid successive toasts)
+    // Reset before slide-in so rapid successive toasts restart cleanly
     translateY.setValue(-(TOAST_HEIGHT + 60));
 
-    // Play chime
-    Audio.Sound.createAsync(
-      require('../../assets/sounds/achievement.wav'),
-      { shouldPlay: true, volume: 0.75 },
-    ).then(({ sound }) => {
-      soundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate(status => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-          soundRef.current = null;
-        }
-      });
-    }).catch(() => {
-      // Audio unavailable in simulator — silently ignore
-    });
+    playChime();
 
     // Slide in
     Animated.spring(translateY, {
@@ -72,10 +74,7 @@ export function AchievementToast() {
       }).start(() => dismissAchievement());
     }, DISPLAY_MS);
 
-    return () => {
-      clearTimeout(timer);
-      soundRef.current?.unloadAsync();
-    };
+    return () => clearTimeout(timer);
   }, [currentID]);
 
   if (!currentID) return null;
