@@ -415,6 +415,8 @@ export interface GameState {
   lastSaved: string;
   initialized: boolean;
   ambientSocialPosts: AmbientSocialPost[];
-  recentSocialTemplateIds: string[];   // cooldown for per-episode reactions (social.ts)
-  recentAmbientTemplateIds: string[];  // cooldown for ambient posts (ambientSocial.ts)
+  recentSocialTemplateIds: string[];
+  recentAmbientTemplateIds: string[];
+  unlockedAchievementIDs: string[];
+  achievementQueue: string[];          // IDs of achievements pending toast display
 }

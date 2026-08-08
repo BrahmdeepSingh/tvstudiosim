@@ -9,6 +9,8 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import { View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AchievementToast } from '../src/components/AchievementToast';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -28,9 +30,10 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }} />
-    </>
+      <AchievementToast />
+    </SafeAreaProvider>
   );
 }
