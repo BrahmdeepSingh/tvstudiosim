@@ -416,7 +416,7 @@ export default function Dashboard() {
   const router = useRouter();
   const {
     network, shows, inboxItems, newsItems, pitches, studioEvents,
-    emmyCeremonyPendingYear, unlockedAchievementIDs,
+    emmyCeremonyPendingYear,
     advanceWeek, initialized, initializeGame,
   } = useGameStore();
 
@@ -576,12 +576,6 @@ export default function Dashboard() {
                 <Text style={s.networkName}>{network.name.toUpperCase()}</Text>
                 <Text style={s.networkSub}>Independent · Year {network.currentYear}</Text>
               </View>
-
-              {/* Achievements trophy button */}
-              <TouchableOpacity style={s.trophyBtn} onPress={() => router.push('/achievements')} activeOpacity={0.75}>
-                <Text style={s.trophyEmoji}>🏆</Text>
-                <Text style={s.trophyCount}>{(unlockedAchievementIDs ?? []).length}</Text>
-              </TouchableOpacity>
 
               {/* Week widget — column card */}
               <View style={s.weekCard}>
@@ -789,11 +783,6 @@ const s = StyleSheet.create({
   networkInitials: { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 17, letterSpacing: 1 },
   networkName:     { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 22, letterSpacing: 3 },
   networkSub:      { fontFamily: 'Manrope_600SemiBold', color: C.mutedMid, fontSize: 9, letterSpacing: 1.5, marginTop: 2 },
-
-  // Trophy / achievements button
-  trophyBtn:    { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 48, width: 48, borderRadius: 10, backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#e6b25459', marginRight: 6 },
-  trophyEmoji:  { fontSize: 20, lineHeight: 22 },
-  trophyCount:  { fontFamily: 'Manrope_700Bold', color: '#e6b254', fontSize: 10, letterSpacing: 0.5 },
 
   // Week widget — column card
   weekCard:       { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minWidth: 54, height: 48, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#e6b25459' },
