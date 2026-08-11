@@ -180,6 +180,17 @@ export interface Episode {
   socialReactions: SocialReaction[];
 }
 
+// ─── Poster ──────────────────────────────────────────────────────────────────
+
+export interface PosterConfig {
+  backgroundID: string;
+  titlePosition: 'top' | 'bottom';
+  titleSize: 'small' | 'medium' | 'large';
+  titleColor: string;
+  tagline: string;
+  showSeasonNumber: boolean;
+}
+
 // ─── Season ──────────────────────────────────────────────────────────────────
 
 export interface Season {
@@ -227,6 +238,7 @@ export interface Season {
   suggestedSupportingActorIDs: string[];
 
   isFinalSeason?: boolean; // player declared this the last season at renewal time
+  posterConfig?: PosterConfig;
 }
 
 // ─── Show ─────────────────────────────────────────────────────────────────────

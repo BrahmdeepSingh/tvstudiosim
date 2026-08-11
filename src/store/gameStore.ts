@@ -11,6 +11,7 @@ import {
   ShowStatus,
   InboxItem,
   NewsItem,
+  PosterConfig,
 } from '../types';
 import { advanceWeek as engineAdvanceWeek } from '../engine/advancement';
 import { checkAchievements } from '../engine/achievements';
@@ -66,6 +67,7 @@ interface GameStore extends GameState {
   // Marketing
   setAirDate: (showID: string, week: number, year: number) => void;
   purchaseMarketingChannels: (showID: string, channelIDs: string[]) => void;
+  savePosterConfig: (showID: string, config: PosterConfig) => void;
 
   // Pitches
   greenlightPitch: (pitchID: string) => boolean;
@@ -522,6 +524,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set(s => ({
       network: { ...s.network, cashOnHand: s.network.cashOnHand - totalCost },
+      shows: s.shows.map(sh =>
+        sh.id === showID
+          ? { ...sh, seasons: sh.seasons.map((se, i) => i === sh.currentSeasonIndex ? updatedSeason : se) }
+          : sh,
+      ),
+    }));
+  },
+
+  savePosterConfig: (showID, config) => {
+    const state = get();
+    const show = state.shows.find(s => s.id === showID);
+    if (!show) return;
+    const season = show.seasons[show.currentSeasonIndex];
+    if (!season) return;
+    const updatedSeason: Season = { ...season, posterConfig: config };
+    set(s => ({
       shows: s.shows.map(sh =>
         sh.id === showID
           ? { ...sh, seasons: sh.seasons.map((se, i) => i === sh.currentSeasonIndex ? updatedSeason : se) }

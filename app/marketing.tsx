@@ -46,7 +46,7 @@ function qualityLabel(q: number): { label: string; color: string } {
 export default function MarketingScreen() {
   const router = useRouter();
   const { showID } = useLocalSearchParams<{ showID: string }>();
-  const { shows, network, setAirDate, purchaseMarketingChannels } = useGameStore();
+  const { shows, network, purchaseMarketingChannels } = useGameStore();
 
   const show = shows.find(s => s.id === showID);
   const season = show?.seasons[show.currentSeasonIndex];
@@ -80,7 +80,7 @@ export default function MarketingScreen() {
   const ql = qualityLabel(season.qualityScore);
 
   function handleSetAirDate() {
-    setAirDate(show!.id, targetWeek, targetYear);
+    router.push(`/poster-creator?showID=${show!.id}&targetWeek=${targetWeek}&targetYear=${targetYear}`);
     setIsEditing(false);
   }
 
