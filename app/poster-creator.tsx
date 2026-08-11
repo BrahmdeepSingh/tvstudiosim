@@ -136,7 +136,7 @@ export default function PosterCreatorScreen() {
     showID: string; targetWeek: string; targetYear: string;
   }>();
 
-  const { shows, setAirDate, savePosterConfig } = useGameStore();
+  const { shows, network, setAirDate, savePosterConfig } = useGameStore();
   const show = shows.find(s => s.id === showID);
   const season = show?.seasons[show.currentSeasonIndex];
 
@@ -192,7 +192,7 @@ export default function PosterCreatorScreen() {
               config={config}
               title={show.title}
               seasonNumber={seasonNumber}
-              networkInitials={useGameStore.getState().network.initials}
+              networkInitials={network.initials}
             />
             <View style={st.previewMeta}>
               <Text style={st.previewShowTitle} numberOfLines={2}>{show.title}</Text>
