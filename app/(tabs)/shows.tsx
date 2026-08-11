@@ -25,23 +25,35 @@ const FONT_MAP: Record<string, string> = {
   'manrope-light': 'Manrope_300Light',
 };
 
-function MiniPoster({ show, networkName }: { show: Show; networkName: string }) {
-  // For cancelled/completed shows use the last season; otherwise current
+// Scale factor: mini poster (68px) relative to full poster (SCREEN_WIDTH * 0.65 ≈ 253px)
+const SCALE = 68 / 253;
+
+function scaledSize(full: number, min = 5): number {
+  return Math.max(min, Math.round(full * SCALE));
+}
+
+function MiniPoster({
+  show, networkName, talent,
+}: {
+  show: Show;
+  networkName: string;
+  talent: { id: string; name: string }[];
+}) {
   const season = show.seasons[show.currentSeasonIndex] ?? show.seasons[show.seasons.length - 1];
   const config = season?.posterConfig;
 
-  const bg = config
-    ? (POSTER_BACKGROUNDS.find(b => b.id === config.backgroundID) ?? POSTER_BACKGROUNDS[0])
-    : POSTER_BACKGROUNDS[0];
-
+  const bg = POSTER_BACKGROUNDS.find(b => b.id === (config?.backgroundID ?? 'noir-city'))
+    ?? POSTER_BACKGROUNDS[0];
   const gradColors = [...bg.colors] as [string, string, ...string[]];
 
   if (!config) {
-    // No poster designed yet — tasteful placeholder
     return (
       <LinearGradient colors={gradColors} style={styles.miniPoster}>
         <View style={styles.miniNoPoster}>
-          <Text style={styles.miniNoPosterText} numberOfLines={3}>
+          <Text style={styles.miniNoPosterText} numberOfLines={1}>
+            {networkName.toUpperCase()} PRESENTS
+          </Text>
+          <Text style={styles.miniNoPosterTitle} numberOfLines={3}>
             {show.title.toUpperCase()}
           </Text>
         </View>
@@ -49,24 +61,60 @@ function MiniPoster({ show, networkName }: { show: Show; networkName: string }) 
     );
   }
 
+  // Resolve cast names
+  const leadNames = (season.leadActorIDs ?? [])
+    .map(id => talent.find(t => t.id === id)?.name).filter(Boolean) as string[];
+  const suppNames = (season.supportingActorIDs ?? [])
+    .map(id => talent.find(t => t.id === id)?.name).filter(Boolean) as string[];
+  let castNames: string[] = [];
+  if (leadNames.length >= 2) castNames = leadNames.slice(0, 2);
+  else if (leadNames.length === 1 && suppNames.length >= 1) castNames = [leadNames[0], suppNames[0]];
+  else if (leadNames.length === 1) castNames = [leadNames[0]];
+
   const titleFont = FONT_MAP[config.titleFont] ?? 'BebasNeue_400Regular';
+  const isBebas   = config.titleFont === 'bebas' || !config.titleFont;
   const titleAlign = config.titleAlignment ?? 'left';
   const seasonAlign = config.seasonAlignment ?? 'left';
 
+  // Title size: scale from full-poster pixel sizes
+  const FULL_SIZES = { large: 50, medium: 36, small: 24 };
+  const titlePx = scaledSize(FULL_SIZES[config.titleSize] ?? 50, 8);
+
   const seasonLabel = config.showSeasonNumber ? (
     <Text style={[styles.miniSeason, { color: bg.accent, textAlign: seasonAlign }]}>
-      S{season.seasonNumber}
+      SEASON {season.seasonNumber}
     </Text>
   ) : null;
 
   const titleEl = (
     <Text
-      style={[styles.miniTitle, { color: config.titleColor, fontFamily: titleFont, textAlign: titleAlign }]}
+      style={[
+        styles.miniTitle,
+        {
+          color: config.titleColor,
+          fontFamily: titleFont,
+          fontSize: titlePx,
+          lineHeight: titlePx * (isBebas ? 1.02 : 1.15),
+          textAlign: titleAlign,
+        },
+      ]}
       numberOfLines={3}
     >
       {show.title.toUpperCase()}
     </Text>
   );
+
+  const taglineEl = config.tagline?.trim() ? (
+    <Text style={[styles.miniTagline, { textAlign: titleAlign }]} numberOfLines={2}>
+      {config.tagline}
+    </Text>
+  ) : null;
+
+  const castEl = castNames.length > 0 ? (
+    <Text style={[styles.miniCast, { color: bg.accent }]} numberOfLines={1}>
+      {castNames.join('  ·  ').toUpperCase()}
+    </Text>
+  ) : null;
 
   const textBlock = (
     <View style={[
@@ -76,14 +124,28 @@ function MiniPoster({ show, networkName }: { show: Show; networkName: string }) 
       {config.seasonPosition === 'above-title' ? seasonLabel : null}
       {titleEl}
       {config.seasonPosition === 'below-title' ? seasonLabel : null}
+      {taglineEl}
     </View>
   );
 
+  const castBlock = castEl ? (
+    <View style={[
+      styles.miniCastBlock,
+      config.castPosition === 'top' ? styles.miniCastTop : styles.miniCastBottom,
+    ]}>
+      {castEl}
+    </View>
+  ) : null;
+
   return (
     <LinearGradient colors={gradColors} style={styles.miniPoster}>
-      <Text style={styles.miniPresents} numberOfLines={1}>
-        {networkName.toUpperCase()} PRESENTS
-      </Text>
+      {/* Studio presents */}
+      <View style={styles.miniPresentsRow}>
+        <Text style={styles.miniPresents} numberOfLines={1}>
+          {networkName.toUpperCase()} PRESENTS
+        </Text>
+      </View>
+      {castBlock}
       {textBlock}
     </LinearGradient>
   );
@@ -147,7 +209,9 @@ function getShowStats(show: Show) {
   return { totalRevenue, totalViewers, bestRating, totalEpisodesAired };
 }
 
-function ShowCard({ show, onPress, networkName }: { show: Show; onPress: () => void; networkName: string }) {
+function ShowCard({ show, onPress, networkName, talent }: {
+  show: Show; onPress: () => void; networkName: string; talent: { id: string; name: string }[];
+}) {
   const season = show.seasons[show.currentSeasonIndex];
   const statusColor = STATUS_COLORS[show.status] ?? C.muted;
   const statusLabel = show.status.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -169,7 +233,7 @@ function ShowCard({ show, onPress, networkName }: { show: Show; onPress: () => v
 
         {/* Mini poster */}
         <View style={styles.posterCol}>
-          <MiniPoster show={show} networkName={networkName} />
+          <MiniPoster show={show} networkName={networkName} talent={talent} />
         </View>
 
         {/* Show info */}
@@ -231,7 +295,7 @@ function StatItem({ label, value }: { label: string; value: string }) {
 
 export default function ShowsScreen() {
   const router = useRouter();
-  const { shows, network } = useGameStore();
+  const { shows, network, talent } = useGameStore();
   const [filter, setFilter] = useState<Filter>('all');
 
   const filtered = shows.filter(show => {
@@ -305,6 +369,7 @@ export default function ShowsScreen() {
               show={item}
               onPress={() => router.push(`/show/${item.id}`)}
               networkName={network.name}
+              talent={talent}
             />
           )}
         />
@@ -335,14 +400,25 @@ const styles = StyleSheet.create({
 
   // Mini poster
   miniPoster:          { width: POSTER_W, height: POSTER_H, borderRadius: 8, overflow: 'hidden' },
-  miniPresents:        { fontFamily: 'Manrope_600SemiBold', color: '#ffffff66', fontSize: 4.5, letterSpacing: 1, textAlign: 'center', marginTop: 5, paddingHorizontal: 4 },
+
+  miniPresentsRow:     { alignItems: 'center', paddingTop: 5, paddingHorizontal: 4 },
+  miniPresents:        { fontFamily: 'Manrope_600SemiBold', color: '#ffffff77', fontSize: 5, letterSpacing: 1.2 },
+
+  miniCastBlock:       { position: 'absolute', left: 4, right: 4 },
+  miniCastTop:         { top: 18 },
+  miniCastBottom:      { bottom: 6 },
+  miniCast:            { fontFamily: 'Manrope_700Bold', fontSize: 5, letterSpacing: 1, textAlign: 'center' },
+
   miniTextBlock:       { position: 'absolute', left: 5, right: 5 },
-  miniTextTop:         { top: 16 },
-  miniTextBottom:      { bottom: 8 },
-  miniTitle:           { fontSize: 11, letterSpacing: 0.3, lineHeight: 13 },
-  miniSeason:          { fontFamily: 'Manrope_800ExtraBold', fontSize: 5, letterSpacing: 1.5, marginBottom: 2, marginTop: 1 },
+  miniTextTop:         { top: 26 },
+  miniTextBottom:      { bottom: 10 },
+  miniTitle:           { letterSpacing: 0.3 },
+  miniSeason:          { fontFamily: 'Manrope_800ExtraBold', fontSize: 6, letterSpacing: 1.5, marginBottom: 2, marginTop: 1 },
+  miniTagline:         { fontFamily: 'Manrope_600SemiBold', color: '#ffffffaa', fontSize: 5.5, marginTop: 3, lineHeight: 7 },
+
   miniNoPoster:        { flex: 1, justifyContent: 'flex-end', padding: 6 },
-  miniNoPosterText:    { fontFamily: 'BebasNeue_400Regular', color: '#ffffff55', fontSize: 10, letterSpacing: 0.5, lineHeight: 11 },
+  miniNoPosterText:    { fontFamily: 'Manrope_600SemiBold', color: '#ffffff66', fontSize: 5, letterSpacing: 1.2, textAlign: 'center', marginBottom: 4 },
+  miniNoPosterTitle:   { fontFamily: 'BebasNeue_400Regular', color: '#ffffff55', fontSize: 11, letterSpacing: 0.5, lineHeight: 12 },
 
   cardTop:             { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
   showTitle:           { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 2 },
