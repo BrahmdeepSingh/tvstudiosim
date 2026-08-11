@@ -48,8 +48,12 @@ function MiniPoster({
 
   if (!config) {
     return (
-      <LinearGradient colors={gradColors} style={styles.miniPoster}>
-        <View style={styles.miniNoPoster}>
+      <View style={styles.miniPoster}>
+        {'render' in bg && bg.render
+          ? bg.render(POSTER_W, POSTER_H)
+          : <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
+        }
+        <View style={[StyleSheet.absoluteFill, styles.miniNoPoster]}>
           <Text style={styles.miniNoPosterText} numberOfLines={1}>
             {networkName.toUpperCase()} PRESENTS
           </Text>
@@ -57,7 +61,7 @@ function MiniPoster({
             {show.title.toUpperCase()}
           </Text>
         </View>
-      </LinearGradient>
+      </View>
     );
   }
 
@@ -138,16 +142,23 @@ function MiniPoster({
   ) : null;
 
   return (
-    <LinearGradient colors={gradColors} style={styles.miniPoster}>
-      {/* Studio presents */}
-      <View style={styles.miniPresentsRow}>
-        <Text style={styles.miniPresents} numberOfLines={1}>
-          {networkName.toUpperCase()} PRESENTS
-        </Text>
+    <View style={styles.miniPoster}>
+      {/* Background — gradient or illustrated */}
+      {'render' in bg && bg.render
+        ? bg.render(POSTER_W, POSTER_H)
+        : <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
+      }
+      {/* Content overlay */}
+      <View style={StyleSheet.absoluteFill}>
+        <View style={styles.miniPresentsRow}>
+          <Text style={styles.miniPresents} numberOfLines={1}>
+            {networkName.toUpperCase()} PRESENTS
+          </Text>
+        </View>
+        {castBlock}
+        {textBlock}
       </View>
-      {castBlock}
-      {textBlock}
-    </LinearGradient>
+    </View>
   );
 }
 

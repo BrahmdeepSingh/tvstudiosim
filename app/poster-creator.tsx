@@ -34,6 +34,147 @@ const F = {
   bodyLt:   'Manrope_300Light',
 };
 
+// ── Illustrated background: Haunted Hills ─────────────────────────────────────
+// Built entirely from Views — triangles via border trick, bats via borderRadius.
+function _hauntedHills(w: number, h: number) {
+  const sil = '#040010'; // near-black silhouette
+
+  // Triangle roof pointing upward, peak at (peakX, peakTop)
+  function roofTri(halfBase: number, triH: number, peakX: number, peakTop: number) {
+    return (
+      <View style={{ position: 'absolute', left: peakX - halfBase, top: peakTop,
+        width: 0, height: 0,
+        borderLeftWidth: halfBase, borderRightWidth: halfBase, borderBottomWidth: triH,
+        borderLeftColor: 'transparent', borderRightColor: 'transparent',
+        borderBottomColor: sil }} />
+    );
+  }
+
+  // Single bat at canvas position (cx, cy) with total wingspan sz
+  function bat(cx: number, cy: number, sz: number) {
+    const bw = sz, bh = sz * 0.46;
+    return (
+      <View style={{ position: 'absolute', left: cx - bw / 2, top: cy - bh / 2, width: bw, height: bh }}>
+        <View style={{ position: 'absolute', left: 0, top: 0, width: bw * 0.44, height: bh,
+          backgroundColor: sil, borderTopLeftRadius: bw * 0.44, borderTopRightRadius: bw * 0.06, borderBottomRightRadius: bw * 0.22 }} />
+        <View style={{ position: 'absolute', left: bw * 0.40, top: bh * 0.16, width: bw * 0.20, height: bh * 0.70,
+          backgroundColor: sil, borderRadius: bw * 0.10 }} />
+        <View style={{ position: 'absolute', right: 0, top: 0, width: bw * 0.44, height: bh,
+          backgroundColor: sil, borderTopLeftRadius: bw * 0.06, borderTopRightRadius: bw * 0.44, borderBottomLeftRadius: bw * 0.22 }} />
+      </View>
+    );
+  }
+
+  // Dead tree — trunk + two angled branches
+  // Branches are rotated Views; left/top computed so the trunk-side end meets the trunk.
+  function tree(tx: number, groundY: number, side: 'l' | 'r') {
+    const tw  = Math.max(2, w * 0.022);
+    const th  = h * 0.23;
+    const b1w = w * 0.088, b1h = Math.max(2, h * 0.011);
+    const b2w = w * 0.072, b2h = Math.max(2, h * 0.011);
+    // Rotation math: right end of a View rotated θ sits at
+    //   (centerX + b1w/2·cos θ, centerY + b1w/2·sin θ)
+    // We want that end to sit at (tx, groundY + th·0.12).
+    // cos32°≈0.848, sin32°≈0.530 → for left tree (θ=-32°):
+    //   centerX = tx - b1w/2·0.848  → left = tx - b1w·0.924
+    //   centerY = (groundY+th·0.12) + b1w/2·0.530
+    //   top     = centerY - b1h/2 ≈ groundY + th·0.12 + b1w·0.265
+    // For right tree mirror (θ=+32°, left end meets trunk):
+    //   left = tx - b1w·0.076
+    const b1Left = side === 'l' ? tx - b1w * 0.924 : tx - b1w * 0.076;
+    const b1Top  = groundY + th * 0.12 + b1w * 0.265 - b1h / 2;
+    // cos18°≈0.951, sin18°≈0.309
+    const b2Left = side === 'l' ? tx - b2w * 0.976 : tx - b2w * 0.025;
+    const b2Top  = groundY + th * 0.34 + b2w * 0.155 - b2h / 2;
+
+    return (
+      <View>
+        <View style={{ position: 'absolute', left: tx - tw / 2, top: groundY, width: tw, height: th, backgroundColor: sil }} />
+        <View style={{ position: 'absolute', left: b1Left, top: b1Top, width: b1w, height: b1h,
+          backgroundColor: sil, transform: [{ rotate: side === 'l' ? '-32deg' : '32deg' }] }} />
+        <View style={{ position: 'absolute', left: b2Left, top: b2Top, width: b2w, height: b2h,
+          backgroundColor: sil, transform: [{ rotate: side === 'l' ? '-18deg' : '18deg' }] }} />
+      </View>
+    );
+  }
+
+  // Scene measurements
+  const moonR = w * 0.08;
+  const moonX = w * 0.71, moonY = h * 0.11;
+  // House
+  const hL = w * 0.28, hT = h * 0.56, hW = w * 0.44, hH = h * 0.36;
+  // Side tower
+  const tL = w * 0.18, tT = h * 0.48, tW = w * 0.135, tH = h * 0.28;
+
+  return (
+    <View style={{ width: w, height: h }}>
+      {/* Sky */}
+      <LinearGradient
+        colors={['#3d1070', '#1e0548', '#0d0230', '#060018']}
+        locations={[0, 0.30, 0.65, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Moon outer glow */}
+      <View style={{ position: 'absolute', left: moonX - moonR * 2.1, top: moonY - moonR * 2.1,
+        width: moonR * 4.2, height: moonR * 4.2, borderRadius: moonR * 2.1,
+        backgroundColor: '#c07028', opacity: 0.10 }} />
+      {/* Moon inner glow */}
+      <View style={{ position: 'absolute', left: moonX - moonR * 1.4, top: moonY - moonR * 1.4,
+        width: moonR * 2.8, height: moonR * 2.8, borderRadius: moonR * 1.4,
+        backgroundColor: '#d08838', opacity: 0.14 }} />
+      {/* Moon disc */}
+      <View style={{ position: 'absolute', left: moonX - moonR, top: moonY - moonR,
+        width: moonR * 2, height: moonR * 2, borderRadius: moonR, backgroundColor: '#e2dac0' }} />
+
+      {/* Bats */}
+      {bat(w * 0.15, h * 0.19, w * 0.068)}
+      {bat(w * 0.38, h * 0.13, w * 0.053)}
+      {bat(w * 0.54, h * 0.24, w * 0.062)}
+      {bat(w * 0.83, h * 0.17, w * 0.074)}
+      {bat(w * 0.47, h * 0.32, w * 0.046)}
+
+      {/* Dead trees (drawn before house so house overlaps roots) */}
+      {tree(w * 0.09, h * 0.70, 'l')}
+      {tree(w * 0.89, h * 0.70, 'r')}
+
+      {/* Tower roof */}
+      {roofTri(tW / 2 + w * 0.016, h * 0.14, tL + tW / 2, tT - h * 0.14)}
+      {/* Tower body */}
+      <View style={{ position: 'absolute', left: tL, top: tT, width: tW, height: tH, backgroundColor: sil }} />
+      {/* Tower window (only meaningful at full/emmy size) */}
+      {w > 80 && (
+        <View style={{ position: 'absolute', left: tL + tW * 0.22, top: tT + tH * 0.22,
+          width: tW * 0.56, height: tH * 0.17, backgroundColor: '#e07010' }} />
+      )}
+
+      {/* House roof */}
+      {roofTri(hW / 2 + w * 0.04, h * 0.17, hL + hW / 2, hT - h * 0.17)}
+      {/* Chimney */}
+      <View style={{ position: 'absolute', left: hL + hW * 0.27, top: hT - h * 0.23,
+        width: w * 0.055, height: h * 0.095, backgroundColor: sil }} />
+      {/* House body */}
+      <View style={{ position: 'absolute', left: hL, top: hT, width: hW, height: hH, backgroundColor: sil }} />
+      {/* House windows */}
+      {w > 80 && (
+        <>
+          <View style={{ position: 'absolute', left: hL + hW * 0.17, top: hT + hH * 0.16,
+            width: hW * 0.20, height: hH * 0.22, backgroundColor: '#e07010' }} />
+          <View style={{ position: 'absolute', left: hL + hW * 0.60, top: hT + hH * 0.16,
+            width: hW * 0.20, height: hH * 0.22, backgroundColor: '#e07010' }} />
+        </>
+      )}
+
+      {/* Rolling hills at bottom */}
+      <View style={{ position: 'absolute', left: -w * 0.08, top: h * 0.81, width: w * 0.65, height: h * 0.30,
+        backgroundColor: sil, borderTopLeftRadius: w * 0.45, borderTopRightRadius: w * 0.30 }} />
+      <View style={{ position: 'absolute', right: -w * 0.08, top: h * 0.83, width: w * 0.60, height: h * 0.30,
+        backgroundColor: sil, borderTopLeftRadius: w * 0.30, borderTopRightRadius: w * 0.42 }} />
+      <View style={{ position: 'absolute', left: 0, right: 0, top: h * 0.91, height: h * 0.12, backgroundColor: sil }} />
+    </View>
+  );
+}
+
 // ── Poster backgrounds ────────────────────────────────────────────────────────
 export const POSTER_BACKGROUNDS = [
   {
@@ -65,6 +206,13 @@ export const POSTER_BACKGROUNDS = [
     name: 'Ember & Ash',
     colors: ['#1a0a00', '#3d1a00', '#6b2800'] as const,
     accent: '#ff6b35',
+  },
+  {
+    id: 'haunted-hills',
+    name: 'Haunted Hills',
+    colors: ['#3d1070', '#0d0230', '#060018'] as const,
+    accent: '#b07ead',
+    render: _hauntedHills,
   },
 ];
 
@@ -178,18 +326,19 @@ function PosterPreview({ config, title, seasonNumber, studioName, castNames }: {
 
   return (
     <View style={st.posterFrame}>
-      <LinearGradient
-        colors={[...bg.colors] as [string, string, ...string[]]}
-        style={st.posterGradient}
-      >
-        {/* Studio presents */}
+      {/* Background — gradient or illustrated */}
+      {'render' in bg && bg.render
+        ? bg.render(POSTER_WIDTH, POSTER_HEIGHT)
+        : <LinearGradient colors={[...bg.colors] as [string, string, ...string[]]} style={StyleSheet.absoluteFill} />
+      }
+      {/* Content overlay (all children are already position:absolute) */}
+      <View style={StyleSheet.absoluteFill}>
         <View style={st.posterPresents}>
           <Text style={st.posterPresentsText}>{studioName.toUpperCase()} PRESENTS</Text>
         </View>
-
         {castBlock}
         {mainBlock}
-      </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -326,10 +475,12 @@ export default function PosterCreatorScreen() {
               const selected = config.backgroundID === bg.id;
               return (
                 <TouchableOpacity key={bg.id} onPress={() => update({ backgroundID: bg.id })} activeOpacity={0.8}>
-                  <LinearGradient
-                    colors={[...bg.colors] as [string, string, ...string[]]}
-                    style={[st.bgSwatch, selected && { borderColor: C.gold, borderWidth: 2 }]}
-                  />
+                  <View style={[st.bgSwatch, selected && { borderColor: C.gold, borderWidth: 2 }, { overflow: 'hidden' }]}>
+                    {'render' in bg && bg.render
+                      ? bg.render(64, 96)
+                      : <LinearGradient colors={[...bg.colors] as [string, string, ...string[]]} style={StyleSheet.absoluteFill} />
+                    }
+                  </View>
                   <Text style={[st.bgLabel, selected && { color: C.gold }]}>{bg.name}</Text>
                 </TouchableOpacity>
               );

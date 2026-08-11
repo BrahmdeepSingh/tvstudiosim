@@ -521,24 +521,27 @@ export function EmmyCeremonyModal() {
 
       return (
         <View style={[s.emmyPosterWrap, { borderColor: isPlayerWin ? C.gold : '#ffffff40' }]}>
-          <LinearGradient
-            colors={bg.colors as [string, ...string[]]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ width: EMMY_POSTER_W, height: EMMY_POSTER_H, borderRadius: 7, overflow: 'hidden' }}
-          >
-            <View style={{ flex: 1, justifyContent: 'space-between' }}>
-              <View style={{ padding: 5 }}>
-                {presentsEl}
-                {cfg.castPosition === 'top' && castEl}
-                {cfg.titlePosition === 'top' && titleEl}
-              </View>
-              <View style={{ padding: 5 }}>
-                {cfg.titlePosition === 'bottom' && titleEl}
-                {cfg.castPosition === 'bottom' && castEl}
+          <View style={{ width: EMMY_POSTER_W, height: EMMY_POSTER_H, borderRadius: 7, overflow: 'hidden' }}>
+            {/* Background — gradient or illustrated */}
+            {'render' in bg && bg.render
+              ? bg.render(EMMY_POSTER_W, EMMY_POSTER_H)
+              : <LinearGradient colors={bg.colors as [string, ...string[]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            }
+            {/* Content overlay */}
+            <View style={StyleSheet.absoluteFill}>
+              <View style={{ flex: 1, justifyContent: 'space-between' }}>
+                <View style={{ padding: 5 }}>
+                  {presentsEl}
+                  {cfg.castPosition === 'top' && castEl}
+                  {cfg.titlePosition === 'top' && titleEl}
+                </View>
+                <View style={{ padding: 5 }}>
+                  {cfg.titlePosition === 'bottom' && titleEl}
+                  {cfg.castPosition === 'bottom' && castEl}
+                </View>
               </View>
             </View>
-          </LinearGradient>
+          </View>
         </View>
       );
     }
