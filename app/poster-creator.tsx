@@ -269,9 +269,20 @@ export default function PosterCreatorScreen() {
   }
 
   function handleConfirm() {
-    const store = useGameStore.getState();
-    store.savePosterConfig(show!.id, config);
-    store.setAirDate(show!.id, Number(targetWeek), Number(targetYear));
+    // Inline the posterConfig save — write directly to store state
+    const showID = show!.id;
+    useGameStore.setState(s => ({
+      shows: s.shows.map(sh => {
+        if (sh.id !== showID) return sh;
+        return {
+          ...sh,
+          seasons: sh.seasons.map((se, i) =>
+            i === sh.currentSeasonIndex ? { ...se, posterConfig: config } : se,
+          ),
+        };
+      }),
+    }));
+    useGameStore.getState().setAirDate(showID, Number(targetWeek), Number(targetYear));
     router.back();
   }
 
