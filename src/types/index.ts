@@ -186,7 +186,12 @@ export interface PosterConfig {
   backgroundID: string;
   titlePosition: 'top' | 'bottom';
   titleSize: 'small' | 'medium' | 'large';
+  titleFont: 'bebas' | 'manrope-bold' | 'manrope-light';
   titleColor: string;
+  titleAlignment: 'left' | 'center' | 'right';
+  seasonPosition: 'above-title' | 'below-title';
+  seasonAlignment: 'left' | 'center' | 'right';
+  castPosition: 'top' | 'bottom';
   tagline: string;
   showSeasonNumber: boolean;
 }

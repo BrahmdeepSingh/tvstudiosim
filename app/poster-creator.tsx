@@ -10,7 +10,7 @@ import { useGameStore } from '../src/store/gameStore';
 import { PosterConfig } from '../src/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const POSTER_WIDTH  = SCREEN_WIDTH * 0.55;
+const POSTER_WIDTH  = SCREEN_WIDTH * 0.65;
 const POSTER_HEIGHT = POSTER_WIDTH * 1.5;
 
 const C = {
@@ -23,18 +23,18 @@ const C = {
   gold:     '#e6b254',
   goldDim:  '#e6b25420',
   goldText: '#161008',
-  green:    '#4ec46e',
 };
 
 const F = {
-  display: 'BebasNeue_400Regular',
-  body:    'Manrope_400Regular',
-  bodyMd:  'Manrope_600SemiBold',
-  bodyBd:  'Manrope_700Bold',
-  bodyXBd: 'Manrope_800ExtraBold',
+  display:  'BebasNeue_400Regular',
+  body:     'Manrope_400Regular',
+  bodyMd:   'Manrope_600SemiBold',
+  bodyBd:   'Manrope_700Bold',
+  bodyXBd:  'Manrope_800ExtraBold',
+  bodyLt:   'Manrope_300Light',
 };
 
-// ── Placeholder backgrounds (swap for real images later) ──────────────────────
+// ── Poster backgrounds ────────────────────────────────────────────────────────
 export const POSTER_BACKGROUNDS = [
   {
     id: 'noir-city',
@@ -54,6 +54,18 @@ export const POSTER_BACKGROUNDS = [
     colors: ['#0d0015', '#1a0030', '#350060'] as const,
     accent: '#b06aff',
   },
+  {
+    id: 'arctic-dawn',
+    name: 'Arctic Dawn',
+    colors: ['#0a1628', '#1a3a5c', '#2a6090'] as const,
+    accent: '#7fc8f8',
+  },
+  {
+    id: 'ember-ash',
+    name: 'Ember & Ash',
+    colors: ['#1a0a00', '#3d1a00', '#6b2800'] as const,
+    accent: '#ff6b35',
+  },
 ];
 
 const TITLE_COLORS = [
@@ -61,56 +73,108 @@ const TITLE_COLORS = [
   { label: 'Gold',   value: '#e6b254' },
   { label: 'Ice',    value: '#cccee0' },
   { label: 'Coral',  value: '#e06050' },
+  { label: 'Mint',   value: '#4ec46e' },
 ];
 
 const TITLE_SIZES: { label: string; value: PosterConfig['titleSize']; fontSize: number }[] = [
-  { label: 'S',  value: 'small',  fontSize: 26 },
-  { label: 'M',  value: 'medium', fontSize: 38 },
-  { label: 'L',  value: 'large',  fontSize: 52 },
+  { label: 'S',  value: 'small',  fontSize: 24 },
+  { label: 'M',  value: 'medium', fontSize: 36 },
+  { label: 'L',  value: 'large',  fontSize: 50 },
+];
+
+const TITLE_FONTS: { label: string; value: PosterConfig['titleFont']; family: string }[] = [
+  { label: 'Display', value: 'bebas',        family: 'BebasNeue_400Regular' },
+  { label: 'Bold',    value: 'manrope-bold',  family: 'Manrope_700Bold' },
+  { label: 'Light',   value: 'manrope-light', family: 'Manrope_300Light' },
+];
+
+const ALIGN_OPTIONS: { label: string; value: 'left' | 'center' | 'right' }[] = [
+  { label: 'L', value: 'left' },
+  { label: 'C', value: 'center' },
+  { label: 'R', value: 'right' },
 ];
 
 const DEFAULT_CONFIG: PosterConfig = {
   backgroundID:    'noir-city',
   titlePosition:   'bottom',
   titleSize:       'large',
+  titleFont:       'bebas',
   titleColor:      '#f0ede8',
+  titleAlignment:  'left',
+  seasonPosition:  'above-title',
+  seasonAlignment: 'left',
+  castPosition:    'top',
   tagline:         '',
   showSeasonNumber: true,
 };
 
-// ── Poster preview component ──────────────────────────────────────────────────
-function PosterPreview({ config, title, seasonNumber, networkInitials }: {
+// ── Poster preview ────────────────────────────────────────────────────────────
+function PosterPreview({ config, title, seasonNumber, studioName, castNames }: {
   config: PosterConfig;
   title: string;
   seasonNumber: number;
-  networkInitials: string;
+  studioName: string;
+  castNames: string[];
 }) {
   const bg = POSTER_BACKGROUNDS.find(b => b.id === config.backgroundID) ?? POSTER_BACKGROUNDS[0];
   const sizeEntry = TITLE_SIZES.find(s => s.value === config.titleSize) ?? TITLE_SIZES[2];
+  const fontEntry = TITLE_FONTS.find(f => f.value === config.titleFont) ?? TITLE_FONTS[0];
 
-  const textBlock = (
+  const titleAlign = config.titleAlignment;
+  const seasonAlign = config.seasonAlignment;
+
+  const seasonLabel = (
+    config.showSeasonNumber
+      ? <Text style={[st.posterSeason, { color: bg.accent, textAlign: seasonAlign }]}>
+          SEASON {seasonNumber}
+        </Text>
+      : null
+  );
+
+  const titleText = (
+    <Text
+      style={[
+        st.posterTitle,
+        {
+          color: config.titleColor,
+          fontSize: sizeEntry.fontSize,
+          lineHeight: sizeEntry.fontSize * (config.titleFont === 'bebas' ? 1.02 : 1.15),
+          fontFamily: fontEntry.family,
+          textAlign: titleAlign,
+        },
+      ]}
+      numberOfLines={3}
+    >
+      {title.toUpperCase()}
+    </Text>
+  );
+
+  const mainBlock = (
     <View style={[
       st.posterTextBlock,
       config.titlePosition === 'top' ? st.posterTextTop : st.posterTextBottom,
     ]}>
-      {config.showSeasonNumber && config.titlePosition === 'top' && (
-        <Text style={[st.posterSeason, { color: bg.accent }]}>
-          SEASON {seasonNumber}
-        </Text>
-      )}
-      <Text style={[st.posterTitle, { color: config.titleColor, fontSize: sizeEntry.fontSize, lineHeight: sizeEntry.fontSize * 1.05 }]} numberOfLines={3}>
-        {title.toUpperCase()}
-      </Text>
-      {config.showSeasonNumber && config.titlePosition === 'bottom' && (
-        <Text style={[st.posterSeason, { color: bg.accent }]}>
-          SEASON {seasonNumber}
-        </Text>
-      )}
+      {config.seasonPosition === 'above-title' && seasonLabel}
+      {titleText}
+      {config.seasonPosition === 'below-title' && seasonLabel}
       {config.tagline.trim().length > 0 && (
-        <Text style={st.posterTagline} numberOfLines={2}>{config.tagline}</Text>
+        <Text style={[st.posterTagline, { textAlign: titleAlign }]} numberOfLines={2}>
+          {config.tagline}
+        </Text>
       )}
     </View>
   );
+
+  const castBlock = castNames.length > 0 ? (
+    <View style={[
+      st.posterCast,
+      config.castPosition === 'top' ? st.posterCastTop : st.posterCastBottom,
+    ]}>
+      <Text style={[st.posterCastText, { color: bg.accent }]}>
+        {castNames.join('  ·  ').toUpperCase()}
+      </Text>
+    </View>
+  ) : null;
 
   return (
     <View style={st.posterFrame}>
@@ -118,13 +182,41 @@ function PosterPreview({ config, title, seasonNumber, networkInitials }: {
         colors={[...bg.colors] as [string, string, ...string[]]}
         style={st.posterGradient}
       >
-        {/* Network badge */}
-        <View style={st.posterBadge}>
-          <Text style={st.posterBadgeText}>{networkInitials}</Text>
+        {/* Studio presents */}
+        <View style={st.posterPresents}>
+          <Text style={st.posterPresentsText}>{studioName.toUpperCase()} PRESENTS</Text>
         </View>
 
-        {textBlock}
+        {castBlock}
+        {mainBlock}
       </LinearGradient>
+    </View>
+  );
+}
+
+// ── Shared sub-controls ───────────────────────────────────────────────────────
+function ToggleRow<T extends string>({
+  options,
+  value,
+  onSelect,
+}: {
+  options: { label: string; value: T }[];
+  value: T;
+  onSelect: (v: T) => void;
+}) {
+  return (
+    <View style={st.toggleRow}>
+      {options.map(opt => (
+        <TouchableOpacity
+          key={opt.value}
+          style={[st.toggleBtn, value === opt.value && st.toggleBtnActive]}
+          onPress={() => onSelect(opt.value)}
+        >
+          <Text style={[st.toggleBtnText, value === opt.value && st.toggleBtnTextActive]}>
+            {opt.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 }
@@ -136,7 +228,7 @@ export default function PosterCreatorScreen() {
     showID: string; targetWeek: string; targetYear: string;
   }>();
 
-  const { shows, network, setAirDate, savePosterConfig } = useGameStore();
+  const { shows, network, talent, setAirDate, savePosterConfig } = useGameStore();
   const show = shows.find(s => s.id === showID);
   const season = show?.seasons[show.currentSeasonIndex];
 
@@ -152,6 +244,24 @@ export default function PosterCreatorScreen() {
         <Text style={{ color: C.muted, padding: 32, fontFamily: F.body }}>Show not found.</Text>
       </SafeAreaView>
     );
+  }
+
+  // Derive cast names: prefer 2 leads, fall back to 1 lead + 1 supporting
+  const allTalent = talent;
+  const leadNames = season.leadActorIDs
+    .map(id => allTalent.find(t => t.id === id)?.name)
+    .filter(Boolean) as string[];
+  const supportingNames = season.supportingActorIDs
+    .map(id => allTalent.find(t => t.id === id)?.name)
+    .filter(Boolean) as string[];
+
+  let castNames: string[] = [];
+  if (leadNames.length >= 2) {
+    castNames = leadNames.slice(0, 2);
+  } else if (leadNames.length === 1 && supportingNames.length >= 1) {
+    castNames = [leadNames[0], supportingNames[0]];
+  } else if (leadNames.length === 1) {
+    castNames = [leadNames[0]];
   }
 
   function update(partial: Partial<PosterConfig>) {
@@ -186,19 +296,15 @@ export default function PosterCreatorScreen() {
 
         <ScrollView style={st.scroll} contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false}>
 
-          {/* Preview */}
-          <View style={st.previewRow}>
+          {/* Centered preview */}
+          <View style={st.previewCenter}>
             <PosterPreview
               config={config}
               title={show.title}
               seasonNumber={seasonNumber}
-              networkInitials={network.initials}
+              studioName={network.name}
+              castNames={castNames}
             />
-            <View style={st.previewMeta}>
-              <Text style={st.previewShowTitle} numberOfLines={2}>{show.title}</Text>
-              <Text style={st.previewSeason}>Season {seasonNumber}</Text>
-              <Text style={st.previewDate}>Premieres{'\n'}Week {targetWeek} · Year {targetYear}</Text>
-            </View>
           </View>
 
           {/* Background picker */}
@@ -220,35 +326,35 @@ export default function PosterCreatorScreen() {
 
           {/* Title position */}
           <Text style={st.sectionLabel}>TITLE POSITION</Text>
-          <View style={st.toggleRow}>
-            {(['top', 'bottom'] as const).map(pos => (
-              <TouchableOpacity
-                key={pos}
-                style={[st.toggleBtn, config.titlePosition === pos && st.toggleBtnActive]}
-                onPress={() => update({ titlePosition: pos })}
-              >
-                <Text style={[st.toggleBtnText, config.titlePosition === pos && st.toggleBtnTextActive]}>
-                  {pos.toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <ToggleRow
+            options={[{ label: 'TOP', value: 'top' }, { label: 'BOTTOM', value: 'bottom' }]}
+            value={config.titlePosition}
+            onSelect={v => update({ titlePosition: v })}
+          />
+
+          {/* Title font */}
+          <Text style={st.sectionLabel}>TITLE FONT</Text>
+          <ToggleRow
+            options={TITLE_FONTS.map(f => ({ label: f.label, value: f.value }))}
+            value={config.titleFont}
+            onSelect={v => update({ titleFont: v })}
+          />
 
           {/* Title size */}
           <Text style={st.sectionLabel}>TITLE SIZE</Text>
-          <View style={st.toggleRow}>
-            {TITLE_SIZES.map(sz => (
-              <TouchableOpacity
-                key={sz.value}
-                style={[st.toggleBtn, config.titleSize === sz.value && st.toggleBtnActive]}
-                onPress={() => update({ titleSize: sz.value })}
-              >
-                <Text style={[st.toggleBtnText, config.titleSize === sz.value && st.toggleBtnTextActive]}>
-                  {sz.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <ToggleRow
+            options={TITLE_SIZES.map(s => ({ label: s.label, value: s.value }))}
+            value={config.titleSize}
+            onSelect={v => update({ titleSize: v })}
+          />
+
+          {/* Title alignment */}
+          <Text style={st.sectionLabel}>TITLE ALIGNMENT</Text>
+          <ToggleRow
+            options={ALIGN_OPTIONS}
+            value={config.titleAlignment}
+            onSelect={v => update({ titleAlignment: v })}
+          />
 
           {/* Title color */}
           <Text style={st.sectionLabel}>TITLE COLOR</Text>
@@ -262,7 +368,7 @@ export default function PosterCreatorScreen() {
             ))}
           </View>
 
-          {/* Season number toggle */}
+          {/* Season number */}
           <View style={st.switchRow}>
             <Text style={st.switchLabel}>Show Season Number</Text>
             <Switch
@@ -273,8 +379,37 @@ export default function PosterCreatorScreen() {
             />
           </View>
 
+          {config.showSeasonNumber && (
+            <>
+              <Text style={st.sectionLabel}>SEASON NUMBER POSITION</Text>
+              <ToggleRow
+                options={[{ label: 'ABOVE TITLE', value: 'above-title' }, { label: 'BELOW TITLE', value: 'below-title' }]}
+                value={config.seasonPosition}
+                onSelect={v => update({ seasonPosition: v })}
+              />
+              <Text style={st.sectionLabel}>SEASON NUMBER ALIGNMENT</Text>
+              <ToggleRow
+                options={ALIGN_OPTIONS}
+                value={config.seasonAlignment}
+                onSelect={v => update({ seasonAlignment: v })}
+              />
+            </>
+          )}
+
+          {/* Cast billing */}
+          {castNames.length > 0 && (
+            <>
+              <Text style={st.sectionLabel}>CAST BILLING POSITION</Text>
+              <ToggleRow
+                options={[{ label: 'TOP', value: 'top' }, { label: 'BOTTOM', value: 'bottom' }]}
+                value={config.castPosition}
+                onSelect={v => update({ castPosition: v })}
+              />
+            </>
+          )}
+
           {/* Tagline */}
-          <Text style={st.sectionLabel}>TAGLINE</Text>
+          <Text style={st.sectionLabel}>TAGLINE (OPTIONAL)</Text>
           <TextInput
             style={st.taglineInput}
             value={config.tagline}
@@ -305,8 +440,8 @@ export default function PosterCreatorScreen() {
 }
 
 const st = StyleSheet.create({
-  safeArea:   { flex: 1 },
-  container:  { flex: 1, backgroundColor: C.pageBg },
+  safeArea:  { flex: 1 },
+  container: { flex: 1, backgroundColor: C.pageBg },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -319,10 +454,9 @@ const st = StyleSheet.create({
   scroll:        { flex: 1 },
   scrollContent: { paddingBottom: 24 },
 
-  // ── Preview ──────────────────────────────────────────────────────────────────
-  previewRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 16,
-    paddingHorizontal: 16, paddingVertical: 20,
+  // ── Centered preview ─────────────────────────────────────────────────────────
+  previewCenter: {
+    alignItems: 'center', paddingVertical: 24,
   },
   posterFrame: {
     width: POSTER_WIDTH, height: POSTER_HEIGHT,
@@ -330,31 +464,39 @@ const st = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.6, shadowRadius: 20, elevation: 16,
   },
-  posterGradient:   { flex: 1 },
-  posterBadge: {
-    position: 'absolute', top: 10, left: 10,
-    width: 28, height: 28, borderRadius: 6,
-    backgroundColor: '#ffffff18', borderWidth: 1, borderColor: '#ffffff30',
-    justifyContent: 'center', alignItems: 'center',
+  posterGradient: { flex: 1 },
+
+  // Studio presents strip
+  posterPresents: {
+    position: 'absolute', top: 10, left: 0, right: 0, alignItems: 'center',
   },
-  posterBadgeText:  { fontFamily: F.display, color: '#fff', fontSize: 11, letterSpacing: 1 },
-  posterTextBlock:  { position: 'absolute', left: 12, right: 12 },
-  posterTextTop:    { top: 44 },
-  posterTextBottom: { bottom: 16 },
-  posterTitle:      { fontFamily: F.display, letterSpacing: 1 },
-  posterSeason: {
-    fontFamily: F.bodyXBd, fontSize: 9, letterSpacing: 2,
-    marginBottom: 4, marginTop: 4,
-  },
-  posterTagline: {
-    fontFamily: F.bodyMd, color: '#ffffffaa', fontSize: 10,
-    marginTop: 6, lineHeight: 14, letterSpacing: 0.3,
+  posterPresentsText: {
+    fontFamily: F.bodyMd, color: '#ffffff88', fontSize: 8, letterSpacing: 2,
   },
 
-  previewMeta:      { flex: 1, justifyContent: 'center', gap: 8 },
-  previewShowTitle: { fontFamily: F.bodyBd, color: C.text, fontSize: 17, lineHeight: 22 },
-  previewSeason:    { fontFamily: F.bodyMd, color: C.muted, fontSize: 13 },
-  previewDate:      { fontFamily: F.body, color: C.gold, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  // Cast billing
+  posterCast: {
+    position: 'absolute', left: 12, right: 12,
+  },
+  posterCastTop:    { top: 28 },
+  posterCastBottom: { bottom: 10 },
+  posterCastText: {
+    fontFamily: F.bodyBd, fontSize: 8, letterSpacing: 1.5, textAlign: 'center',
+  },
+
+  // Title block
+  posterTextBlock:  { position: 'absolute', left: 12, right: 12 },
+  posterTextTop:    { top: 48 },
+  posterTextBottom: { bottom: 20 },
+  posterTitle:      { letterSpacing: 1 },
+  posterSeason: {
+    fontFamily: F.bodyXBd, fontSize: 8, letterSpacing: 2,
+    marginBottom: 3, marginTop: 3,
+  },
+  posterTagline: {
+    fontFamily: F.bodyMd, color: '#ffffffaa', fontSize: 9,
+    marginTop: 5, lineHeight: 13, letterSpacing: 0.3,
+  },
 
   // ── Controls ─────────────────────────────────────────────────────────────────
   sectionLabel: {
@@ -364,19 +506,19 @@ const st = StyleSheet.create({
 
   bgScroll: { marginBottom: 4 },
   bgSwatch: {
-    width: 72, height: 108, borderRadius: 8,
+    width: 64, height: 96, borderRadius: 8,
     borderWidth: 1, borderColor: C.border,
   },
   bgLabel: { fontFamily: F.bodyMd, color: C.mutedMid, fontSize: 10, textAlign: 'center', marginTop: 5 },
 
-  toggleRow:         { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
-  toggleBtn:         { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg, alignItems: 'center' },
-  toggleBtnActive:   { borderColor: C.gold, backgroundColor: C.goldDim },
-  toggleBtnText:     { fontFamily: F.bodyBd, color: C.mutedMid, fontSize: 13 },
+  toggleRow:           { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
+  toggleBtn:           { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg, alignItems: 'center' },
+  toggleBtnActive:     { borderColor: C.gold, backgroundColor: C.goldDim },
+  toggleBtnText:       { fontFamily: F.bodyBd, color: C.mutedMid, fontSize: 12 },
   toggleBtnTextActive: { color: C.gold },
 
-  colorRow:          { flexDirection: 'row', gap: 14, paddingHorizontal: 16 },
-  colorSwatch:       { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: 'transparent' },
+  colorRow:            { flexDirection: 'row', gap: 14, paddingHorizontal: 16 },
+  colorSwatch:         { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: 'transparent' },
   colorSwatchSelected: { borderColor: C.gold },
 
   switchRow: {

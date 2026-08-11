@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 import {
+  Manrope_300Light,
   Manrope_400Regular,
   Manrope_600SemiBold,
   Manrope_700Bold,
@@ -15,6 +16,7 @@ import { AchievementToast } from '../src/components/AchievementToast';
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     BebasNeue_400Regular,
+    Manrope_300Light,
     Manrope_400Regular,
     Manrope_600SemiBold,
     Manrope_700Bold,
