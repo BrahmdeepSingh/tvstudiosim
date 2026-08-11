@@ -11,7 +11,7 @@ import { getThemeWindow, isInThemeWindow } from '../src/constants/schedule';
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
   border: '#252840',
-  text: '#f0ede8', muted: '#9a958e',
+  text: '#f0ede8', muted: '#9a958e', mutedMid: '#6b6880',
   gold: '#e6b254', goldDim: '#e6b25420', goldBtnText: '#161008',
   green: '#4ec46e', greenBg: '#1a3325', amber: '#d4753a', red: '#c43820',
 };
@@ -238,6 +238,7 @@ export default function MarketingScreen() {
 
         {MARKETING_CHANNELS.map(channel => {
           const purchased = season.marketingChannelIDs.includes(channel.id);
+          const prestigeLocked = network.prestige < channel.prestigeRequired;
           const hasAffinity =
             channel.genreAffinities.length === 0 ||
             (channel.genreAffinities as readonly string[]).includes(show.genre);
@@ -246,37 +247,55 @@ export default function MarketingScreen() {
           return (
             <View
               key={channel.id}
-              style={[s.channelCard, purchased && s.channelCardPurchased]}
+              style={[
+                s.channelCard,
+                purchased && s.channelCardPurchased,
+                prestigeLocked && s.channelCardLocked,
+              ]}
             >
               <View style={s.channelTop}>
                 <View style={{ flex: 1 }}>
                   <View style={s.channelNameRow}>
-                    <Text style={[s.channelName, purchased && { color: C.green }]}>
+                    <Text style={[s.channelName, purchased && { color: C.green }, prestigeLocked && { color: C.mutedMid }]}>
                       {channel.name}
                     </Text>
-                    {hasAffinity && channel.genreAffinities.length > 0 && (
-                      <View style={s.affinityBadge}>
-                        <Text style={s.affinityText}>Genre match</Text>
+                    {prestigeLocked ? (
+                      <View style={s.lockedBadge}>
+                        <Text style={s.lockedBadgeText}>Prestige {channel.prestigeRequired}+</Text>
                       </View>
-                    )}
-                    {channel.genreAffinities.length === 0 && (
-                      <View style={[s.affinityBadge, { backgroundColor: C.goldDim, borderColor: C.gold }]}>
-                        <Text style={[s.affinityText, { color: C.gold }]}>All genres</Text>
-                      </View>
+                    ) : (
+                      <>
+                        {hasAffinity && channel.genreAffinities.length > 0 && (
+                          <View style={s.affinityBadge}>
+                            <Text style={s.affinityText}>Genre match</Text>
+                          </View>
+                        )}
+                        {channel.genreAffinities.length === 0 && (
+                          <View style={[s.affinityBadge, { backgroundColor: C.goldDim, borderColor: C.gold }]}>
+                            <Text style={[s.affinityText, { color: C.gold }]}>All genres</Text>
+                          </View>
+                        )}
+                      </>
                     )}
                   </View>
-                  <Text style={s.channelReach}>
-                    Reach: {Math.round(channel.reachMultiplier * 100)}%
-                    {hasAffinity && channel.genreAffinities.length > 0 ? ' (+20% affinity)' : ''}
+                  <Text style={[s.channelReach, prestigeLocked && { color: C.mutedMid }]}>
+                    {prestigeLocked
+                      ? `Unlocks at Prestige ${channel.prestigeRequired}`
+                      : `Reach: ${Math.round(channel.reachMultiplier * 100)}%${hasAffinity && channel.genreAffinities.length > 0 ? ' (+20% affinity)' : ''}`
+                    }
                   </Text>
                 </View>
                 <View style={s.channelRight}>
-                  <Text style={[s.channelCost, !canAfford && !purchased && { color: C.red }]}>
+                  <Text style={[s.channelCost, prestigeLocked && { color: C.mutedMid }, !canAfford && !purchased && !prestigeLocked && { color: C.red }]}>
                     {fmt(channel.cost)}
                   </Text>
                   {purchased ? (
                     <View style={s.purchasedBadge}>
                       <Text style={s.purchasedText}>✓ Bought</Text>
+                    </View>
+                  ) : prestigeLocked ? (
+                    <View style={s.lockedBtn}>
+                      <Text style={s.lockedBtnText}>🔒</Text>
                     </View>
                   ) : (
                     <TouchableOpacity
@@ -387,6 +406,11 @@ const s = StyleSheet.create({
 
   channelCard:          { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 10 },
   channelCardPurchased: { borderColor: C.green + '66' },
+  channelCardLocked:    { opacity: 0.55 },
+  lockedBadge:          { backgroundColor: '#9a958e18', borderWidth: 1, borderColor: '#9a958e40', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  lockedBadgeText:      { color: '#9a958e', fontFamily: 'Manrope_700Bold', fontSize: 10 },
+  lockedBtn:            { borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center' },
+  lockedBtnText:        { fontSize: 16 },
   channelTop:           { flexDirection: 'row', alignItems: 'center', gap: 12 },
   channelNameRow:       { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 },
   channelName:          { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
