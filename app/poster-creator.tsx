@@ -249,131 +249,126 @@ function _desertWest(w: number, h: number) {
   );
 }
 
-// ── Illustrated background: Battlefield (Game of Thrones style) ───────────────
+// ── Illustrated background: Battlefield ───────────────────────────────────────
+// Desolate post-battle ruins: multiple swords + arrows stuck in the ground,
+// crimson sky from distant fires, crows circling overhead.
 function _battlefield(w: number, h: number) {
-  const sil = '#050308';
-  const groundY = h * 0.72;
+  const sil = '#060208';
+  const groundY = h * 0.70;
 
-  // Flying dragon silhouette — large bat-like wings + body + neck + tail
-  function dragon(dx: number, dy: number, sz: number) {
-    const bW = sz * 0.88;
-    const bH = sz * 0.30;
-    const wW = sz * 1.25; // one wing half-span
-    const wH = sz * 0.90; // wing height above body
+  // x-center of an element at height y, for a sword leaning at tan(angle)=lean
+  const xAt = (base: number, lean: number, y: number) => base + lean * (groundY - y);
+
+  // Sword stuck in ground. showFrac = fraction of blade visible above ground.
+  // lean = tan(tilt angle): 0.12 ≈ 7°, 0.20 ≈ 11°
+  function sword(cx: number, showFrac: number, lean: number) {
+    const bW   = w * 0.022;
+    const bH   = h * 0.28 * showFrac;
+    const tipH = bW * 2.0;
+    const gW   = w * 0.105;
+    const gH   = h * 0.015;
+    const hW   = bW * 1.5;
+    const hH   = h * 0.070;
+    const pomR = hW * 0.85;
+
+    const pomTop = groundY - pomR * 2;
+    const hndTop = pomTop - hH;
+    const gTop   = hndTop - gH;
+    const blTop  = gTop - bH;
+
+    const x = (y: number) => xAt(cx, lean, y);
 
     return (
       <View>
-        {/* Left wing membrane — rounded outer tip, sweeps back into body */}
-        <View style={{ position: 'absolute', left: dx - bW / 2 - wW, top: dy - wH,
-          width: wW, height: wH + bH * 0.60, backgroundColor: sil,
-          borderTopLeftRadius: wW * 0.80, borderTopRightRadius: wW * 0.06,
-          borderBottomLeftRadius: wW * 0.08, borderBottomRightRadius: wW * 0.40 }} />
-        {/* Right wing membrane */}
-        <View style={{ position: 'absolute', left: dx + bW / 2, top: dy - wH,
-          width: wW, height: wH + bH * 0.60, backgroundColor: sil,
-          borderTopLeftRadius: wW * 0.06, borderTopRightRadius: wW * 0.80,
-          borderBottomLeftRadius: wW * 0.40, borderBottomRightRadius: wW * 0.08 }} />
-        {/* Body */}
-        <View style={{ position: 'absolute', left: dx - bW / 2, top: dy - bH / 2,
-          width: bW, height: bH, backgroundColor: sil, borderRadius: bH / 2 }} />
-        {/* Neck angled upward */}
-        <View style={{ position: 'absolute', left: dx - bW * 0.60, top: dy - bH * 0.50,
-          width: sz * 0.52, height: bH * 0.40, backgroundColor: sil, borderRadius: bH * 0.20,
-          transform: [{ rotate: '-15deg' }] }} />
-        {/* Head */}
-        <View style={{ position: 'absolute', left: dx - bW * 0.58 - sz * 0.40, top: dy - bH * 0.65,
-          width: sz * 0.42, height: bH * 0.52, backgroundColor: sil, borderRadius: sz * 0.10 }} />
-        {/* Tail sweeping back */}
-        <View style={{ position: 'absolute', left: dx + bW * 0.38, top: dy - bH * 0.05,
-          width: sz * 0.85, height: bH * 0.26, backgroundColor: sil, borderRadius: bH * 0.13,
-          transform: [{ rotate: '12deg' }] }} />
+        <View style={{ position: 'absolute',
+          left: x(blTop - tipH / 2) - bW / 2, top: blTop - tipH,
+          width: 0, height: 0,
+          borderLeftWidth: bW / 2, borderRightWidth: bW / 2, borderBottomWidth: tipH,
+          borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: sil }} />
+        <View style={{ position: 'absolute',
+          left: x(blTop + bH / 2) - bW / 2, top: blTop, width: bW, height: bH,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute',
+          left: x(gTop + gH / 2) - gW / 2, top: gTop, width: gW, height: gH,
+          backgroundColor: sil, borderRadius: gH / 2 }} />
+        <View style={{ position: 'absolute',
+          left: x(hndTop + hH / 2) - hW / 2, top: hndTop, width: hW, height: hH,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute',
+          left: x(pomTop + pomR) - pomR, top: pomTop, width: pomR * 2, height: pomR * 2,
+          borderRadius: pomR, backgroundColor: sil }} />
       </View>
     );
   }
 
-  // Castle silhouette: keep + two flanking towers with crenellations
-  function castle(cx: number) {
-    const keepW = w * 0.28;
-    const keepH = h * 0.16;
-    const twW   = w * 0.094;
-    const twH   = h * 0.22;
-    const mW    = w * 0.018;
-    const mH    = h * 0.020;
-    const keepTop = groundY - keepH;
-    const twTop   = groundY - twH;
-    const numM    = Math.floor(keepW / (mW * 2.4));
-
+  // Arrow shaft + head stuck in ground
+  function arrow(cx: number, lean: number) {
+    const shW  = Math.max(1.5, w * 0.012);
+    const shH  = h * 0.12;
+    const hdH  = shW * 2.6;
+    const shTop = groundY - shH;
+    const x = (y: number) => xAt(cx, lean, y);
     return (
       <View>
-        {/* Left tower */}
-        <View style={{ position: 'absolute', left: cx - keepW / 2 - twW * 0.45, top: twTop,
-          width: twW, height: twH, backgroundColor: sil }} />
-        {w > 80 && Array.from({ length: 3 }).map((_, i) => (
-          <View key={`lt${i}`} style={{ position: 'absolute',
-            left: cx - keepW / 2 - twW * 0.45 + i * twW * 0.33, top: twTop - mH,
-            width: mW, height: mH, backgroundColor: sil }} />
-        ))}
-        {/* Right tower */}
-        <View style={{ position: 'absolute', left: cx + keepW / 2 - twW * 0.55, top: twTop,
-          width: twW, height: twH, backgroundColor: sil }} />
-        {w > 80 && Array.from({ length: 3 }).map((_, i) => (
-          <View key={`rt${i}`} style={{ position: 'absolute',
-            left: cx + keepW / 2 - twW * 0.55 + i * twW * 0.33, top: twTop - mH,
-            width: mW, height: mH, backgroundColor: sil }} />
-        ))}
-        {/* Keep body */}
-        <View style={{ position: 'absolute', left: cx - keepW / 2, top: keepTop,
-          width: keepW, height: keepH, backgroundColor: sil }} />
-        {w > 80 && Array.from({ length: numM }).map((_, i) => (
-          <View key={`km${i}`} style={{ position: 'absolute',
-            left: cx - keepW / 2 + i * keepW / numM + mW * 0.3, top: keepTop - mH,
-            width: mW, height: mH, backgroundColor: sil }} />
-        ))}
-        {/* Gate arch */}
-        {w > 80 && (
-          <View style={{ position: 'absolute', left: cx - w * 0.024, top: groundY - h * 0.065,
-            width: w * 0.048, height: h * 0.065, backgroundColor: '#0c090e' }} />
-        )}
+        <View style={{ position: 'absolute',
+          left: x(shTop - hdH / 2) - shW * 0.8, top: shTop - hdH,
+          width: 0, height: 0,
+          borderLeftWidth: shW * 0.8, borderRightWidth: shW * 0.8, borderBottomWidth: hdH,
+          borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: sil }} />
+        <View style={{ position: 'absolute',
+          left: x(shTop + shH / 2) - shW / 2, top: shTop, width: shW, height: shH,
+          backgroundColor: sil }} />
       </View>
     );
   }
 
-  const mr = w * 0.085;
-  const mx = w * 0.68, my = h * 0.12;
+  // Simple flying crow silhouette — two curved wing halves meeting at body
+  function crow(cx: number, cy: number, sz: number) {
+    return (
+      <View>
+        <View style={{ position: 'absolute', left: cx - sz, top: cy,
+          width: sz, height: sz * 0.42, backgroundColor: sil,
+          borderTopLeftRadius: sz * 0.75, borderTopRightRadius: sz * 0.04,
+          borderBottomLeftRadius: sz * 0.04, borderBottomRightRadius: sz * 0.40 }} />
+        <View style={{ position: 'absolute', left: cx, top: cy,
+          width: sz, height: sz * 0.42, backgroundColor: sil,
+          borderTopLeftRadius: sz * 0.04, borderTopRightRadius: sz * 0.75,
+          borderBottomLeftRadius: sz * 0.40, borderBottomRightRadius: sz * 0.04 }} />
+      </View>
+    );
+  }
 
   return (
     <View style={{ width: w, height: h }}>
-      {/* Deep purple night sky */}
+      {/* Dark sky bleeding into crimson horizon from distant fires */}
       <LinearGradient
-        colors={['#020006', '#0b0420', '#1a0838', '#280e42', '#110618']}
-        locations={[0, 0.22, 0.50, 0.75, 1]}
+        colors={['#050210', '#160825', '#300a1a', '#6a1210', '#3a0806']}
+        locations={[0, 0.28, 0.56, 0.82, 1]}
         style={StyleSheet.absoluteFill}
       />
-      {/* Moon outer glow */}
-      <View style={{ position: 'absolute', left: mx - mr * 2.6, top: my - mr * 2.6,
-        width: mr * 5.2, height: mr * 5.2, borderRadius: mr * 2.6,
-        backgroundColor: '#cfc096', opacity: 0.07 }} />
-      {/* Moon inner glow */}
-      <View style={{ position: 'absolute', left: mx - mr * 1.65, top: my - mr * 1.65,
-        width: mr * 3.3, height: mr * 3.3, borderRadius: mr * 1.65,
-        backgroundColor: '#ddd0a8', opacity: 0.12 }} />
-      {/* Moon disc */}
-      <View style={{ position: 'absolute', left: mx - mr, top: my - mr,
-        width: mr * 2, height: mr * 2, borderRadius: mr, backgroundColor: '#eee4c6' }} />
-      {/* Three dragons at different sizes + depths */}
-      {dragon(w * 0.28, h * 0.22, w * 0.115)}
-      {dragon(w * 0.62, h * 0.10, w * 0.078)}
-      {dragon(w * 0.12, h * 0.36, w * 0.065)}
-      {/* Rolling dark hills at horizon */}
-      <View style={{ position: 'absolute', left: -w * 0.08, top: h * 0.60, width: w * 0.68, height: h * 0.50,
-        backgroundColor: '#06040c', borderTopLeftRadius: w * 0.44, borderTopRightRadius: w * 0.26 }} />
-      <View style={{ position: 'absolute', right: -w * 0.08, top: h * 0.62, width: w * 0.62, height: h * 0.50,
-        backgroundColor: '#06040c', borderTopLeftRadius: w * 0.22, borderTopRightRadius: w * 0.44 }} />
-      {/* Castle on the hill */}
-      {castle(w * 0.50)}
-      {/* Ground fill */}
-      <View style={{ position: 'absolute', left: 0, right: 0, top: groundY + h * 0.02, bottom: 0,
-        backgroundColor: '#040208' }} />
+      {/* Horizon fire glow */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: groundY - h * 0.05, height: h * 0.07,
+        backgroundColor: '#7a1408', opacity: 0.50 }} />
+      {/* Ground */}
+      <LinearGradient
+        colors={['#180804', '#080302']}
+        style={{ position: 'absolute', left: 0, right: 0, top: groundY, bottom: 0 }}
+      />
+      {/* Battlefield mist at ground level */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: groundY - h * 0.024, height: h * 0.048,
+        backgroundColor: '#201010', opacity: 0.45 }} />
+      {/* Three swords at different lean angles and burial depths */}
+      {sword(w * 0.28, 0.82, -0.13)}
+      {sword(w * 0.52, 1.00,  0.05)}
+      {sword(w * 0.72, 0.72,  0.18)}
+      {/* Arrows scattered across the ground */}
+      {arrow(w * 0.16,  0.04)}
+      {arrow(w * 0.40, -0.07)}
+      {arrow(w * 0.86,  0.06)}
+      {/* Crows circling — only at full/Emmy size */}
+      {w > 80 && crow(w * 0.32, h * 0.15, w * 0.030)}
+      {w > 80 && crow(w * 0.55, h * 0.09, w * 0.024)}
+      {w > 80 && crow(w * 0.78, h * 0.20, w * 0.021)}
     </View>
   );
 }
@@ -532,8 +527,8 @@ export const POSTER_BACKGROUNDS = [
   {
     id: 'battlefield',
     name: 'Battlefield',
-    colors: ['#020006', '#1a0838', '#110618'] as const,
-    accent: '#9070c0',
+    colors: ['#050210', '#300a1a', '#3a0806'] as const,
+    accent: '#c04020',
     render: _battlefield,
   },
   {
