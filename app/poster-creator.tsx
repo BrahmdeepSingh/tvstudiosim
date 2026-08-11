@@ -175,6 +175,243 @@ function _hauntedHills(w: number, h: number) {
   );
 }
 
+// ── Illustrated background: Desert West ───────────────────────────────────────
+function _desertWest(w: number, h: number) {
+  const sil = '#100600';
+  const groundY = h * 0.70;
+
+  function cactus(cx: number) {
+    const tw = w * 0.042;
+    const th = h * 0.26;
+    const aw = w * 0.030;
+    const lConnW = w * 0.070;
+    const lConnY = groundY - th * 0.62;
+    const lArmH  = h * 0.11;
+    const rConnW = w * 0.055;
+    const rConnY = groundY - th * 0.75;
+    const rArmH  = h * 0.09;
+    return (
+      <View>
+        <View style={{ position: 'absolute', left: cx - tw/2, top: groundY - th, width: tw, height: th,
+          backgroundColor: sil, borderTopLeftRadius: tw/2, borderTopRightRadius: tw/2 }} />
+        <View style={{ position: 'absolute', left: cx - tw/2 - lConnW, top: lConnY, width: lConnW + tw/2, height: aw,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute', left: cx - tw/2 - lConnW, top: lConnY - lArmH, width: aw, height: lArmH + aw,
+          backgroundColor: sil, borderTopLeftRadius: aw/2, borderTopRightRadius: aw/2 }} />
+        <View style={{ position: 'absolute', left: cx + tw/2, top: rConnY, width: rConnW + aw, height: aw,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute', left: cx + tw/2 + rConnW, top: rConnY - rArmH, width: aw, height: rArmH + aw,
+          backgroundColor: sil, borderTopLeftRadius: aw/2, borderTopRightRadius: aw/2 }} />
+      </View>
+    );
+  }
+
+  function windmill(cx: number) {
+    const poleW = w * 0.016;
+    const poleH = h * 0.34;
+    const fanCY  = groundY - poleH;
+    const bladeLen = w * 0.14;
+    const bladeThk = Math.max(2, w * 0.014);
+    return (
+      <View>
+        <View style={{ position: 'absolute', left: cx - poleW/2, top: groundY - poleH, width: poleW, height: poleH,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute', left: cx - w*0.055, top: groundY - h*0.055, width: w*0.110, height: poleW,
+          backgroundColor: sil, transform: [{ rotate: '42deg' }] }} />
+        <View style={{ position: 'absolute', left: cx - w*0.055, top: groundY - h*0.055, width: w*0.110, height: poleW,
+          backgroundColor: sil, transform: [{ rotate: '-42deg' }] }} />
+        {[0, 30, 60, 90, 120, 150].map(deg => (
+          <View key={deg} style={{ position: 'absolute',
+            left: cx - bladeLen/2, top: fanCY - bladeThk/2,
+            width: bladeLen, height: bladeThk,
+            backgroundColor: sil, transform: [{ rotate: `${deg}deg` }] }} />
+        ))}
+        <View style={{ position: 'absolute', left: cx - w*0.020, top: fanCY - w*0.020,
+          width: w*0.040, height: w*0.040, borderRadius: w*0.020, backgroundColor: sil }} />
+      </View>
+    );
+  }
+
+  const sr = w * 0.085;
+  return (
+    <View style={{ width: w, height: h }}>
+      <LinearGradient
+        colors={['#150300', '#4a1200', '#9a3a05', '#d06820', '#b84008']}
+        locations={[0, 0.25, 0.55, 0.80, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={{ position: 'absolute', left: w * 0.18 - sr, top: groundY - sr * 0.65,
+        width: sr * 2, height: sr * 2, borderRadius: sr, backgroundColor: '#f09030', opacity: 0.88 }} />
+      <View style={{ position: 'absolute', left: 0, right: 0, top: groundY, bottom: 0, backgroundColor: '#0d0500' }} />
+      {windmill(w * 0.67)}
+      {cactus(w * 0.27)}
+    </View>
+  );
+}
+
+// ── Illustrated background: Battlefield ───────────────────────────────────────
+function _battlefield(w: number, h: number) {
+  const sil = '#060408';
+  const groundY = h * 0.68;
+
+  function sword(cx: number) {
+    const bW   = w * 0.025;
+    const bH   = h * 0.38;
+    const tipH = bW * 2.4;
+    const gW   = w * 0.14;
+    const gH   = h * 0.022;
+    const hW   = bW * 1.5;
+    const hH   = h * 0.095;
+    const pomR = hW * 0.90;
+
+    const pomTop = groundY - pomR * 2;
+    const hndTop = pomTop - hH;
+    const gTop   = hndTop - gH;
+    const blTop  = gTop - bH;
+
+    return (
+      <View>
+        <View style={{ position: 'absolute', left: cx - bW/2, top: blTop - tipH,
+          width: 0, height: 0,
+          borderLeftWidth: bW/2, borderRightWidth: bW/2, borderBottomWidth: tipH,
+          borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: sil }} />
+        <View style={{ position: 'absolute', left: cx - bW/2, top: blTop, width: bW, height: bH,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute', left: cx - gW/2, top: gTop, width: gW, height: gH,
+          backgroundColor: sil, borderRadius: gH/2 }} />
+        <View style={{ position: 'absolute', left: cx - hW/2, top: hndTop, width: hW, height: hH,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute', left: cx - pomR, top: pomTop, width: pomR*2, height: pomR*2,
+          borderRadius: pomR, backgroundColor: sil }} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ width: w, height: h }}>
+      <LinearGradient
+        colors={['#05020f', '#0e081e', '#200d36', '#3a1508', '#1a0804']}
+        locations={[0, 0.28, 0.55, 0.80, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={{ position: 'absolute', left: 0, right: 0, top: groundY - h * 0.032, height: h * 0.032,
+        backgroundColor: '#5a1800', opacity: 0.50 }} />
+      <LinearGradient
+        colors={['#0a0803', '#040401']}
+        style={{ position: 'absolute', left: 0, right: 0, top: groundY, bottom: 0 }}
+      />
+      {sword(w * 0.50)}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: groundY - h * 0.038, height: h * 0.055,
+        backgroundColor: '#18100a', opacity: 0.32 }} />
+    </View>
+  );
+}
+
+// ── Illustrated background: Cinema Studio ─────────────────────────────────────
+function _cinemaStudio(w: number, h: number) {
+  const sil = '#150c03';
+  const groundY = h * 0.76;
+
+  function chair(cx: number) {
+    const cW    = w * 0.36;
+    const legH  = h * 0.20;
+    const legW  = Math.max(2, w * 0.018);
+    const seatH = h * 0.022;
+    const seatY = groundY - legH;
+    const backH = h * 0.18;
+    const backW = cW * 0.66;
+
+    return (
+      <View>
+        <View style={{ position: 'absolute', left: cx - legW/2 - cW*0.25, top: seatY,
+          width: legW, height: legH, backgroundColor: sil, transform: [{ rotate: '-9deg' }] }} />
+        <View style={{ position: 'absolute', left: cx - legW/2 + cW*0.25, top: seatY,
+          width: legW, height: legH, backgroundColor: sil, transform: [{ rotate: '9deg' }] }} />
+        <View style={{ position: 'absolute', left: cx - cW/2, top: seatY, width: cW, height: seatH,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute', left: cx - cW/2, top: seatY - h*0.032, width: cW*0.30, height: legW,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute', left: cx + cW*0.20, top: seatY - h*0.032, width: cW*0.30, height: legW,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute', left: cx - backW/2 - legW, top: seatY - backH, width: legW, height: backH,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute', left: cx + backW/2, top: seatY - backH, width: legW, height: backH,
+          backgroundColor: sil }} />
+        <View style={{ position: 'absolute', left: cx - backW/2, top: seatY - backH, width: backW, height: backH * 0.40,
+          backgroundColor: sil }} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ width: w, height: h }}>
+      <LinearGradient
+        colors={['#2a1a08', '#3e2612', '#4a3018', '#2e1c0a']}
+        locations={[0, 0.35, 0.68, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      {w > 80 && (
+        <View style={{ position: 'absolute', left: -w*0.05, top: 0, width: w*0.55, height: h*0.52,
+          backgroundColor: '#f0d090', opacity: 0.055, transform: [{ skewX: '16deg' }] }} />
+      )}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: groundY, bottom: 0, backgroundColor: '#120a03' }} />
+      {chair(w * 0.50)}
+      {w > 80 && (
+        <View style={{ position: 'absolute', right: 0, top: 0, width: w * 0.095, bottom: 0, backgroundColor: '#120a03' }}>
+          {Array.from({ length: 9 }).map((_, i) => (
+            <View key={i} style={{ position: 'absolute', right: w * 0.015, top: h * 0.055 + i * h * 0.106,
+              width: w * 0.045, height: h * 0.048, backgroundColor: '#2a1808', borderRadius: 1 }} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ── Illustrated background: Abstract Hills ─────────────────────────────────────
+function _abstractHills(w: number, h: number) {
+  return (
+    <View style={{ width: w, height: h }}>
+      <LinearGradient
+        colors={['#040714', '#080f28', '#0d163e']}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      {w > 80 && (
+        [
+          [0.12, 0.07], [0.27, 0.03], [0.44, 0.10], [0.60, 0.05],
+          [0.77, 0.12], [0.88, 0.03], [0.35, 0.17], [0.55, 0.14],
+          [0.70, 0.20], [0.06, 0.22], [0.93, 0.18],
+        ].map(([x, y], i) => (
+          <View key={i} style={{ position: 'absolute', left: w*x, top: h*y,
+            width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: '#b0bcd8', opacity: 0.65 }} />
+        ))
+      )}
+      {/* Layer 4 — farthest, lightest */}
+      <View style={{ position: 'absolute', left: -w*0.10, top: h*0.44, width: w*0.72, height: h*0.60,
+        backgroundColor: '#0f1a3a', borderTopLeftRadius: w*0.55, borderTopRightRadius: w*0.32 }} />
+      <View style={{ position: 'absolute', right: -w*0.10, top: h*0.41, width: w*0.65, height: h*0.62,
+        backgroundColor: '#0f1a3a', borderTopLeftRadius: w*0.30, borderTopRightRadius: w*0.56 }} />
+      {/* Layer 3 */}
+      <View style={{ position: 'absolute', left: -w*0.12, top: h*0.54, width: w*0.76, height: h*0.55,
+        backgroundColor: '#0b1530', borderTopLeftRadius: w*0.50, borderTopRightRadius: w*0.38 }} />
+      <View style={{ position: 'absolute', right: -w*0.12, top: h*0.50, width: w*0.70, height: h*0.58,
+        backgroundColor: '#0b1530', borderTopLeftRadius: w*0.34, borderTopRightRadius: w*0.52 }} />
+      {/* Layer 2 */}
+      <View style={{ position: 'absolute', left: -w*0.15, top: h*0.63, width: w*0.80, height: h*0.48,
+        backgroundColor: '#081126', borderTopLeftRadius: w*0.54, borderTopRightRadius: w*0.30 }} />
+      <View style={{ position: 'absolute', right: -w*0.15, top: h*0.59, width: w*0.72, height: h*0.52,
+        backgroundColor: '#081126', borderTopLeftRadius: w*0.26, borderTopRightRadius: w*0.56 }} />
+      {/* Layer 1 — closest, darkest */}
+      <View style={{ position: 'absolute', left: -w*0.05, top: h*0.72, width: w*0.62, height: h*0.35,
+        backgroundColor: '#050d1e', borderTopLeftRadius: w*0.46, borderTopRightRadius: w*0.26 }} />
+      <View style={{ position: 'absolute', right: -w*0.05, top: h*0.74, width: w*0.65, height: h*0.32,
+        backgroundColor: '#050d1e', borderTopLeftRadius: w*0.20, borderTopRightRadius: w*0.50 }} />
+      <View style={{ position: 'absolute', left: 0, right: 0, top: h*0.88, bottom: 0, backgroundColor: '#040c1a' }} />
+    </View>
+  );
+}
+
 // ── Poster backgrounds ────────────────────────────────────────────────────────
 export const POSTER_BACKGROUNDS = [
   {
@@ -213,6 +450,34 @@ export const POSTER_BACKGROUNDS = [
     colors: ['#3d1070', '#0d0230', '#060018'] as const,
     accent: '#b07ead',
     render: _hauntedHills,
+  },
+  {
+    id: 'desert-west',
+    name: 'Desert West',
+    colors: ['#150300', '#9a3a05', '#d06820'] as const,
+    accent: '#f09030',
+    render: _desertWest,
+  },
+  {
+    id: 'battlefield',
+    name: 'Battlefield',
+    colors: ['#05020f', '#200d36', '#1a0804'] as const,
+    accent: '#8b4010',
+    render: _battlefield,
+  },
+  {
+    id: 'cinema-studio',
+    name: 'Cinema',
+    colors: ['#2a1a08', '#4a3018', '#2e1c0a'] as const,
+    accent: '#d4a855',
+    render: _cinemaStudio,
+  },
+  {
+    id: 'abstract-hills',
+    name: 'Abstract Hills',
+    colors: ['#040714', '#080f28', '#0d163e'] as const,
+    accent: '#4a6aaa',
+    render: _abstractHills,
   },
 ];
 
