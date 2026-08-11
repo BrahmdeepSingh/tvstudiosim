@@ -28,8 +28,8 @@ const TALENT_CATS = new Set<EmmyCategory>([
 ]);
 
 // ── Emmy Poster ───────────────────────────────────────────────────────────────
-const EMMY_POSTER_W = 90;
-const EMMY_POSTER_H = 135;
+const EMMY_POSTER_W = 120;
+const EMMY_POSTER_H = 180;
 const EMMY_RATIO    = EMMY_POSTER_W / 68; // scale factor vs shows-tab mini poster (68px wide)
 
 const EMMY_FONT_MAP: Record<string, string> = {
@@ -129,6 +129,7 @@ export function EmmyCeremonyModal() {
   const andWinnerOp  = useRef(new Animated.Value(0)).current;
   const pill1Op      = useRef(new Animated.Value(0)).current;
   const pill2Op      = useRef(new Animated.Value(0)).current;
+  const posterOp     = useRef(new Animated.Value(0)).current;
   const starGlow     = useRef(new Animated.Value(0)).current;
   const starGlowRef  = useRef<Animated.CompositeAnimation | null>(null);
   const confetti    = useRef(CONFETTI.map(() => ({
@@ -205,6 +206,7 @@ export function EmmyCeremonyModal() {
     andWinnerOp.setValue(0);
     pill1Op.setValue(0);
     pill2Op.setValue(0);
+    posterOp.setValue(0);
     starGlow.setValue(0);
     confetti.forEach(c => { c.op.setValue(0); c.ty.setValue(-14); });
   }
@@ -245,14 +247,19 @@ export function EmmyCeremonyModal() {
       }
     }, 1500);
 
-    // Phase 4: Stat pills stagger in after winner has fully arrived (player win only)
+    // Phase 4: Poster fades in after winner text has settled
+    setTimeout(() => {
+      Animated.timing(posterOp, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+    }, 2050);
+
+    // Phase 5: Stat pills stagger in after winner has fully arrived (player win only)
     if (isPlayerWin) {
       setTimeout(() => {
         Animated.timing(pill1Op, { toValue: 1, duration: 340, useNativeDriver: true }).start();
-      }, 2100);
+      }, 2350);
       setTimeout(() => {
         Animated.timing(pill2Op, { toValue: 1, duration: 340, useNativeDriver: true }).start();
-      }, 2280);
+      }, 2530);
     }
   }
 
@@ -581,15 +588,13 @@ export function EmmyCeremonyModal() {
             {/* Category label */}
             <Text style={s.revealCatLabel}>{catLabel}</Text>
 
-            {/* Show poster (if available) OR Emmy star */}
-            {posterConfig ? renderEmmyPoster() : (
-              <Animated.View style={[s.starCircle, { transform: [{ scale: starScale }], opacity: starOpacity }]}>
-                <Text style={s.starChar}>★</Text>
-              </Animated.View>
-            )}
+            {/* Emmy star circle */}
+            <Animated.View style={[s.starCircle, { transform: [{ scale: starScale }], opacity: starOpacity }]}>
+              <Text style={s.starChar}>★</Text>
+            </Animated.View>
 
             {/* "AND THE WINNER IS" — fades in first for tension */}
-            <Animated.View style={{ opacity: andWinnerOp, marginTop: posterConfig ? 14 : 0 }}>
+            <Animated.View style={{ opacity: andWinnerOp }}>
               <Text style={s.andWinner}>AND THE WINNER IS</Text>
             </Animated.View>
 
@@ -598,6 +603,13 @@ export function EmmyCeremonyModal() {
               <Text style={s.winnerTitle}>{winnerPrimary.toUpperCase()}</Text>
               <Text style={s.winnerStudio}>{winnerSub.toUpperCase()}</Text>
             </Animated.View>
+
+            {/* Poster — fades in after winner text settles */}
+            {posterConfig && (
+              <Animated.View style={{ opacity: posterOp, marginBottom: 20 }}>
+                {renderEmmyPoster()}
+              </Animated.View>
+            )}
 
             {/* Stat pills — player win only */}
             {isPlayerWin && (
@@ -889,7 +901,6 @@ const s = StyleSheet.create({
     shadowOpacity: 0.7,
     shadowRadius: 14,
     elevation: 12,
-    marginBottom: 20,
   },
   continueWrap: {},
   continueBtn: {
