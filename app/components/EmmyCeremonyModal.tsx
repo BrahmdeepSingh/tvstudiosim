@@ -6,7 +6,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { EMMY_CATEGORY_LABELS } from '../../src/constants/game';
-import type { Award, EmmyCategory } from '../../src/types';
+import { POSTER_BACKGROUNDS } from '../poster-creator';
+import type { Award, EmmyCategory, PosterConfig } from '../../src/types';
 
 // ── Ceremony reveal order — individual awards first, series last ──────────────
 const CEREMONY_ORDER: EmmyCategory[] = [
@@ -25,6 +26,41 @@ const TALENT_CATS = new Set<EmmyCategory>([
   'best-drama-actor', 'best-drama-actress', 'best-comedy-actor',
   'best-comedy-actress', 'best-director', 'best-writing',
 ]);
+
+// ── Emmy Poster ───────────────────────────────────────────────────────────────
+const EMMY_POSTER_W = 90;
+const EMMY_POSTER_H = 135;
+const EMMY_RATIO    = EMMY_POSTER_W / 68; // scale factor vs shows-tab mini poster (68px wide)
+
+const EMMY_FONT_MAP: Record<string, string> = {
+  'bebas':         'BebasNeue_400Regular',
+  'manrope-bold':  'Manrope_700Bold',
+  'manrope-light': 'Manrope_300Light',
+};
+
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function generateCompetitorPoster(showID: string): PosterConfig {
+  const h = hashStr(showID);
+  const TCOLORS = ['#ffffff', '#f5e6c8', '#f0d080', '#c8e0f0', '#e8c0c0'];
+  return {
+    backgroundID:     POSTER_BACKGROUNDS[h % POSTER_BACKGROUNDS.length].id,
+    titlePosition:    h % 2 === 0 ? 'bottom' : 'top',
+    titleSize:        (['small', 'medium', 'large'] as const)[h % 3],
+    titleFont:        (['bebas', 'manrope-bold', 'manrope-light'] as const)[h % 3],
+    titleColor:       TCOLORS[(h >> 1) % TCOLORS.length],
+    titleAlignment:   (['left', 'center', 'right'] as const)[(h >> 2) % 3],
+    seasonPosition:   (h >> 3) % 2 === 0 ? 'above-title' : 'below-title',
+    seasonAlignment:  (['left', 'center', 'right'] as const)[(h >> 4) % 3],
+    castPosition:     (h >> 5) % 2 === 0 ? 'top' : 'bottom',
+    tagline:          '',
+    showSeasonNumber: (h >> 6) % 3 !== 0,
+  };
+}
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -390,6 +426,116 @@ export function EmmyCeremonyModal() {
     const starScale   = starGlow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
     const starOpacity = starGlow.interpolate({ inputRange: [0.15, 1], outputRange: [0.65, 1] });
 
+    // ── Resolve poster ──────────────────────────────────────────────────────────
+    let posterConfig: PosterConfig | null = null;
+    let posterShowTitle   = '';
+    let posterNetworkName = '';
+    let posterCastNames: string[] = [];
+    let posterSeasonNum   = 1;
+
+    if (winner) {
+      if (winner.isPlayerAward) {
+        const show = shows.find(s => s.id === winner.showID);
+        if (show) {
+          const season = show.seasons.find(s => s.id === winner.seasonID)
+            ?? show.seasons[show.seasons.length - 1];
+          posterConfig      = season?.posterConfig ?? null;
+          posterShowTitle   = show.title;
+          posterNetworkName = network.name;
+          posterSeasonNum   = season?.seasonNumber ?? 1;
+          if (season) {
+            const castIDs = season.leadActorIDs.length >= 2
+              ? season.leadActorIDs.slice(0, 2)
+              : [...season.leadActorIDs, ...season.supportingActorIDs].slice(0, 2);
+            posterCastNames = castIDs
+              .map(id => talent.find(t => t.id === id)?.name ?? '')
+              .filter(Boolean);
+          }
+        }
+      } else {
+        for (const comp of competitors) {
+          const cs = comp.activeShows.find(s => s.id === winner.showID);
+          if (cs) {
+            posterConfig      = generateCompetitorPoster(cs.id);
+            posterShowTitle   = cs.title;
+            posterNetworkName = comp.name;
+            posterSeasonNum   = cs.seasonNumber;
+            break;
+          }
+        }
+      }
+    }
+
+    // ── Inline poster renderer ──────────────────────────────────────────────────
+    function renderEmmyPoster() {
+      if (!posterConfig) return null;
+      const cfg = posterConfig;
+      const bg  = POSTER_BACKGROUNDS.find(b => b.id === cfg.backgroundID) ?? POSTER_BACKGROUNDS[0];
+      const pSz = (base: number) => Math.max(4, Math.round(base * EMMY_RATIO));
+      const titleFamily = EMMY_FONT_MAP[cfg.titleFont] ?? 'BebasNeue_400Regular';
+      const titleSize   = cfg.titleSize === 'large' ? pSz(14)
+        : cfg.titleSize === 'medium' ? pSz(10) : pSz(8);
+      const titleAlign  = cfg.titleAlignment;
+      const flexAlign   = titleAlign === 'left' ? 'flex-start'
+        : titleAlign === 'right' ? 'flex-end' : 'center';
+
+      const presentsEl = (
+        <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: pSz(5), color: '#ffffff88', letterSpacing: 1.5, textAlign: 'center', marginBottom: 1 }}>
+          {posterNetworkName.toUpperCase()} PRESENTS
+        </Text>
+      );
+      const castEl = posterCastNames.length > 0 ? (
+        <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: pSz(5), color: '#ffffff88', textAlign: 'center', letterSpacing: 0.8, marginVertical: 1 }}>
+          {posterCastNames.join('  ·  ')}
+        </Text>
+      ) : null;
+      const titleEl = (
+        <View style={{ alignItems: flexAlign }}>
+          {cfg.showSeasonNumber && cfg.seasonPosition === 'above-title' && (
+            <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: pSz(6), color: '#ffffffaa', letterSpacing: 1.5, marginBottom: 1 }}>
+              SEASON {posterSeasonNum}
+            </Text>
+          )}
+          <Text style={{ fontFamily: titleFamily, fontSize: titleSize, color: cfg.titleColor, textAlign: titleAlign, lineHeight: titleSize * 1.1 }}>
+            {posterShowTitle.toUpperCase()}
+          </Text>
+          {cfg.showSeasonNumber && cfg.seasonPosition === 'below-title' && (
+            <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: pSz(6), color: '#ffffffaa', letterSpacing: 1.5, marginTop: 1 }}>
+              SEASON {posterSeasonNum}
+            </Text>
+          )}
+          {cfg.tagline ? (
+            <Text style={{ fontFamily: 'Manrope_400Regular', fontSize: pSz(5.5), color: '#ffffffbb', fontStyle: 'italic', marginTop: 2 }}>
+              {cfg.tagline}
+            </Text>
+          ) : null}
+        </View>
+      );
+
+      return (
+        <View style={[s.emmyPosterWrap, { borderColor: isPlayerWin ? C.gold : '#ffffff40' }]}>
+          <LinearGradient
+            colors={bg.colors as [string, ...string[]]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ width: EMMY_POSTER_W, height: EMMY_POSTER_H, borderRadius: 7, overflow: 'hidden' }}
+          >
+            <View style={{ flex: 1, justifyContent: 'space-between' }}>
+              <View style={{ padding: 5 }}>
+                {presentsEl}
+                {cfg.castPosition === 'top' && castEl}
+                {cfg.titlePosition === 'top' && titleEl}
+              </View>
+              <View style={{ padding: 5 }}>
+                {cfg.titlePosition === 'bottom' && titleEl}
+                {cfg.castPosition === 'bottom' && castEl}
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+      );
+    }
+
     return (
       <View style={StyleSheet.absoluteFill}>
         {/* Background */}
@@ -435,13 +581,15 @@ export function EmmyCeremonyModal() {
             {/* Category label */}
             <Text style={s.revealCatLabel}>{catLabel}</Text>
 
-            {/* Emmy star circle */}
-            <Animated.View style={[s.starCircle, { transform: [{ scale: starScale }], opacity: starOpacity }]}>
-              <Text style={s.starChar}>★</Text>
-            </Animated.View>
+            {/* Show poster (if available) OR Emmy star */}
+            {posterConfig ? renderEmmyPoster() : (
+              <Animated.View style={[s.starCircle, { transform: [{ scale: starScale }], opacity: starOpacity }]}>
+                <Text style={s.starChar}>★</Text>
+              </Animated.View>
+            )}
 
             {/* "AND THE WINNER IS" — fades in first for tension */}
-            <Animated.View style={{ opacity: andWinnerOp }}>
+            <Animated.View style={{ opacity: andWinnerOp, marginTop: posterConfig ? 14 : 0 }}>
               <Text style={s.andWinner}>AND THE WINNER IS</Text>
             </Animated.View>
 
@@ -733,6 +881,16 @@ const s = StyleSheet.create({
   pillGreen:     { backgroundColor: '#4ec46e18', borderColor: '#4ec46e55' },
   pillGoldText:  { fontFamily: F.bodyBd, fontSize: 10.5, color: C.gold },
   pillGreenText: { fontFamily: F.bodyBd, fontSize: 10.5, color: C.green },
+  emmyPosterWrap: {
+    borderWidth: 1.5,
+    borderRadius: 9,
+    shadowColor: C.gold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 14,
+    elevation: 12,
+    marginBottom: 20,
+  },
   continueWrap: {},
   continueBtn: {
     paddingVertical: 13,
