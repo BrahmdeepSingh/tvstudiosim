@@ -5,7 +5,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { useGameStore } from '../src/store/gameStore';
 import { PosterConfig } from '../src/types';
 
@@ -456,60 +456,75 @@ function _sciFiPlanet(w: number, h: number) {
   );
 }
 
-// ── Illustrated background: Stadium Lights ────────────────────────────────────
+// ── Illustrated background: Stadium Crowd ─────────────────────────────────────
 function _stadiumLights(w: number, h: number) {
-  const fieldY = h * 0.78;
+  const standsTop = h * 0.06;
+  const standsBot = h * 0.78;
+  const fieldY    = standsBot;
 
-  // Draw a beam of light between two points as a rotated rectangle
-  function beam(sx: number, sy: number, tx: number, ty: number, bW: number, color: string) {
-    const dx = tx - sx, dy = ty - sy;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-    const mx = (sx + tx) / 2, my = (sy + ty) / 2;
-    return (
-      <View style={{ position: 'absolute',
-        left: mx - len / 2, top: my - bW / 2,
-        width: len, height: bW,
-        backgroundColor: color, transform: [{ rotate: `${angle}deg` }] }} />
-    );
+  const numRows = w > 80 ? 10 : 6;
+  const dots: ReactElement[] = [];
+
+  for (let row = 0; row < numRows; row++) {
+    const t = row / (numRows - 1);
+    // rows nearer the bottom (front of stands) are brighter & denser
+    const rowY = standsTop + (standsBot - standsTop) * t;
+    const dotsInRow = Math.round(w > 80 ? (8 + row * 2.2) : (4 + row * 1.5));
+    const spacing   = w / (dotsInRow + 1);
+    const xOffset   = row % 2 === 0 ? spacing * 0.5 : 0;
+
+    for (let col = 0; col < dotsInRow; col++) {
+      const seed = (row * 41 + col * 17) % 97;
+      const cx   = xOffset + spacing * (col + 1);
+      const cy   = rowY + (((seed * 7) % 11) - 5) * h * 0.005;
+
+      // Base brightness rises toward front rows
+      const baseBright = 0.18 + t * 0.45;
+      const vary       = ((seed * 13) % 20) / 100;  // ±0 to +0.20 random variation
+
+      // Phone screens: markedly brighter warm dots
+      const isPhone    = seed % 11 === 0;
+      const dotColor   = isPhone ? '#e8c870' : '#a8bcd4';
+      const opacity    = isPhone
+        ? Math.min(0.95, baseBright + vary + 0.38)
+        : Math.min(0.85, baseBright + vary);
+
+      const sz = isPhone
+        ? Math.max(1.2, (w > 80 ? 2.2 : 1.2))
+        : Math.max(0.8, (w > 80 ? 1.4 : 0.9));
+
+      dots.push(
+        <View key={`${row}-${col}`} style={{
+          position: 'absolute',
+          left:  cx - sz / 2,
+          top:   cy - sz / 2,
+          width: sz, height: sz,
+          borderRadius: sz / 2,
+          backgroundColor: dotColor,
+          opacity,
+        }} />
+      );
+    }
   }
-
-  const lx = w * 0.08, ly = h * 0.06;
-  const rx = w * 0.92, ry = h * 0.06;
 
   return (
     <View style={{ width: w, height: h }}>
+      {/* Night sky */}
       <LinearGradient
-        colors={['#020408', '#030610', '#050814']}
-        locations={[0, 0.5, 1]}
+        colors={['#01020a', '#010308', '#020510']}
+        locations={[0, 0.4, 1]}
         style={StyleSheet.absoluteFill}
       />
-      {/* Beams from left bank */}
-      {beam(lx, ly, w * 0.38, fieldY, w * 0.070, '#0d1410')}
-      {beam(lx, ly, w * 0.58, fieldY, w * 0.050, '#0b1210')}
-      {/* Beams from right bank */}
-      {beam(rx, ry, w * 0.62, fieldY, w * 0.070, '#0d1410')}
-      {beam(rx, ry, w * 0.42, fieldY, w * 0.050, '#0b1210')}
+      {/* Crowd dots */}
+      {dots}
       {/* Field */}
       <View style={{ position: 'absolute', left: 0, right: 0, top: fieldY, bottom: 0,
-        backgroundColor: '#040d04' }} />
-      {/* Field centre line */}
+        backgroundColor: '#030d03' }} />
+      {/* Subtle field stripe */}
       {w > 80 && (
         <View style={{ position: 'absolute', left: 0, right: 0,
-          top: fieldY + (h - fieldY) * 0.42, height: 1, backgroundColor: '#07180a' }} />
+          top: fieldY + (h - fieldY) * 0.45, height: 1, backgroundColor: '#061408' }} />
       )}
-      {/* Left floodlight bar */}
-      <View style={{ position: 'absolute', left: lx - w * 0.065, top: ly - h * 0.014,
-        width: w * 0.130, height: h * 0.022, backgroundColor: '#10141a', borderRadius: 2 }} />
-      <View style={{ position: 'absolute', left: lx - w * 0.016, top: ly - h * 0.008,
-        width: w * 0.022, height: h * 0.016, borderRadius: 2,
-        backgroundColor: '#c8d0be' }} />
-      {/* Right floodlight bar */}
-      <View style={{ position: 'absolute', left: rx - w * 0.065, top: ry - h * 0.014,
-        width: w * 0.130, height: h * 0.022, backgroundColor: '#10141a', borderRadius: 2 }} />
-      <View style={{ position: 'absolute', left: rx - w * 0.016, top: ry - h * 0.008,
-        width: w * 0.022, height: h * 0.016, borderRadius: 2,
-        backgroundColor: '#c8d0be' }} />
     </View>
   );
 }
@@ -590,9 +605,9 @@ export const POSTER_BACKGROUNDS = [
   },
   {
     id: 'stadium-lights',
-    name: 'Stadium Lights',
-    colors: ['#020408', '#030610', '#040d04'] as const,
-    accent: '#2a6a20',
+    name: 'Stadium Crowd',
+    colors: ['#01020a', '#010308', '#030d03'] as const,
+    accent: '#a8bcd4',
     render: _stadiumLights,
   },
 ];
