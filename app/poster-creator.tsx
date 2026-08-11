@@ -354,6 +354,166 @@ function _abstractHills(w: number, h: number) {
   );
 }
 
+// ── Illustrated background: Interrogation Room ────────────────────────────────
+function _interrogationRoom(w: number, h: number) {
+  const bg   = '#030308';
+  const sil  = '#07070e';
+  const cx   = w * 0.50;
+  const seatY = h * 0.60;
+  const seatW = w * 0.28;
+  const seatH = h * 0.022;
+  const legW  = Math.max(2, w * 0.022);
+  const legH  = h * 0.17;
+  const backH = h * 0.15;
+  const railH = Math.max(2, h * 0.018);
+  const backW = seatW * 0.82;
+
+  return (
+    <View style={{ width: w, height: h, backgroundColor: bg }}>
+      {/* Spotlight cone — outer (wide, subtle) */}
+      <View style={{ position: 'absolute', left: cx - w * 0.24, top: 0,
+        width: 0, height: 0,
+        borderLeftWidth: w * 0.24, borderRightWidth: w * 0.24, borderBottomWidth: h * 0.92,
+        borderLeftColor: 'transparent', borderRightColor: 'transparent',
+        borderBottomColor: '#0e0e20' }} />
+      {/* Spotlight cone — inner (narrower, brighter) */}
+      <View style={{ position: 'absolute', left: cx - w * 0.15, top: 0,
+        width: 0, height: 0,
+        borderLeftWidth: w * 0.15, borderRightWidth: w * 0.15, borderBottomWidth: h * 0.88,
+        borderLeftColor: 'transparent', borderRightColor: 'transparent',
+        borderBottomColor: '#181838' }} />
+      {/* Light pool on floor */}
+      <View style={{ position: 'absolute', left: cx - w * 0.26, top: h * 0.81,
+        width: w * 0.52, height: h * 0.06, borderRadius: w * 0.26,
+        backgroundColor: '#1e1e45', opacity: 0.75 }} />
+      {/* Chair back legs */}
+      <View style={{ position: 'absolute', left: cx - seatW/2 + legW, top: seatY - backH,
+        width: legW, height: backH + seatH, backgroundColor: sil }} />
+      <View style={{ position: 'absolute', left: cx + seatW/2 - legW * 2, top: seatY - backH,
+        width: legW, height: backH + seatH, backgroundColor: sil }} />
+      {/* Top rail */}
+      <View style={{ position: 'absolute', left: cx - backW/2, top: seatY - backH,
+        width: backW, height: railH, backgroundColor: sil }} />
+      {/* Mid rail */}
+      <View style={{ position: 'absolute', left: cx - backW/2, top: seatY - backH * 0.52,
+        width: backW, height: railH, backgroundColor: sil }} />
+      {/* Seat */}
+      <View style={{ position: 'absolute', left: cx - seatW/2, top: seatY,
+        width: seatW, height: seatH, backgroundColor: sil }} />
+      {/* Front legs */}
+      <View style={{ position: 'absolute', left: cx - seatW/2 + legW, top: seatY + seatH,
+        width: legW, height: legH, backgroundColor: sil }} />
+      <View style={{ position: 'absolute', left: cx + seatW/2 - legW * 2, top: seatY + seatH,
+        width: legW, height: legH, backgroundColor: sil }} />
+    </View>
+  );
+}
+
+// ── Illustrated background: Sci-Fi Ringed Planet ──────────────────────────────
+function _sciFiPlanet(w: number, h: number) {
+  const pCX  = w * 0.50;
+  const pCY  = h * 0.60;
+  const pR   = w * 0.22;
+  const rngW = w * 0.72;
+  const rngH = h * 0.044;
+
+  const stars: [number, number, number][] = [
+    [0.08, 0.05, 1.5], [0.18, 0.12, 1.0], [0.32, 0.04, 2.0], [0.45, 0.09, 1.5],
+    [0.62, 0.06, 1.0], [0.75, 0.13, 2.0], [0.88, 0.05, 1.5], [0.95, 0.18, 1.0],
+    [0.14, 0.22, 1.0], [0.28, 0.18, 1.5], [0.52, 0.21, 1.0], [0.68, 0.24, 2.0],
+    [0.82, 0.28, 1.0], [0.05, 0.30, 1.5], [0.38, 0.30, 1.0],
+  ];
+
+  return (
+    <View style={{ width: w, height: h }}>
+      <LinearGradient
+        colors={['#010108', '#020212', '#04041e']}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      {stars.map(([x, y, sz], i) => (
+        <View key={i} style={{ position: 'absolute', left: w * x, top: h * y,
+          width: sz, height: sz, borderRadius: sz / 2,
+          backgroundColor: '#b8c4e0', opacity: 0.70 + (i % 3) * 0.10 }} />
+      ))}
+      {/* Ring — behind planet (drawn first, planet will cover centre) */}
+      <View style={{ position: 'absolute', left: pCX - rngW / 2, top: pCY - rngH / 2,
+        width: rngW, height: rngH, borderRadius: rngH / 2,
+        backgroundColor: '#263480', transform: [{ rotate: '-12deg' }] }} />
+      {/* Planet atmosphere glow */}
+      <View style={{ position: 'absolute', left: pCX - pR * 1.18, top: pCY - pR * 1.18,
+        width: pR * 2.36, height: pR * 2.36, borderRadius: pR * 1.18,
+        backgroundColor: '#1428a0', opacity: 0.16 }} />
+      {/* Planet body */}
+      <View style={{ position: 'absolute', left: pCX - pR, top: pCY - pR,
+        width: pR * 2, height: pR * 2, borderRadius: pR,
+        backgroundColor: '#0e1848' }} />
+      {/* Ring — front arc (same pill at same coords, drawn over planet) */}
+      <View style={{ position: 'absolute', left: pCX - rngW / 2, top: pCY - rngH / 2,
+        width: rngW, height: rngH, borderRadius: rngH / 2,
+        backgroundColor: '#263480', transform: [{ rotate: '-12deg' }] }} />
+    </View>
+  );
+}
+
+// ── Illustrated background: Stadium Lights ────────────────────────────────────
+function _stadiumLights(w: number, h: number) {
+  const fieldY = h * 0.78;
+
+  // Draw a beam of light between two points as a rotated rectangle
+  function beam(sx: number, sy: number, tx: number, ty: number, bW: number, color: string) {
+    const dx = tx - sx, dy = ty - sy;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    const mx = (sx + tx) / 2, my = (sy + ty) / 2;
+    return (
+      <View style={{ position: 'absolute',
+        left: mx - len / 2, top: my - bW / 2,
+        width: len, height: bW,
+        backgroundColor: color, transform: [{ rotate: `${angle}deg` }] }} />
+    );
+  }
+
+  const lx = w * 0.08, ly = h * 0.06;
+  const rx = w * 0.92, ry = h * 0.06;
+
+  return (
+    <View style={{ width: w, height: h }}>
+      <LinearGradient
+        colors={['#020408', '#030610', '#050814']}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Beams from left bank */}
+      {beam(lx, ly, w * 0.38, fieldY, w * 0.070, '#0d1410')}
+      {beam(lx, ly, w * 0.58, fieldY, w * 0.050, '#0b1210')}
+      {/* Beams from right bank */}
+      {beam(rx, ry, w * 0.62, fieldY, w * 0.070, '#0d1410')}
+      {beam(rx, ry, w * 0.42, fieldY, w * 0.050, '#0b1210')}
+      {/* Field */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: fieldY, bottom: 0,
+        backgroundColor: '#040d04' }} />
+      {/* Field centre line */}
+      {w > 80 && (
+        <View style={{ position: 'absolute', left: 0, right: 0,
+          top: fieldY + (h - fieldY) * 0.42, height: 1, backgroundColor: '#07180a' }} />
+      )}
+      {/* Left floodlight bar */}
+      <View style={{ position: 'absolute', left: lx - w * 0.065, top: ly - h * 0.014,
+        width: w * 0.130, height: h * 0.022, backgroundColor: '#10141a', borderRadius: 2 }} />
+      <View style={{ position: 'absolute', left: lx - w * 0.016, top: ly - h * 0.008,
+        width: w * 0.022, height: h * 0.016, borderRadius: 2,
+        backgroundColor: '#c8d0be' }} />
+      {/* Right floodlight bar */}
+      <View style={{ position: 'absolute', left: rx - w * 0.065, top: ry - h * 0.014,
+        width: w * 0.130, height: h * 0.022, backgroundColor: '#10141a', borderRadius: 2 }} />
+      <View style={{ position: 'absolute', left: rx - w * 0.016, top: ry - h * 0.008,
+        width: w * 0.022, height: h * 0.016, borderRadius: 2,
+        backgroundColor: '#c8d0be' }} />
+    </View>
+  );
+}
+
 // ── Poster backgrounds ────────────────────────────────────────────────────────
 export const POSTER_BACKGROUNDS = [
   {
@@ -413,6 +573,27 @@ export const POSTER_BACKGROUNDS = [
     colors: ['#040714', '#080f28', '#0d163e'] as const,
     accent: '#4a6aaa',
     render: _abstractHills,
+  },
+  {
+    id: 'interrogation',
+    name: 'Interrogation',
+    colors: ['#030308', '#0e0e20', '#181838'] as const,
+    accent: '#5050b0',
+    render: _interrogationRoom,
+  },
+  {
+    id: 'sci-fi-planet',
+    name: 'Ringed Planet',
+    colors: ['#010108', '#020212', '#04041e'] as const,
+    accent: '#3a5aff',
+    render: _sciFiPlanet,
+  },
+  {
+    id: 'stadium-lights',
+    name: 'Stadium Lights',
+    colors: ['#020408', '#030610', '#040d04'] as const,
+    accent: '#2a6a20',
+    render: _stadiumLights,
   },
 ];
 
