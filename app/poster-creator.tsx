@@ -228,7 +228,7 @@ export default function PosterCreatorScreen() {
     showID: string; targetWeek: string; targetYear: string;
   }>();
 
-  const { shows, network, talent, setAirDate, savePosterConfig } = useGameStore();
+  const { shows, network, talent } = useGameStore();
   const show = shows.find(s => s.id === showID);
   const season = show?.seasons[show.currentSeasonIndex];
 
@@ -269,13 +269,14 @@ export default function PosterCreatorScreen() {
   }
 
   function handleConfirm() {
-    savePosterConfig(show!.id, config);
-    setAirDate(show!.id, Number(targetWeek), Number(targetYear));
+    const store = useGameStore.getState();
+    store.savePosterConfig(show!.id, config);
+    store.setAirDate(show!.id, Number(targetWeek), Number(targetYear));
     router.back();
   }
 
   function handleSkip() {
-    setAirDate(show!.id, Number(targetWeek), Number(targetYear));
+    useGameStore.getState().setAirDate(show!.id, Number(targetWeek), Number(targetYear));
     router.back();
   }
 
