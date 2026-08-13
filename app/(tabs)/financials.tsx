@@ -64,7 +64,7 @@ function StatRow({ label, value, color }: { label: string; value: string; color?
 
 export default function StudioScreen() {
   const router = useRouter();
-  const { network, shows, saveGame, initializeGame } = useGameStore();
+  const { network, shows, saveGame, initializeGame, unlockedAchievementIDs } = useGameStore();
 
   const totalSeasons = shows.reduce((sum, sh) => sum + sh.seasons.length, 0);
   const activeShows = shows.filter(s =>
@@ -145,6 +145,18 @@ export default function StudioScreen() {
           <StatRow label="Emmys won"        value={String(network.emmysWon)} color={network.emmysWon > 0 ? C.amber : undefined} />
           <View style={s.divider} />
           <StatRow label="Current week"     value={`Week ${network.currentWeek}, Year ${network.currentYear}`} />
+        </View>
+
+        {/* Achievements */}
+        <Text style={s.sectionLabel}>ACHIEVEMENTS</Text>
+        <View style={s.actionsCard}>
+          <TouchableOpacity style={s.actionRow} onPress={() => router.push('/achievements')} activeOpacity={0.8}>
+            <View>
+              <Text style={s.actionLabel}>🏆  Achievements</Text>
+              <Text style={s.actionSub}>{(unlockedAchievementIDs ?? []).length} / 23 unlocked</Text>
+            </View>
+            <Text style={[s.actionChevron, { color: C.gold }]}>View →</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Actions */}

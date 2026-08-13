@@ -117,6 +117,10 @@ function getChannelDecay(channelId: string, episodeNumber: number): number {
       return Math.min(1.2, 0.3 + ep * 0.1);       // builds throughout season
     case 'billboards':
       return 1.0;                                   // constant, no decay
+    case 'celebrity-deal':
+      return Math.max(0.05, 1 - ep * 0.22);         // huge premiere spike, craters fastest
+    case 'international-push':
+      return 1.0;                                    // flat constant — overseas audiences don't decay
     default:
       return Math.max(0.2, 1 - ep * 0.08);
   }

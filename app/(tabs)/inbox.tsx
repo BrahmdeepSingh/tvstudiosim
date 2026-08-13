@@ -6,7 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { InboxItem } from '../../src/types';
-import { EMMY_CATEGORY_LABELS } from '../../src/constants/game';
+import { EMMY_CATEGORY_LABELS, getShowCapacity, ACTIVE_SHOW_STATUSES } from '../../src/constants/game';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a', cardBg2: '#1d2035',
@@ -48,9 +48,13 @@ const TYPE_META: Record<string, { label: string; color: string }> = {
 
 function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) {
   const router = useRouter();
-  const { pitches, talent, greenlightPitch, passPitch, markInboxRead } = useGameStore();
+  const { pitches, talent, shows, network, greenlightPitch, passPitch, markInboxRead } = useGameStore();
   const pitch = pitches.find(p => p.id === item.refID);
   const showrunner = pitch ? talent.find(t => t.id === pitch.showrunnerID) : null;
+
+  const capacity = getShowCapacity(network.prestige);
+  const activeCount = shows.filter(s => ACTIVE_SHOW_STATUSES.has(s.status)).length;
+  const atCapacity = activeCount >= capacity;
 
   if (!pitch) {
     return (
@@ -63,6 +67,7 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
   const expired = pitch.passed || pitch.greenlitByPlayer;
 
   function handleGreenlight() {
+    if (atCapacity) return;
     const ok = greenlightPitch(pitch!.id);
     if (ok) {
       markInboxRead(item.id);
@@ -100,12 +105,29 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
         </Text>
       </View>
 
+      {atCapacity && !expired && (
+        <View style={d.capacityBanner}>
+          <Text style={d.capacityBannerTitle}>
+            Production Capacity Reached  ({activeCount}/{capacity === Infinity ? '∞' : capacity})
+          </Text>
+          <Text style={d.capacityBannerSub}>
+            {network.prestige < 21
+              ? 'Reach Prestige 21 to greenlight a 3rd show at once.'
+              : 'Reach Prestige 41 to greenlight unlimited shows.'}
+          </Text>
+        </View>
+      )}
+
       {!expired && (
         <View style={d.actionRow}>
           <TouchableOpacity style={d.passBtn} onPress={handlePass}>
             <Text style={d.passBtnText}>Pass</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={d.primaryBtn} onPress={handleGreenlight}>
+          <TouchableOpacity
+            style={[d.primaryBtn, atCapacity && { opacity: 0.4 }]}
+            onPress={handleGreenlight}
+            disabled={atCapacity}
+          >
             <LinearGradient
               colors={['#c49440', '#e6b254']}
               start={{ x: 0, y: 0 }}
@@ -466,6 +488,10 @@ const d = StyleSheet.create({
 
   expiredNote:      { borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, alignItems: 'center' },
   expiredText:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14 },
+
+  capacityBanner:      { backgroundColor: '#1a0e0e', borderRadius: 10, borderWidth: 1, borderColor: '#c4382044', padding: 12, alignItems: 'center', gap: 4, marginBottom: 12 },
+  capacityBannerTitle: { color: '#c43820', fontFamily: 'Manrope_700Bold', fontSize: 13 },
+  capacityBannerSub:   { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, textAlign: 'center', lineHeight: 17 },
 
   streamingAmount:  { fontFamily: 'BebasNeue_400Regular', fontSize: 44, textAlign: 'center', marginBottom: 4, letterSpacing: 1 },
   streamingFrom:    { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14, textAlign: 'center' },

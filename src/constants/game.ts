@@ -166,7 +166,8 @@ export const MARKETING_CHANNELS = [
     name: 'TV Commercials',
     cost: 1_500_000,
     reachMultiplier: 0.80,
-    genreAffinities: [] as Genre[], // works for all
+    genreAffinities: [] as Genre[],
+    prestigeRequired: 0,
   },
   {
     id: 'social-media',
@@ -174,6 +175,7 @@ export const MARKETING_CHANNELS = [
     cost: 800_000,
     reachMultiplier: 0.60,
     genreAffinities: ['comedy', 'reality'] as Genre[],
+    prestigeRequired: 0,
   },
   {
     id: 'streaming-ads',
@@ -181,6 +183,7 @@ export const MARKETING_CHANNELS = [
     cost: 1_000_000,
     reachMultiplier: 0.65,
     genreAffinities: ['drama', 'sci-fi', 'limited-series'] as Genre[],
+    prestigeRequired: 0,
   },
   {
     id: 'press-junket',
@@ -188,6 +191,7 @@ export const MARKETING_CHANNELS = [
     cost: 400_000,
     reachMultiplier: 0.35,
     genreAffinities: ['drama', 'limited-series'] as Genre[],
+    prestigeRequired: 0,
   },
   {
     id: 'billboards',
@@ -195,6 +199,23 @@ export const MARKETING_CHANNELS = [
     cost: 500_000,
     reachMultiplier: 0.30,
     genreAffinities: [] as Genre[],
+    prestigeRequired: 0,
+  },
+  {
+    id: 'celebrity-deal',
+    name: 'Celebrity Talent Deal',
+    cost: 3_000_000,
+    reachMultiplier: 1.10,
+    genreAffinities: [] as Genre[],
+    prestigeRequired: 61,
+  },
+  {
+    id: 'international-push',
+    name: 'International Distribution Push',
+    cost: 5_000_000,
+    reachMultiplier: 0.90,
+    genreAffinities: [] as Genre[],
+    prestigeRequired: 90,
   },
 ] as const;
 
@@ -214,6 +235,16 @@ export function getPrestigeTierLabel(prestige: number): string {
   }
   return 'Indie';
 }
+
+export function getShowCapacity(prestige: number): number {
+  if (prestige <= 20) return 2;
+  if (prestige <= 40) return 3;
+  return Infinity;
+}
+
+export const ACTIVE_SHOW_STATUSES = new Set([
+  'writing', 'filming', 'marketing', 'airing', 'renewal-pending',
+]);
 
 // ─── Emmy Categories ──────────────────────────────────────────────────────────
 

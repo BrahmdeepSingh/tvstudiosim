@@ -180,6 +180,22 @@ export interface Episode {
   socialReactions: SocialReaction[];
 }
 
+// ─── Poster ──────────────────────────────────────────────────────────────────
+
+export interface PosterConfig {
+  backgroundID: string;
+  titlePosition: 'top' | 'bottom';
+  titleSize: 'small' | 'medium' | 'large';
+  titleFont: 'bebas' | 'manrope-bold' | 'manrope-light';
+  titleColor: string;
+  titleAlignment: 'left' | 'center' | 'right';
+  seasonPosition: 'above-title' | 'below-title';
+  seasonAlignment: 'left' | 'center' | 'right';
+  castPosition: 'top' | 'bottom';
+  tagline: string;
+  showSeasonNumber: boolean;
+}
+
 // ─── Season ──────────────────────────────────────────────────────────────────
 
 export interface Season {
@@ -227,6 +243,7 @@ export interface Season {
   suggestedSupportingActorIDs: string[];
 
   isFinalSeason?: boolean; // player declared this the last season at renewal time
+  posterConfig?: PosterConfig;
 }
 
 // ─── Show ─────────────────────────────────────────────────────────────────────
@@ -415,6 +432,8 @@ export interface GameState {
   lastSaved: string;
   initialized: boolean;
   ambientSocialPosts: AmbientSocialPost[];
-  recentSocialTemplateIds: string[];   // cooldown for per-episode reactions (social.ts)
-  recentAmbientTemplateIds: string[];  // cooldown for ambient posts (ambientSocial.ts)
+  recentSocialTemplateIds: string[];
+  recentAmbientTemplateIds: string[];
+  unlockedAchievementIDs: string[];
+  achievementQueue: string[];          // IDs of achievements pending toast display
 }

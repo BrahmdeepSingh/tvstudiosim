@@ -11,8 +11,10 @@ import {
   ShowStatus,
   InboxItem,
   NewsItem,
+  PosterConfig,
 } from '../types';
 import { advanceWeek as engineAdvanceWeek } from '../engine/advancement';
+import { checkAchievements } from '../engine/achievements';
 import { generateInitialTalentPool } from '../engine/talent';
 import { generateInitialCompetitors } from '../engine/competitors';
 import { generatePitch } from '../engine/pitches';
@@ -65,6 +67,7 @@ interface GameStore extends GameState {
   // Marketing
   setAirDate: (showID: string, week: number, year: number) => void;
   purchaseMarketingChannels: (showID: string, channelIDs: string[]) => void;
+  savePosterConfig: (showID: string, config: PosterConfig) => void;
 
   // Pitches
   greenlightPitch: (pitchID: string) => boolean;
@@ -86,6 +89,9 @@ interface GameStore extends GameState {
 
   // Emmy ceremony
   dismissEmmyCeremony: () => void;
+
+  // Achievements
+  dismissAchievement: () => void;
 
   // Persistence
   saveGame: () => Promise<void>;
@@ -125,6 +131,8 @@ const EMPTY_STATE: GameState = {
   ambientSocialPosts: [],
   recentSocialTemplateIds: [],
   recentAmbientTemplateIds: [],
+  unlockedAchievementIDs: [],
+  achievementQueue: [],
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -178,8 +186,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   advanceWeek: () => {
     const newState = engineAdvanceWeek(get());
     set(newState);
-    // Auto-save
-    saveGameToStorage(newState);
+    // Achievement check after engine tick
+    const newIDs = checkAchievements(get());
+    if (newIDs.length > 0) {
+      set(s => ({
+        unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDs],
+        achievementQueue: [...s.achievementQueue, ...newIDs],
+      }));
+    }
+    saveGameToStorage(get());
   },
 
   // ── Show Creation ─────────────────────────────────────────────────────────
@@ -254,6 +269,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
 
     set(state => ({ shows: [...state.shows, show] }));
+    const newIDs = checkAchievements(get());
+    if (newIDs.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDs], achievementQueue: [...s.achievementQueue, ...newIDs] }));
     return showID;
   },
 
@@ -339,6 +356,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ),
       talentDeals: [...s.talentDeals, deal],
     }));
+    const newIDs0 = checkAchievements(get());
+    if (newIDs0.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDs0], achievementQueue: [...s.achievementQueue, ...newIDs0] }));
 
     return true;
   },
@@ -391,6 +410,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       talentDeals: [...s.talentDeals, deal],
       ambientSocialPosts: [...s.ambientSocialPosts, ...directorPosts].slice(-300),
     }));
+    const newIDs1 = checkAchievements(get());
+    if (newIDs1.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDs1], achievementQueue: [...s.achievementQueue, ...newIDs1] }));
 
     return true;
   },
@@ -444,6 +465,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       talentDeals: [...s.talentDeals, deal],
       ambientSocialPosts: [...s.ambientSocialPosts, ...actorPosts].slice(-300),
     }));
+    const newIDs2 = checkAchievements(get());
+    if (newIDs2.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDs2], achievementQueue: [...s.achievementQueue, ...newIDs2] }));
 
     return true;
   },
@@ -501,6 +524,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set(s => ({
       network: { ...s.network, cashOnHand: s.network.cashOnHand - totalCost },
+      shows: s.shows.map(sh =>
+        sh.id === showID
+          ? { ...sh, seasons: sh.seasons.map((se, i) => i === sh.currentSeasonIndex ? updatedSeason : se) }
+          : sh,
+      ),
+    }));
+  },
+
+  savePosterConfig: (showID, config) => {
+    const state = get();
+    const show = state.shows.find(s => s.id === showID);
+    if (!show) return;
+    const season = show.seasons[show.currentSeasonIndex];
+    if (!season) return;
+    const updatedSeason: Season = { ...season, posterConfig: config };
+    set(s => ({
       shows: s.shows.map(sh =>
         sh.id === showID
           ? { ...sh, seasons: sh.seasons.map((se, i) => i === sh.currentSeasonIndex ? updatedSeason : se) }
@@ -615,6 +654,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ),
       talentDeals: [...s.talentDeals, deal],
     }));
+    const newIDsGl = checkAchievements(get());
+    if (newIDsGl.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDsGl], achievementQueue: [...s.achievementQueue, ...newIDsGl] }));
 
     return true;
   },
@@ -756,6 +797,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newsItems: [...s.newsItems, renewalNews].slice(-150),
       ambientSocialPosts: [...s.ambientSocialPosts, ...socialPosts].slice(-300),
     }));
+    const newIDsRnw = checkAchievements(get());
+    if (newIDsRnw.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDsRnw], achievementQueue: [...s.achievementQueue, ...newIDsRnw] }));
   },
 
   cancelShow: (showID) => {
@@ -796,6 +839,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
       ambientSocialPosts: [...s.ambientSocialPosts, ...cancellationPosts].slice(-300),
     }));
+    const newIDsCx = checkAchievements(get());
+    if (newIDsCx.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDsCx], achievementQueue: [...s.achievementQueue, ...newIDsCx] }));
   },
 
   // ── Streaming ─────────────────────────────────────────────────────────────
@@ -862,10 +907,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
             }
           : sh,
       ),
-      newsItems: [...s.newsItems, dealNews].slice(-150),   // ADDED — matches the
-      // .slice(-150) cap used
-      // elsewhere (e.g. renewalNews)
+      newsItems: [...s.newsItems, dealNews].slice(-150),
     }));
+    const newIDsSt = checkAchievements(get());
+    if (newIDsSt.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDsSt], achievementQueue: [...s.achievementQueue, ...newIDsSt] }));
   },
 
   declineStreamingOffer: (showID) => {
@@ -964,6 +1009,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   dismissEmmyCeremony: () => set({ emmyCeremonyPendingYear: null }),
 
+  dismissAchievement: () => set(s => ({ achievementQueue: s.achievementQueue.slice(1) })),
+
   // ── Persistence ───────────────────────────────────────────────────────────
 
   saveGame: async () => {
@@ -1042,6 +1089,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ambientSocialPosts: loaded.ambientSocialPosts ?? [],
       recentSocialTemplateIds: loaded.recentSocialTemplateIds ?? [],
       recentAmbientTemplateIds: loaded.recentAmbientTemplateIds ?? [],
+      unlockedAchievementIDs: loaded.unlockedAchievementIDs ?? [],
+      achievementQueue: [],
     });
     return true;
   },

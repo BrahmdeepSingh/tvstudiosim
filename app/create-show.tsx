@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../src/store/gameStore';
 import { Genre, Theme } from '../src/types';
-import { MIN_EPISODES, MAX_EPISODES } from '../src/constants/game';
+import { MIN_EPISODES, MAX_EPISODES, getShowCapacity, ACTIVE_SHOW_STATUSES } from '../src/constants/game';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -119,7 +119,7 @@ function Stepper({
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function CreateShowScreen() {
   const router = useRouter();
-  const { createShow, network } = useGameStore();
+  const { createShow, network, shows } = useGameStore();
 
   const [title, setTitle]               = useState('');
   const [genre, setGenre]               = useState<Genre | null>(null);
@@ -129,7 +129,11 @@ export default function CreateShowScreen() {
   const [supportingSlots, setSupportingSlots] = useState(3);
   const [titleFocused, setTitleFocused] = useState(false);
 
-  const canProceed = title.trim().length > 0 && genre !== null && theme !== null;
+  const capacity = getShowCapacity(network.prestige);
+  const activeCount = shows.filter(s => ACTIVE_SHOW_STATUSES.has(s.status)).length;
+  const atCapacity = activeCount >= capacity;
+
+  const canProceed = !atCapacity && title.trim().length > 0 && genre !== null && theme !== null;
 
   function handleCreate() {
     if (!canProceed || !genre || !theme) return;
@@ -272,10 +276,23 @@ export default function CreateShowScreen() {
 
           {/* ── Footer ── */}
           <View style={s.footer}>
-            <Text style={s.cashNote}>
-              Cash on hand:{' '}
-              <Text style={{ fontFamily: F.bodyBd, color: C.green }}>{fmt(network.cashOnHand)}</Text>
-            </Text>
+            {atCapacity ? (
+              <View style={s.capacityBanner}>
+                <Text style={s.capacityBannerTitle}>
+                  Production Capacity Reached  ({activeCount}/{capacity === Infinity ? '∞' : capacity})
+                </Text>
+                <Text style={s.capacityBannerSub}>
+                  {network.prestige < 21
+                    ? 'Reach Prestige 21 to produce up to 3 shows at once.'
+                    : 'Reach Prestige 41 to produce unlimited shows.'}
+                </Text>
+              </View>
+            ) : (
+              <Text style={s.cashNote}>
+                Cash on hand:{' '}
+                <Text style={{ fontFamily: F.bodyBd, color: C.green }}>{fmt(network.cashOnHand)}</Text>
+              </Text>
+            )}
             <TouchableOpacity
               style={s.nextBtn}
               onPress={handleCreate}
@@ -357,6 +374,9 @@ const s = StyleSheet.create({
   // ── Footer ───────────────────────────────────────────────────────────────────
   footer:              { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
   cashNote:            { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, textAlign: 'center' },
+  capacityBanner:      { backgroundColor: '#1a0e0e', borderRadius: 10, borderWidth: 1, borderColor: '#c4382044', padding: 12, alignItems: 'center', gap: 4 },
+  capacityBannerTitle: { color: '#c43820', fontFamily: 'Manrope_700Bold', fontSize: 13 },
+  capacityBannerSub:   { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, textAlign: 'center', lineHeight: 17 },
   nextBtn:             { borderRadius: 999, overflow: 'hidden' },
   nextBtnGradient:     { paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
   nextBtnInactive:     { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 999 },

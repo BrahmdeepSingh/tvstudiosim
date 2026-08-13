@@ -12,7 +12,7 @@ import { AVATAR_MAP } from '../src/utils/avatars';
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
   border: '#252840',
-  text: '#f0ede8', muted: '#9a958e',
+  text: '#f0ede8', muted: '#9a958e', mutedMid: '#6b6880',
   gold: '#e6b254', goldDim: '#e6b25420', goldBtnText: '#161008',
   green: '#4ec46e',
 };
@@ -58,30 +58,47 @@ function popularityLabel(p: number): string {
 function TalentCard({
   talent,
   onPress,
+  locked = false,
 }: {
   talent: Talent;
   onPress: () => void;
+  locked?: boolean;
 }) {
   const primary = getPrimaryStatValue(talent);
 
   return (
-    <TouchableOpacity style={s.talentCard} onPress={onPress}>
-      <View style={s.talentCardLeft}>
+    <TouchableOpacity
+      style={s.talentCard}
+      onPress={locked ? undefined : onPress}
+      activeOpacity={locked ? 1 : 0.75}
+    >
+      {/* Card content — always rendered so the layout is visible beneath the overlay */}
+      <View style={[s.talentCardLeft, locked && s.lockedContent]}>
         <View style={s.avatarWrap}>
           <Image source={AVATAR_MAP[talent.avatarId]} style={s.avatarThumb} />
           <View style={[s.chemPip, { backgroundColor: CHEM_COLORS[talent.chemistryColor] }]} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.talentName}>{talent.name}</Text>
-          <Text style={s.talentMeta}>
+          <Text style={[s.talentName, locked && s.lockedText]}>{talent.name}</Text>
+          <Text style={[s.talentMeta, locked && s.lockedText]}>
             {popularityLabel(talent.popularity)} · Chemistry {talent.chemistryColor.charAt(0).toUpperCase() + talent.chemistryColor.slice(1)}
           </Text>
         </View>
       </View>
-      <View style={s.talentCardRight}>
-        <Text style={s.talentStat}>{primary}</Text>
-        <Text style={s.talentStatLabel}>{ROLE_STAT_LABEL[talent.role]}</Text>
+      <View style={[s.talentCardRight, locked && s.lockedContent]}>
+        <Text style={[s.talentStat, locked && s.lockedText]}>{primary}</Text>
+        <Text style={[s.talentStatLabel, locked && s.lockedText]}>{ROLE_STAT_LABEL[talent.role]}</Text>
       </View>
+
+      {/* Prestige lock overlay */}
+      {locked && (
+        <View style={s.lockOverlay} pointerEvents="none">
+          <View style={s.lockBadge}>
+            <Text style={s.lockIcon}>🔒</Text>
+            <Text style={s.lockLabel}>UNLOCKS AT PRESTIGE {talent.prestigeRequired}</Text>
+          </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -100,13 +117,37 @@ export default function HireTalentScreen() {
   const show = shows.find(s => s.id === showID);
   const season = show?.seasons[show.currentSeasonIndex];
 
-  const available = useMemo(() => {
-    return talent.filter(t =>
-      t.role === role &&
-      t.available &&
-      (searchQuery === '' || t.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    ).sort((a, b) => b.popularity - a.popularity);
-  }, [talent, role, searchQuery]);
+  const listItems = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    const prestige = network.prestige;
+
+    // Unlocked + available: fully tappable, sorted by popularity desc
+    const unlocked = talent
+      .filter(t =>
+        t.role === role &&
+        t.available &&
+        t.prestigeRequired <= prestige &&
+        (query === '' || t.name.toLowerCase().includes(query))
+      )
+      .sort((a, b) => b.popularity - a.popularity)
+      .map(t => ({ talent: t, locked: false }));
+
+    // Prestige-locked: shown with overlay, sorted by threshold asc then popularity desc
+    const locked = talent
+      .filter(t =>
+        t.role === role &&
+        t.prestigeRequired > prestige &&
+        (query === '' || t.name.toLowerCase().includes(query))
+      )
+      .sort((a, b) =>
+        a.prestigeRequired !== b.prestigeRequired
+          ? a.prestigeRequired - b.prestigeRequired
+          : b.popularity - a.popularity
+      )
+      .map(t => ({ talent: t, locked: true }));
+
+    return [...unlocked, ...locked];
+  }, [talent, role, searchQuery, network.prestige]);
 
   const filledLeads = season?.leadActorIDs.length ?? 0;
   const filledSupporting = season?.supportingActorIDs.length ?? 0;
@@ -171,19 +212,20 @@ export default function HireTalentScreen() {
         />
       </View>
 
-      {available.length === 0 ? (
+      {listItems.length === 0 ? (
         <View style={s.emptyState}>
           <Text style={s.emptyText}>No available {role}s match your search.</Text>
         </View>
       ) : (
         <FlatList
-          data={available}
-          keyExtractor={t => t.id}
+          data={listItems}
+          keyExtractor={item => item.talent.id}
           renderItem={({ item }) => (
             <TalentCard
-              talent={item}
+              talent={item.talent}
+              locked={item.locked}
               onPress={() => router.push(
-                `/talent/${item.id}?showID=${showID}&role=${role}&actorType=${actorType}`
+                `/talent/${item.talent.id}?showID=${showID}&role=${role}&actorType=${actorType}`
               )}
             />
           )}
@@ -239,6 +281,14 @@ const s = StyleSheet.create({
   talentCardRight:{ alignItems: 'flex-end' },
   talentStat:     { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
   talentStatLabel:{ color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11 },
+
+  // ── Prestige lock ──────────────────────────────────────────────────────────
+  lockOverlay:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,12,22,0.72)', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  lockBadge:      { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#13162266', borderWidth: 1, borderColor: '#252840', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  lockIcon:       { fontSize: 12 },
+  lockLabel:      { color: C.mutedMid, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1 },
+  lockedContent:  { opacity: 0.35 },
+  lockedText:     { color: C.mutedMid },
 
   emptyState:     { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   emptyText:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 15, textAlign: 'center' },
