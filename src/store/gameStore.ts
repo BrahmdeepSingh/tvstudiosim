@@ -266,6 +266,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       streamingOfferCheckYear: null,
       streamingCheckedAtSeasonCount: 0,
       cancelledClean: true,
+      heatMultiplier: 1.0,
     };
 
     set(state => ({ shows: [...state.shows, show] }));
@@ -292,7 +293,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       : TALENT_FEES[role][tierIndex];
 
     const prestigeMod = 1 - clamp((networkPrestige - talent.prestigeRequired) / 200, 0, 0.15);
-    const effectiveMin = feeRange[0] * prestigeMod;
+    const heatMultiplier = state.shows.find(s => s.id === showID)?.heatMultiplier ?? 1.0;
+    const effectiveMin = feeRange[0] * prestigeMod * heatMultiplier;
 
     // Convert revenue share % to cash-equivalent value using expected season ad revenue
     let revShareValue = 0;
@@ -625,6 +627,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       streamingOfferCheckYear: null,
       streamingCheckedAtSeasonCount: 0,
       cancelledClean: true,
+      heatMultiplier: 1.0,
     };
 
     const deal: TalentDeal = {
@@ -1029,6 +1032,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       streamingOfferCheckYear: null,
       streamingCheckedAtSeasonCount: 0,
       cancelledClean: true,
+      heatMultiplier: 1.0,
       ...sh,
       seasons: (sh.seasons ?? []).map((se: any) => {
         // Strip old season-level streaming fields; add streamingRevenue

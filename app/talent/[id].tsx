@@ -62,6 +62,7 @@ function computeLikelihood(
   networkPrestige: number,
   actorType: 'lead' | 'supporting',
   expectedSeasonRevenue: number,
+  heatMultiplier: number,
 ): number {
   if (flatFee <= 0) return 0;
   const pop = talent.popularity;
@@ -70,7 +71,7 @@ function computeLikelihood(
     ? SUPPORTING_ACTOR_FEES[tier]
     : TALENT_FEES[talent.role][tier];
   const prestigeMod = 1 - Math.min(Math.max((networkPrestige - talent.prestigeRequired) / 200, 0), 0.15);
-  const effectiveMin = range[0] * prestigeMod;
+  const effectiveMin = range[0] * prestigeMod * heatMultiplier;
   const revShareValue = (revSharePercent / 100) * expectedSeasonRevenue;
   const combinedValue = flatFee + revShareValue;
   return Math.min(100, Math.floor((combinedValue / effectiveMin) * 100));
@@ -258,8 +259,9 @@ export default function TalentDetailScreen() {
   const cashValid = !isNaN(flatFee) && flatFee > 0 && flatFee <= cashOnHand;
   const validOffer = cashValid; // cash required; rev share is optional on top
   const hasTyped = offerText.trim().length > 0;
+  const hireShowHeat = hireShow?.heatMultiplier ?? 1.0;
   const likelihood = (hasTyped && !isNaN(flatFee) && flatFee > 0)
-    ? computeLikelihood(person, flatFee, revShare, network.prestige, hireActorType, expectedSeasonRevenue)
+    ? computeLikelihood(person, flatFee, revShare, network.prestige, hireActorType, expectedSeasonRevenue, hireShowHeat)
     : 0;
   const voiceLine = getVoiceLine(person, likelihood, offerStatus, hasTyped);
   const lColor = likelihoodColor(likelihood);

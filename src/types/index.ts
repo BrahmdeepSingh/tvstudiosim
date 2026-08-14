@@ -263,6 +263,7 @@ export interface Show {
   streamingOfferCheckYear: number | null;
   streamingCheckedAtSeasonCount: number; // how many completed seasons were present at last offer attempt
   cancelledClean: boolean;
+  heatMultiplier: number; // drifts up on hits, down on flops; floor 0.80, cap 2.0
 }
 
 // ─── Pitch ───────────────────────────────────────────────────────────────────

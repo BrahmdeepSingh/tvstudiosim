@@ -38,10 +38,11 @@ function fmt(n: number): string {
   return `${sign}$${abs}`;
 }
 
-function autoResignFee(t: Talent): number {
+function autoResignFee(t: Talent, heatMultiplier: number): number {
   const tier = t.popularity < 40 ? 'low' : t.popularity < 70 ? 'mid' : 'high';
   const range = t.role === 'actor' ? TALENT_FEES.actor[tier] : TALENT_FEES[t.role][tier];
-  return Math.round((range[0] + range[1]) / 2 / 50_000) * 50_000;
+  const base = Math.round((range[0] + range[1]) / 2 / 50_000) * 50_000;
+  return Math.round((base * heatMultiplier) / 50_000) * 50_000;
 }
 
 function isReturnable(t: Talent): boolean {
@@ -55,6 +56,7 @@ function TalentReturnCard({
   returnable,
   canSelect,
   onToggle,
+  heatMultiplier,
 }: {
   talent: Talent;
   role: string;
@@ -62,9 +64,10 @@ function TalentReturnCard({
   returnable: boolean;
   canSelect: boolean;
   onToggle: () => void;
+  heatMultiplier: number;
 }) {
   const chemColor = CHEM_COLORS[talent.chemistryColor];
-  const fee = autoResignFee(talent);
+  const fee = autoResignFee(talent, heatMultiplier);
 
   let primaryStat = 0;
   let primaryLabel = '';
@@ -142,6 +145,8 @@ export default function RenewScreen() {
     );
   }
 
+  const heat = show.heatMultiplier ?? 1.0;
+
   const prevSeasonNumber = prevSeason.seasonNumber;
   const newSeasonNumber = prevSeasonNumber + 1;
 
@@ -186,15 +191,15 @@ export default function RenewScreen() {
     }
   }
 
-  const showrunnerFee  = resignShowrunner && showrunnerReturnable ? autoResignFee(returningShowrunner!) : 0;
-  const directorFee    = resignDirector && returningDirector ? autoResignFee(returningDirector) : 0;
+  const showrunnerFee  = resignShowrunner && showrunnerReturnable ? autoResignFee(returningShowrunner!, heat) : 0;
+  const directorFee    = resignDirector && returningDirector ? autoResignFee(returningDirector, heat) : 0;
   const leadFees       = resignLeadIDs.reduce((sum, id) => {
     const t = talent.find(x => x.id === id);
-    return sum + (t ? autoResignFee(t) : 0);
+    return sum + (t ? autoResignFee(t, heat) : 0);
   }, 0);
   const supportingFees = resignSupportingIDs.reduce((sum, id) => {
     const t = talent.find(x => x.id === id);
-    return sum + (t ? autoResignFee(t) : 0);
+    return sum + (t ? autoResignFee(t, heat) : 0);
   }, 0);
   const totalResignCost = showrunnerFee + directorFee + leadFees + supportingFees;
   const canAfford = network.cashOnHand >= totalResignCost;
@@ -204,15 +209,15 @@ export default function RenewScreen() {
     renewShow(showID!, episodeCount, leadSlots, supportingSlots, resignShowrunner && showrunnerReturnable, isFinalSeason);
 
     if (resignDirector && returningDirector) {
-      hireDirector(showID!, returningDirector.id, autoResignFee(returningDirector), 0);
+      hireDirector(showID!, returningDirector.id, autoResignFee(returningDirector, heat), 0);
     }
     for (const id of resignLeadIDs) {
       const t = talent.find(x => x.id === id);
-      if (t) hireActor(showID!, t.id, autoResignFee(t), 0, 'lead');
+      if (t) hireActor(showID!, t.id, autoResignFee(t, heat), 0, 'lead');
     }
     for (const id of resignSupportingIDs) {
       const t = talent.find(x => x.id === id);
-      if (t) hireActor(showID!, t.id, autoResignFee(t), 0, 'supporting');
+      if (t) hireActor(showID!, t.id, autoResignFee(t, heat), 0, 'supporting');
     }
 
     router.replace(`/show/${showID}`);
@@ -279,6 +284,7 @@ export default function RenewScreen() {
               returnable={showrunnerReturnable}
               canSelect={true}
               onToggle={() => setResignShowrunner(v => !v)}
+              heatMultiplier={heat}
             />
             {!resignShowrunner && (
               <TouchableOpacity
@@ -330,6 +336,7 @@ export default function RenewScreen() {
               returnable={directorReturnable}
               canSelect={true}
               onToggle={() => setResignDirector(v => !v)}
+              heatMultiplier={heat}
             />
           </>
         )}
@@ -363,6 +370,7 @@ export default function RenewScreen() {
                 returnable={isReturnable(t)}
                 canSelect={resignLeadIDs.length < leadSlots}
                 onToggle={() => toggleLeadResign(t.id)}
+                heatMultiplier={heat}
               />
             ))}
           </View>
@@ -397,6 +405,7 @@ export default function RenewScreen() {
                 returnable={isReturnable(t)}
                 canSelect={resignSupportingIDs.length < supportingSlots}
                 onToggle={() => toggleSupportingResign(t.id)}
+                heatMultiplier={heat}
               />
             ))}
           </View>

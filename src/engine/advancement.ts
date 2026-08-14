@@ -678,19 +678,37 @@ function tickAiring(
   };
 
   if (newEpisodesAired >= season.episodeCount) {
+    const newHeat = applyHeat(show, updatedSeason);
     if (updatedSeason.isFinalSeason) {
       // Final season complete — close the show as cancelled (clean) immediately,
       // skipping the renewal-pending step. Showrunner is freed in advanceWeek.
       const seasons = [...show.seasons];
       seasons[show.currentSeasonIndex] = updatedSeason;
-      return { ...show, status: 'cancelled', cancelledClean: true, seasons };
+      return { ...show, status: 'cancelled', cancelledClean: true, seasons, heatMultiplier: newHeat };
     }
-    return updateShow(show, updatedSeason, 'renewal-pending');
+    return { ...updateShow(show, updatedSeason, 'renewal-pending'), heatMultiplier: newHeat };
   }
   return updateShow(show, updatedSeason, 'airing');
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function computeHeatDelta(avgRating: number): number {
+  if (avgRating >= 8.5) return 0.08;
+  if (avgRating >= 7.5) return 0.05;
+  if (avgRating >= 6.5) return 0.02;
+  if (avgRating >= 5.0) return -0.03;
+  return -0.10;
+}
+
+function applyHeat(show: Show, season: Season): number {
+  const ratedEps = season.episodes.filter(ep => ep.rating !== null);
+  const avgRating = ratedEps.length > 0
+    ? ratedEps.reduce((sum, ep) => sum + (ep.rating ?? 0), 0) / ratedEps.length
+    : 5.0;
+  const delta = computeHeatDelta(avgRating);
+  return Math.min(2.0, Math.max(0.80, (show.heatMultiplier ?? 1.0) + delta));
+}
 
 function updateShow(show: Show, season: Season, status: ShowStatus): Show {
   const seasons = [...show.seasons];
