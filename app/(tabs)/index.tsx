@@ -1,5 +1,5 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Modal, InteractionManager } from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LinearGradient } from 'expo-linear-gradient';
@@ -739,7 +739,7 @@ export default function Dashboard() {
               },
             ]}
           />
-          <TouchableOpacity style={s.advanceBtn} onPress={() => { hap.medium(); InteractionManager.runAfterInteractions(() => advanceWeek()); }} activeOpacity={0.88}>
+          <TouchableOpacity style={s.advanceBtn} onPress={() => { hap.medium(); setTimeout(advanceWeek, 16); }} activeOpacity={0.88}>
             <LinearGradient
               colors={['#f0c060', '#c49440']}
               start={{ x: 0, y: 0 }}
