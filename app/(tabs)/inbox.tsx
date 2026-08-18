@@ -3,6 +3,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useState, useEffect, useRef } from 'react';
+import { hap } from '../../src/utils/haptics';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
@@ -71,6 +72,7 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
     if (atCapacity) return;
     const ok = greenlightPitch(pitch!.id);
     if (ok) {
+      hap.heavy();
       markInboxRead(item.id);
       onDone();
     }
@@ -170,6 +172,7 @@ function StreamingOfferDetail({ item, onDone }: { item: InboxItem; onDone: () =>
       : `Seasons ${offer.seasonsToInclude.join(', ')}`;
 
   function handleAccept(dealType: 'exclusive' | 'non-exclusive') {
+    hap.success();
     acceptStreamingOffer(show!.id, dealType);
     markInboxRead(item.id);
     onDone();

@@ -3,6 +3,7 @@ import { View, Text, Animated, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGameStore } from '../store/gameStore';
 import { ACHIEVEMENTS_MAP, RARITY_COLOR, AchievementRarity } from '../constants/achievements';
+import { hap } from '../utils/haptics';
 
 const TOAST_HEIGHT = 90;
 const DISPLAY_MS = 3200;
@@ -56,6 +57,9 @@ export function AchievementToast() {
     translateY.setValue(-(TOAST_HEIGHT + 60));
 
     playChime();
+    if (achievement.rarity === 'legendary') hap.heavy();
+    else if (achievement.rarity === 'rare') hap.heavy();
+    else hap.success();
 
     // Slide in
     Animated.spring(translateY, {

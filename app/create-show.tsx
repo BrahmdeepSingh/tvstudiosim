@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { useGameStore } from '../src/store/gameStore';
 import { Genre, Theme } from '../src/types';
 import { MIN_EPISODES, MAX_EPISODES, getShowCapacity, ACTIVE_SHOW_STATUSES } from '../src/constants/game';
+import { hap } from '../src/utils/haptics';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -138,6 +139,7 @@ export default function CreateShowScreen() {
 
   function handleCreate() {
     if (!canProceed || !genre || !theme) return;
+    hap.heavy();
     const showID = createShow(title.trim(), genre, theme, episodes, leadSlots, supportingSlots);
     router.replace(`/hire-talent?showID=${showID}&role=showrunner`);
   }

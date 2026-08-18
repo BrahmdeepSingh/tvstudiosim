@@ -3,6 +3,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useState } from 'react';
+import { hap } from '../src/utils/haptics';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
@@ -161,6 +162,7 @@ export default function RenewScreen() {
   const showrunnerReturnable = returningShowrunner != null;
 
   function toggleLeadResign(id: string) {
+    hap.light();
     setResignLeadIDs(prev => {
       if (prev.includes(id)) return prev.filter(x => x !== id);
       if (prev.length >= leadSlots) return prev;
@@ -169,6 +171,7 @@ export default function RenewScreen() {
   }
 
   function toggleSupportingResign(id: string) {
+    hap.light();
     setResignSupportingIDs(prev => {
       if (prev.includes(id)) return prev.filter(x => x !== id);
       if (prev.length >= supportingSlots) return prev;
@@ -206,6 +209,7 @@ export default function RenewScreen() {
   const canAfford = network.cashOnHand >= totalResignCost;
 
   function handleStartPreProduction() {
+    hap.heavy();
     // Pass keepShowrunner: renewShow handles booking/freeing internally
     renewShow(showID!, episodeCount, leadSlots, supportingSlots, resignShowrunner && showrunnerReturnable, isFinalSeason);
 

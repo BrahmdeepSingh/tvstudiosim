@@ -10,6 +10,7 @@ import { Show, NewsItem, StudioEvent } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { THEME_WINDOWS } from '../../src/constants/schedule';
 import { EmmyCeremonyModal } from '../components/EmmyCeremonyModal';
+import { hap } from '../../src/utils/haptics';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -323,6 +324,7 @@ function StudioEventModal({ event: ev }: { event: StudioEvent }) {
 
   function handleConfirm() {
     if (selectedIndex === null) return;
+    hap.medium();
     resolveStudioEvent(ev.id, selectedIndex);
     // Modal disappears automatically when the store marks the event resolved
     // and pendingEvent becomes null in the parent — no manual dismiss needed.
@@ -737,7 +739,7 @@ export default function Dashboard() {
               },
             ]}
           />
-          <TouchableOpacity style={s.advanceBtn} onPress={advanceWeek} activeOpacity={0.88}>
+          <TouchableOpacity style={s.advanceBtn} onPress={() => { hap.medium(); advanceWeek(); }} activeOpacity={0.88}>
             <LinearGradient
               colors={['#f0c060', '#c49440']}
               start={{ x: 0, y: 0 }}

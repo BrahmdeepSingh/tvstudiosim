@@ -1,6 +1,7 @@
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Image, TextInput, Animated, Keyboard, Platform } from 'react-native';
+import { hap } from '../../src/utils/haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useMemo, useState, useRef, useEffect } from 'react';
@@ -316,6 +317,7 @@ export default function TalentDetailScreen() {
 
   function handleOffer() {
     if (!validOffer) return;
+    hap.medium();
     const accepted = evaluateOffer(person.id, flatFee, revShare, network.prestige, hireShowID, hireActorType);
     if (accepted) {
       let success = false;
@@ -324,6 +326,7 @@ export default function TalentDetailScreen() {
       else success = hireActor(hireShowID, person.id, flatFee, revShare, hireActorType);
 
       if (success) {
+        hap.success();
         setOfferStatus('accepted');
         setTimeout(() => {
           closeOfferSheet();
@@ -335,6 +338,7 @@ export default function TalentDetailScreen() {
         }, 1200);
       }
     } else {
+      hap.error();
       setOfferStatus('rejected');
       setLastRejected(true);
       setTimeout(() => setOfferStatus('idle'), 1500);
@@ -632,7 +636,7 @@ export default function TalentDetailScreen() {
                 <View style={m.revShareRow}>
                   <TouchableOpacity
                     style={m.stepBtn}
-                    onPress={() => setRevShare(r => Math.max(0, r - 1))}
+                    onPress={() => { hap.light(); setRevShare(r => Math.max(0, r - 1)); }}
                     disabled={revShare === 0}
                   >
                     <Text style={[m.stepBtnText, revShare === 0 && { color: C.border }]}>−</Text>
@@ -647,7 +651,7 @@ export default function TalentDetailScreen() {
                   </View>
                   <TouchableOpacity
                     style={m.stepBtn}
-                    onPress={() => setRevShare(r => Math.min(10, r + 1))}
+                    onPress={() => { hap.light(); setRevShare(r => Math.min(10, r + 1)); }}
                     disabled={revShare === 10}
                   >
                     <Text style={[m.stepBtnText, revShare === 10 && { color: C.border }]}>+</Text>

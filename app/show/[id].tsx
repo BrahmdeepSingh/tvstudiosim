@@ -7,6 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
 import { Season, Episode } from '../../src/types';
 import { AVATAR_MAP } from '../../src/utils/avatars';
+import { hap } from '../../src/utils/haptics';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -446,7 +447,7 @@ export default function ShowDetailScreen() {
               </View>
               <TouchableOpacity
                 style={sd.renewBtn}
-                onPress={() => router.push(`/renew?showID=${show.id}`)}
+                onPress={() => { hap.heavy(); router.push(`/renew?showID=${show.id}`); }}
                 activeOpacity={0.88}
               >
                 <LinearGradient colors={['#f0c060', C.goldMid]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={sd.renewBtnGrad}>

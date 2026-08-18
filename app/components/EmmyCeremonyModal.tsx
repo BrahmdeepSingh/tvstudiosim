@@ -3,6 +3,7 @@ import {
   View, Text, Modal, ScrollView, TouchableOpacity,
   StyleSheet, Animated, Dimensions, SafeAreaView,
 } from 'react-native';
+import { hap } from '../../src/utils/haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { EMMY_CATEGORY_LABELS } from '../../src/constants/game';
@@ -229,6 +230,8 @@ export function EmmyCeremonyModal() {
 
     // Phase 3: Winner slides up after tension pause
     setTimeout(() => {
+      if (isPlayerWin) hap.heavy(); else hap.medium();
+
       Animated.parallel([
         Animated.timing(winnerY,  { toValue: 0, duration: 420, useNativeDriver: true }),
         Animated.timing(winnerOp, { toValue: 1, duration: 420, useNativeDriver: true }),
