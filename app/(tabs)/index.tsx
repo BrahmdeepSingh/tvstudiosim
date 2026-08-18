@@ -486,9 +486,16 @@ export default function Dashboard() {
   }
 
   // ── Derived data ────────────────────────────────────────────────────────────
-  const activeShows = shows.filter(sh =>
-    ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(sh.status)
-  );
+  const activeShows = shows
+    .filter(sh => ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(sh.status))
+    .sort((a, b) => {
+      const airingScore = (sh: typeof a) => sh.status === 'airing' ? 1 : 0;
+      if (airingScore(b) !== airingScore(a)) return airingScore(b) - airingScore(a);
+      // Both airing: most recently aired episode first
+      const aEps = a.seasons[a.currentSeasonIndex]?.episodesAired ?? 0;
+      const bEps = b.seasons[b.currentSeasonIndex]?.episodesAired ?? 0;
+      return bEps - aEps;
+    });
 
   const unreadInbox = inboxItems
     .filter(i => !i.read && !fadedIds.has(i.id) && (itemAgeWeeks(i) < 2 || expiringRef.current.has(i.id)))
