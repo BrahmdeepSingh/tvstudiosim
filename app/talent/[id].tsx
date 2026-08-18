@@ -804,9 +804,9 @@ const m = StyleSheet.create({
   millionLabel: { color: '#9a958e', fontSize: 18 },
   cashAvail:  { color: '#9a958e', fontFamily: 'Manrope_400Regular', fontSize: 12, marginBottom: 16 },
 
-  submitBtn:         { borderRadius: 14, overflow: 'hidden' },
+  submitBtn:         { borderRadius: 14 },
   submitBtnDisabled: { backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#252840', borderRadius: 14 },
-  submitBtnGrad:     { padding: 16, alignItems: 'center' },
+  submitBtnGrad:     { padding: 16, alignItems: 'center', borderRadius: 14 },
   submitBtnText:     { color: '#161008', fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
   submitBtnTextDisabled: { color: '#9a958e', fontFamily: 'Manrope_600SemiBold', fontSize: 16 },
 

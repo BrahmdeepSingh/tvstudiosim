@@ -296,7 +296,7 @@ const s = StyleSheet.create({
 
   footer:         { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
   castCount:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, textAlign: 'center' },
-  doneBtn:        { borderRadius: 14, overflow: 'hidden' },
-  doneBtnGrad:    { padding: 16, alignItems: 'center' },
+  doneBtn:        { borderRadius: 14 },
+  doneBtnGrad:    { padding: 16, alignItems: 'center', borderRadius: 14 },
   doneBtnText:    { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
 });

@@ -692,8 +692,8 @@ const sd = StyleSheet.create({
   streamingDeclineText:  { fontFamily: 'Manrope_700Bold', color: C.muted, fontSize: 11, letterSpacing: 0.5 },
   streamingNonExclBtn:   { flex: 1.4, backgroundColor: C.teal + '33', borderWidth: 1, borderColor: C.teal + '66', borderRadius: 10, padding: 11, alignItems: 'center' },
   streamingNonExclText:  { fontFamily: 'Manrope_700Bold', color: C.teal, fontSize: 11, letterSpacing: 0.5 },
-  streamingExclBtn:      { flex: 2, borderRadius: 10, overflow: 'hidden' },
-  streamingExclGrad:     { padding: 11, alignItems: 'center' },
+  streamingExclBtn:      { flex: 2, borderRadius: 10 },
+  streamingExclGrad:     { padding: 11, alignItems: 'center', borderRadius: 10 },
   streamingExclText:     { fontFamily: 'Manrope_800ExtraBold', color: '#0a2018', fontSize: 11, letterSpacing: 0.5 },
 
   // ── Streaming deals ──────────────────────────────────────────────────────────
@@ -712,8 +712,8 @@ const sd = StyleSheet.create({
   renewalStat:       { alignItems: 'center' },
   renewalStatValue:  { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 28 },
   renewalStatLabel:  { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 1.5, marginTop: 2 },
-  renewBtn:          { borderRadius: 999, overflow: 'hidden', marginBottom: 10 },
-  renewBtnGrad:      { paddingVertical: 15, alignItems: 'center' },
+  renewBtn:          { borderRadius: 999, marginBottom: 10 },
+  renewBtnGrad:      { paddingVertical: 15, alignItems: 'center', borderRadius: 999 },
   renewBtnText:      { fontFamily: 'BebasNeue_400Regular', color: '#161008', fontSize: 16, letterSpacing: 3 },
   cancelBtn:         { borderWidth: 1, borderColor: C.border, borderRadius: 999, paddingVertical: 13, alignItems: 'center' },
   cancelBtnText:     { fontFamily: 'BebasNeue_400Regular', color: C.muted, fontSize: 14, letterSpacing: 2 },

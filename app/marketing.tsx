@@ -401,8 +401,8 @@ const s = StyleSheet.create({
   airDateActions:   { flexDirection: 'row', gap: 10 },
   cancelBtn:        { borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
   cancelBtnText:    { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  setAirBtn:        { flex: 1, borderRadius: 12, overflow: 'hidden' },
-  setAirBtnGrad:    { padding: 14, alignItems: 'center' },
+  setAirBtn:        { flex: 1, borderRadius: 12 },
+  setAirBtnGrad:    { padding: 14, alignItems: 'center', borderRadius: 12 },
   setAirBtnText:    { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 15 },
 
   channelCard:          { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 10 },
@@ -422,9 +422,9 @@ const s = StyleSheet.create({
   channelCost:          { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 15 },
   purchasedBadge:       { backgroundColor: C.green + '22', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
   purchasedText:        { color: C.green, fontFamily: 'Manrope_700Bold', fontSize: 12 },
-  buyBtn:               { borderRadius: 8, overflow: 'hidden' },
-  buyBtnDisabled:       { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border },
-  buyBtnGrad:           { paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center' },
+  buyBtn:               { borderRadius: 8 },
+  buyBtnDisabled:       { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 8 },
+  buyBtnGrad:           { paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
   buyBtnText:           { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 13 },
   buyBtnTextDisabled:   { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
 

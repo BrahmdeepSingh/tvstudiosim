@@ -483,8 +483,8 @@ const d = StyleSheet.create({
   actionRow:        { flexDirection: 'row', gap: 10 },
   passBtn:          { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 15, alignItems: 'center', justifyContent: 'center' },
   passBtnText:      { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  primaryBtn:       { flex: 2, borderRadius: 12, overflow: 'hidden' },
-  primaryBtnGrad:   { padding: 15, alignItems: 'center' },
+  primaryBtn:       { flex: 2, borderRadius: 12 },
+  primaryBtnGrad:   { padding: 15, alignItems: 'center', borderRadius: 12 },
   primaryBtnText:   { color: '#161008', fontFamily: 'Manrope_800ExtraBold', fontSize: 15 },
 
   expiredNote:      { borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, alignItems: 'center' },

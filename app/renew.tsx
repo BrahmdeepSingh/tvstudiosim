@@ -535,9 +535,9 @@ const s = StyleSheet.create({
 
   footer:              { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
   footerNote:          { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, textAlign: 'center' },
-  proceedBtn:          { borderRadius: 14, overflow: 'hidden' },
+  proceedBtn:          { borderRadius: 14 },
   proceedBtnDisabled:  { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 14 },
-  proceedBtnGrad:      { padding: 16, alignItems: 'center' },
+  proceedBtnGrad:      { padding: 16, alignItems: 'center', borderRadius: 14 },
   proceedBtnText:      { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 15 },
   proceedBtnTextDisabled: { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
 

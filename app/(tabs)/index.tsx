@@ -866,7 +866,7 @@ const s = StyleSheet.create({
   // ── Advance Week ─────────────────────────────────────────────────────────────
   advanceWrap:        { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: C.border },
   advanceGlowRing:    { position: 'absolute', left: 16, right: 16, top: 12, borderRadius: 999, height: 56, backgroundColor: C.gold },
-  advanceBtn:         { borderRadius: 999, overflow: 'hidden' },
+  advanceBtn:         { borderRadius: 999 },
   advanceBtnGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
   advanceBtnText:     { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
 });
@@ -913,7 +913,7 @@ const m = StyleSheet.create({
   confirmRow:     { flexDirection: 'row', gap: 10 },
   backBtn:        { flex: 1, borderWidth: 1, borderColor: '#252840', borderRadius: 12, padding: 13, alignItems: 'center' },
   backBtnText:    { fontFamily: 'Manrope_600SemiBold', color: '#9a958e', fontSize: 14 },
-  confirmBtn:     { flex: 2, borderRadius: 12, overflow: 'hidden' },
-  confirmBtnGrad: { padding: 13, alignItems: 'center' },
+  confirmBtn:     { flex: 2, borderRadius: 12 },
+  confirmBtnGrad: { padding: 13, alignItems: 'center', borderRadius: 12 },
   confirmBtnText: { fontFamily: 'Manrope_800ExtraBold', color: '#0f1220', fontSize: 14 },
 });

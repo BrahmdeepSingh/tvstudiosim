@@ -1132,7 +1132,7 @@ const st = StyleSheet.create({
   },
   charCount: { fontFamily: F.body, color: C.mutedMid, fontSize: 11, textAlign: 'right', paddingRight: 16, marginTop: 4 },
 
-  confirmBtn:     { marginHorizontal: 16, marginTop: 28, borderRadius: 14, overflow: 'hidden' },
-  confirmBtnGrad: { padding: 16, alignItems: 'center' },
+  confirmBtn:     { marginHorizontal: 16, marginTop: 28, borderRadius: 14 },
+  confirmBtnGrad: { padding: 16, alignItems: 'center', borderRadius: 14 },
   confirmBtnText: { fontFamily: F.bodyXBd, color: C.goldText, fontSize: 15, letterSpacing: 0.5 },
 });
