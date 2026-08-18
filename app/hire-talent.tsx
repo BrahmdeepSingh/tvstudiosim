@@ -73,25 +73,25 @@ function TalentCard({
       onPress={locked ? undefined : onPress}
       activeOpacity={locked ? 1 : 0.75}
     >
-      {/* Card content — always rendered so the layout is visible beneath the overlay */}
+      {/* Card content row — always takes full width */}
       <View style={[s.talentCardLeft, locked && s.lockedContent]}>
         <View style={s.avatarWrap}>
           <Image source={AVATAR_MAP[talent.avatarId]} style={s.avatarThumb} />
           <View style={[s.chemPip, { backgroundColor: CHEM_COLORS[talent.chemistryColor] }]} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[s.talentName, locked && s.lockedText]}>{talent.name}</Text>
-          <Text style={[s.talentMeta, locked && s.lockedText]}>
+          <Text style={s.talentName}>{talent.name}</Text>
+          <Text style={s.talentMeta}>
             {popularityLabel(talent.popularity)} · Chemistry {talent.chemistryColor.charAt(0).toUpperCase() + talent.chemistryColor.slice(1)}
           </Text>
         </View>
-      </View>
-      <View style={[s.talentCardRight, locked && s.lockedContent]}>
-        <Text style={[s.talentStat, locked && s.lockedText]}>{primary}</Text>
-        <Text style={[s.talentStatLabel, locked && s.lockedText]}>{ROLE_STAT_LABEL[talent.role]}</Text>
+        <View style={s.talentCardRight}>
+          <Text style={s.talentStat}>{primary}</Text>
+          <Text style={s.talentStatLabel}>{ROLE_STAT_LABEL[talent.role]}</Text>
+        </View>
       </View>
 
-      {/* Prestige lock overlay */}
+      {/* Prestige lock overlay — absolutely positioned over the whole card */}
       {locked && (
         <View style={s.lockOverlay} pointerEvents="none">
           <View style={s.lockBadge}>
@@ -272,16 +272,16 @@ const s = StyleSheet.create({
   searchRow:      { paddingHorizontal: 16, paddingBottom: 8 },
   searchInput:    { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 15 },
 
-  talentCard:       { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
-  talentCardLeft:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  talentCard:       { position: 'relative', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14 },
+  talentCardLeft:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatarWrap:       { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
   avatarThumb:      { width: 44, height: 52 },
   chemPip:          { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
   talentName:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  talentMeta:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
-  talentCardRight:{ alignItems: 'flex-end' },
-  talentStat:     { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
-  talentStatLabel:{ color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11 },
+  talentMeta:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
+  talentCardRight:  { marginLeft: 'auto', alignItems: 'flex-end' },
+  talentStat:       { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
+  talentStatLabel:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11 },
 
   // ── Prestige lock ──────────────────────────────────────────────────────────
   lockOverlay:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,12,22,0.72)', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
