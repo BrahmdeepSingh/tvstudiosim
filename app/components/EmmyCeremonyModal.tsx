@@ -197,7 +197,9 @@ export function EmmyCeremonyModal() {
   const fadeTransition = useCallback((cb: () => void) => {
     Animated.timing(screenFade, { toValue: 0, duration: 190, useNativeDriver: true }).start(() => {
       cb();
-      Animated.timing(screenFade, { toValue: 1, duration: 290, useNativeDriver: true }).start();
+      requestAnimationFrame(() => {
+        Animated.timing(screenFade, { toValue: 1, duration: 290, useNativeDriver: true }).start();
+      });
     });
   }, [screenFade]);
 
