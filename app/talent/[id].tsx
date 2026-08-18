@@ -1,9 +1,9 @@
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Image, TextInput, Animated } from 'react-native';
+  Image, TextInput, Animated, Keyboard, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
@@ -156,6 +156,27 @@ export default function TalentDetailScreen() {
   const [offerStatus, setOfferStatus] = useState<OfferStatus>('idle');
   const [lastRejected, setLastRejected] = useState(false);
   const sheetAnim = useRef(new Animated.Value(400)).current;
+  const sheetKeyboardOffset = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = Keyboard.addListener(showEvent, e => {
+      Animated.timing(sheetKeyboardOffset, {
+        toValue: e.endCoordinates.height,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+    const onHide = Keyboard.addListener(hideEvent, () => {
+      Animated.timing(sheetKeyboardOffset, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => { onShow.remove(); onHide.remove(); };
+  }, [sheetKeyboardOffset]);
 
   // Expected season ad revenue for the hire-context show (genre baseline at rating 7)
   const hireShow = shows.find(s => s.id === hireShowID);
@@ -284,6 +305,8 @@ export default function TalentDetailScreen() {
   }
 
   function closeOfferSheet() {
+    Keyboard.dismiss();
+    sheetKeyboardOffset.setValue(0);
     Animated.timing(sheetAnim, {
       toValue: 400,
       duration: 220,
@@ -550,7 +573,7 @@ export default function TalentDetailScreen() {
           />
           {/* Animated sheet */}
           <Animated.View
-            style={[m.sheet, { transform: [{ translateY: sheetAnim }] }]}
+            style={[m.sheet, { transform: [{ translateY: Animated.subtract(sheetAnim, sheetKeyboardOffset) }] }]}
             pointerEvents="auto"
           >
             <View style={m.handle} />
