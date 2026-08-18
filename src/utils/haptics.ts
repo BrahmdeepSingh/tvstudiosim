@@ -1,16 +1,12 @@
 import * as Haptics from 'expo-haptics';
 
+const safe = (fn: () => Promise<void>) => () => { try { fn(); } catch {} };
+
 export const hap = {
-  // Core game action (advance week, confirm decisions)
-  medium: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
-  // Major positive moments (emmy win, deal signed, achievement, greenlight)
-  heavy: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
-  // Tiny ticks (steppers, toggles)
-  light: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-  // Success (offer accepted, show created)
-  success: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
-  // Failure (offer rejected, cancelled show)
-  error: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
-  // Warning (can't afford, show struggling)
-  warning: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
+  medium: safe(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)),
+  heavy: safe(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)),
+  light: safe(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)),
+  success: safe(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
+  error: safe(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)),
+  warning: safe(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)),
 };

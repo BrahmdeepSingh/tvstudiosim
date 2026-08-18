@@ -964,3 +964,4 @@ const s = StyleSheet.create({
   },
   closeBtnText: { fontFamily: F.display, fontSize: 14, letterSpacing: 2, color: C.goldText },
 });
+export default EmmyCeremonyModal;
