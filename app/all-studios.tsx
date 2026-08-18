@@ -1,6 +1,7 @@
 import {
-    View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView,
-  } from 'react-native';
+    View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
   import { LinearGradient } from 'expo-linear-gradient';
   import { useRouter } from 'expo-router';
   import { useGameStore } from '../src/store/gameStore';
@@ -90,7 +91,7 @@ import {
     ].sort((a, b) => b.prestige - a.prestige);
   
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <LinearGradient
           colors={['#131829', '#0f1220', '#0a0d18']}
           style={StyleSheet.absoluteFill}

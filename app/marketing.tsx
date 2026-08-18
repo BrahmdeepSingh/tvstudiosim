@@ -1,6 +1,7 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -63,7 +64,7 @@ export default function MarketingScreen() {
 
   if (!show || !season || show.status !== 'marketing') {
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
         <Text style={{ color: C.muted, padding: 32, fontFamily: 'Manrope_400Regular' }}>No show in marketing phase.</Text>
       </SafeAreaView>
@@ -91,7 +92,7 @@ export default function MarketingScreen() {
   const totalSpend = season.marketingSpend;
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 

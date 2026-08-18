@@ -1,6 +1,7 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Alert, Image,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
@@ -91,7 +92,7 @@ export default function StudioScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient
         colors={['#131829', '#0f1220', '#0a0d18']}
         style={StyleSheet.absoluteFill}

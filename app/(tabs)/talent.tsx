@@ -1,6 +1,7 @@
 import {
-  View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, SafeAreaView, Image,
-} from 'react-native';
+  View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { useState, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -123,7 +124,7 @@ export default function TalentScreen() {
   }, [talent, roleFilter]);
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient
         colors={['#131829', '#0f1220', '#0a0d18']}
         style={StyleSheet.absoluteFill}

@@ -1,7 +1,7 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, Image,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
@@ -188,7 +188,7 @@ export default function ShowDetailScreen() {
   if (!show) {
     return (
       <LinearGradient colors={['#141726', '#0c0f1a', '#070a12']} style={{ flex: 1 }}>
-        <SafeAreaView style={sd.container}>
+        <SafeAreaView edges={['top']} style={sd.container}>
           <Text style={{ fontFamily: F.body, color: C.muted, padding: 32 }}>Show not found.</Text>
         </SafeAreaView>
       </LinearGradient>
@@ -225,7 +225,7 @@ export default function ShowDetailScreen() {
   return (
     <LinearGradient colors={['#141726', '#0c0f1a', '#070a12']} locations={[0, 0.55, 1]} style={{ flex: 1 }}>
       <FilmRibbonAmbient />
-      <SafeAreaView style={sd.container}>
+      <SafeAreaView edges={['top']} style={sd.container}>
 
         {/* ── Header ── */}
         <View style={sd.header}>

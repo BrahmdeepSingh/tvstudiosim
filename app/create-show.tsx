@@ -1,7 +1,8 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Image,
-} from 'react-native';
+  StyleSheet, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
@@ -148,7 +149,7 @@ export default function CreateShowScreen() {
       style={{ flex: 1 }}
     >
       <FilmRibbonAmbient />
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}

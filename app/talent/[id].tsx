@@ -1,7 +1,8 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView,
-  Image, TextInput, Animated,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  Image, TextInput, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { useMemo, useState, useRef } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -196,7 +197,7 @@ export default function TalentDetailScreen() {
 
   if (!person) {
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
         <FilmRibbonAmbient />
         <View style={s.header}>
@@ -318,7 +319,7 @@ export default function TalentDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 

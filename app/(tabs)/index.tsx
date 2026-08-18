@@ -1,7 +1,7 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, Animated, Image, Modal,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
@@ -463,7 +463,7 @@ export default function Dashboard() {
     return (
       <LinearGradient colors={['#141726', '#0c0f1a', '#070a12']} style={{ flex: 1 }}>
         <FilmRibbonAmbient />
-        <SafeAreaView style={s.setupContainer}>
+        <SafeAreaView edges={['top']} style={s.setupContainer}>
           <Text style={s.setupTitle}>TV STUDIO SIM</Text>
           <TouchableOpacity
             style={s.advanceBtn}
@@ -559,7 +559,7 @@ export default function Dashboard() {
       style={{ flex: 1 }}
     >
       <FilmRibbonAmbient />
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
           {/* ── Header ── */}

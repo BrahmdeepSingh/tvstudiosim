@@ -1,6 +1,7 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image, Switch,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Switch } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -138,7 +139,7 @@ export default function RenewScreen() {
 
   if (!show || !prevSeason || show.status !== 'renewal-pending') {
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
         <Text style={{ color: C.muted, padding: 32, fontFamily: 'Manrope_400Regular' }}>Show not available for renewal.</Text>
       </SafeAreaView>
@@ -226,7 +227,7 @@ export default function RenewScreen() {
   const directorReturnable = returningDirector ? isReturnable(returningDirector) : false;
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 
