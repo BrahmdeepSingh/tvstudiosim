@@ -10,6 +10,7 @@ import { Show, NewsItem, StudioEvent } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { THEME_WINDOWS } from '../../src/constants/schedule';
 import { EmmyCeremonyModal } from '../components/EmmyCeremonyModal';
+import WeeklyRecapModal from '../components/WeeklyRecapModal';
 import { hap } from '../../src/utils/haptics';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -427,6 +428,10 @@ export default function Dashboard() {
   const expiringRef = useRef<Set<string>>(new Set());
   const glowAnim    = useRef(new Animated.Value(0)).current;
 
+  const [recapVisible, setRecapVisible]   = useState(false);
+  const [recapWeek,    setRecapWeek]      = useState(1);
+  const [recapYear,    setRecapYear]      = useState(1);
+
   // Derive the current pending event directly — when it's resolved in the store
   // this becomes null and the modal disappears automatically with no stale-closure issues.
   const pendingEvent = (studioEvents ?? []).find(e => !e.resolved) ?? null;
@@ -746,7 +751,17 @@ export default function Dashboard() {
               },
             ]}
           />
-          <TouchableOpacity style={s.advanceBtn} onPress={() => { hap.medium(); setTimeout(advanceWeek, 16); }} activeOpacity={0.88}>
+          <TouchableOpacity style={s.advanceBtn} onPress={() => {
+            hap.medium();
+            const snapWeek = network.currentWeek;
+            const snapYear = network.currentYear;
+            setTimeout(() => {
+              advanceWeek();
+              setRecapWeek(snapWeek);
+              setRecapYear(snapYear);
+              setRecapVisible(true);
+            }, 16);
+          }} activeOpacity={0.88}>
             <LinearGradient
               colors={['#f0c060', '#c49440']}
               start={{ x: 0, y: 0 }}
@@ -764,6 +779,13 @@ export default function Dashboard() {
       {pendingEvent && (
         <StudioEventModal event={pendingEvent} />
       )}
+
+      <WeeklyRecapModal
+        visible={recapVisible}
+        onClose={() => setRecapVisible(false)}
+        week={recapWeek}
+        year={recapYear}
+      />
 
       {emmyCeremonyPendingYear !== null && (
         <EmmyCeremonyModal />
