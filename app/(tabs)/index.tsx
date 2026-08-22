@@ -753,12 +753,12 @@ export default function Dashboard() {
           />
           <TouchableOpacity style={s.advanceBtn} onPress={() => {
             hap.medium();
-            const snapWeek = network.currentWeek;
-            const snapYear = network.currentYear;
             setTimeout(() => {
               advanceWeek();
-              setRecapWeek(snapWeek);
-              setRecapYear(snapYear);
+              // Read week/year AFTER advance so they match weekAired on episodes
+              const { network: net } = useGameStore.getState();
+              setRecapWeek(net.currentWeek);
+              setRecapYear(net.currentYear);
               setRecapVisible(true);
             }, 16);
           }} activeOpacity={0.88}>

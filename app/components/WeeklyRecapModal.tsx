@@ -167,7 +167,9 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
                 WEEK {week} · YEAR {year} · INDUSTRY EDITION
               </Text>
               <View style={s.mastheadRule} />
-              <Text style={s.mastheadTitle}>{network.name.toUpperCase()} WEEKLY</Text>
+              <Text style={s.mastheadTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                {network.name.toUpperCase()} WEEKLY
+              </Text>
               <View style={s.mastheadRule} />
               <Text style={s.mastheadTagline}>"All The Ratings Fit To Print"</Text>
             </View>
