@@ -116,13 +116,16 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
       }
     }
   }
+  // Sort by rating descending so highest performer is first
+  airedEpisodes.sort((a, b) => (b.episode.rating ?? 0) - (a.episode.rating ?? 0));
 
-  // Primary show = highest-rated episode this week
-  const primary = airedEpisodes.sort((a, b) => (b.episode.rating ?? 0) - (a.episode.rating ?? 0))[0] ?? null;
+  const primary = airedEpisodes[0] ?? null;
+  const hasEpisode = primary !== null;
+  const multiShow = airedEpisodes.length > 1;
 
-  // Rating trend: compare this ep to previous ep in same season
+  // Rating trend for single-show layout
   let trendDelta: number | null = null;
-  if (primary) {
+  if (primary && !multiShow) {
     const season = primary.show.seasons.find(s => s.id === primary.episode.seasonID);
     if (season) {
       const prevEp = season.episodes
@@ -134,15 +137,11 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
     }
   }
 
-  // Top 2 social reactions for primary show this week
-  const topTweets = primary
-    ? primary.episode.socialReactions
-        .slice()
-        .sort((a, b) => b.likes - a.likes)
-        .slice(0, 2)
-    : [];
-
-  const hasEpisode = primary !== null;
+  // Top 2 tweets across ALL airing shows this week
+  const topTweets = airedEpisodes
+    .flatMap(ae => ae.episode.socialReactions)
+    .sort((a, b) => b.likes - a.likes)
+    .slice(0, 2);
 
   // ── Non-airing week data ────────────────────────────────────────────────────
   // Shows actively in production (not airing, not done)
@@ -211,97 +210,134 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
 
             {hasEpisode ? (
               <>
-                {/* ── Headline ── */}
-                <View style={s.headline}>
-                  <Text style={s.headlineShow}>
-                    "{primary!.show.title.toUpperCase()}"
-                  </Text>
-                  <Text style={s.headlineEp}>
-                    SEASON {primary!.show.currentSeasonIndex + 1} · EPISODE {primary!.episode.episodeNumber}
-                  </Text>
-                </View>
-
-                <View style={s.dividerHeavy} />
-
-                {/* ── Rating hero ── */}
-                <View style={s.ratingHero}>
-                  <View style={s.ratingCenter}>
-                    <Text style={s.ratingLabel}>AVG RATING</Text>
-                    <RatingCounter target={primary!.episode.rating ?? 0} />
-                    <Text style={s.ratingOutOf}>/ 10</Text>
-                  </View>
-                </View>
-
-                <View style={s.divider} />
-
-                {/* ── Stat strip ── */}
-                <View style={s.statStrip}>
-                  <View style={s.statCell}>
-                    <Text style={s.statLabel}>VIEWERS</Text>
-                    <Text style={s.statValue}>
-                      {fmtViewers(primary!.episode.viewers ?? 0)}
-                    </Text>
-                  </View>
-                  <View style={s.statDivider} />
-                  <View style={s.statCell}>
-                    <Text style={s.statLabel}>AD REVENUE</Text>
-                    <Text style={[s.statValue, { color: C.green }]}>
-                      {fmtMoney(primary!.episode.adRevenue ?? 0)}
-                    </Text>
-                  </View>
-                  <View style={s.statDivider} />
-                  <View style={s.statCell}>
-                    <Text style={s.statLabel}>PRESTIGE</Text>
-                    <Text style={[s.statValue, { color: C.gold }]}>
-                      {network.prestige}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* ── On the Rise / Cooling Off ── */}
-                {trendDelta !== null && (
+                {multiShow ? (
+                  /* ══ MULTI-SHOW LAYOUT ══════════════════════════════════════ */
                   <>
-                    <View style={s.divider} />
-                    <View style={s.trendRow}>
-                      <View style={[
-                        s.trendCard,
-                        trendDelta >= 0 ? s.trendCardUp : s.trendCardDown,
-                      ]}>
-                        <Text style={[
-                          s.trendBadge,
-                          trendDelta >= 0 ? s.trendBadgeUp : s.trendBadgeDown,
-                        ]}>
-                          {trendDelta >= 0 ? '▲ ON THE RISE' : '▼ COOLING OFF'}
-                        </Text>
-                        <Text style={s.trendShowTitle} numberOfLines={1}>
-                          {primary!.show.title}
-                        </Text>
-                        <Text style={s.trendDelta}>
-                          {(primary!.episode.rating! - trendDelta).toFixed(1)}
-                          {' → '}
-                          {primary!.episode.rating!.toFixed(1)} this ep
-                        </Text>
-                      </View>
-
-                      {/* Second airing show if exists */}
-                      {airedEpisodes[1] && (
-                        <View style={[s.trendCard, s.trendCardNeutral]}>
-                          <Text style={[s.trendBadge, s.trendBadgeNeutral]}>
-                            ● ALSO AIRING
+                    <View style={s.dividerHeavy} />
+                    {airedEpisodes.map((ae, i) => (
+                      <View key={ae.episode.id}>
+                        {/* Show label */}
+                        <View style={s.multiShowHeader}>
+                          <Text style={s.multiShowTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                            "{ae.show.title.toUpperCase()}"
                           </Text>
-                          <Text style={s.trendShowTitle} numberOfLines={1}>
-                            {airedEpisodes[1].show.title}
-                          </Text>
-                          <Text style={s.trendDelta}>
-                            Rated {airedEpisodes[1].episode.rating?.toFixed(1)} · Ep {airedEpisodes[1].episode.episodeNumber}
+                          <Text style={s.multiShowEp}>
+                            S{ae.show.currentSeasonIndex + 1} · EP {ae.episode.episodeNumber}
                           </Text>
                         </View>
+                        {/* Stat strip: Rating · Viewers · Ad Revenue */}
+                        <View style={[s.statStrip, s.multiStatStrip]}>
+                          <View style={s.statCell}>
+                            <Text style={s.statLabel}>RATING</Text>
+                            <Text style={[s.statValue, { color: C.ink }]}>
+                              {ae.episode.rating?.toFixed(1)}
+                            </Text>
+                          </View>
+                          <View style={s.statDivider} />
+                          <View style={s.statCell}>
+                            <Text style={s.statLabel}>VIEWERS</Text>
+                            <Text style={s.statValue}>
+                              {fmtViewers(ae.episode.viewers ?? 0)}
+                            </Text>
+                          </View>
+                          <View style={s.statDivider} />
+                          <View style={s.statCell}>
+                            <Text style={s.statLabel}>AD REVENUE</Text>
+                            <Text style={[s.statValue, { color: C.green }]}>
+                              {fmtMoney(ae.episode.adRevenue ?? 0)}
+                            </Text>
+                          </View>
+                        </View>
+                        {i < airedEpisodes.length - 1 && <View style={s.divider} />}
+                      </View>
+                    ))}
+
+                    {/* Pipeline note under all show cards */}
+                    {featuredProductionShow && (
+                      <View style={s.pipelineNote}>
+                        <Text style={s.pipelineNoteText}>
+                          ALSO IN PIPELINE: "{featuredProductionShow.title.toUpperCase()}" · {stageLabel(featuredProductionShow.status)} · {weeksRemainingInStage(featuredProductionShow)} WK{weeksRemainingInStage(featuredProductionShow) === 1 ? '' : 'S'} REMAINING
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  /* ══ SINGLE SHOW LAYOUT ═════════════════════════════════════ */
+                  <>
+                    {/* Headline */}
+                    <View style={s.headline}>
+                      <Text style={s.headlineShow} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                        "{primary!.show.title.toUpperCase()}"
+                      </Text>
+                      <Text style={s.headlineEp}>
+                        SEASON {primary!.show.currentSeasonIndex + 1} · EPISODE {primary!.episode.episodeNumber}
+                      </Text>
+                      {/* Pipeline note inline under headline */}
+                      {featuredProductionShow && (
+                        <Text style={s.headlinePipelineNote}>
+                          {featuredProductionShow.title.toUpperCase()} · {stageLabel(featuredProductionShow.status)}
+                        </Text>
                       )}
                     </View>
+
+                    <View style={s.dividerHeavy} />
+
+                    {/* Rating hero */}
+                    <View style={s.ratingHero}>
+                      <View style={s.ratingCenter}>
+                        <Text style={s.ratingLabel}>AVG RATING</Text>
+                        <RatingCounter target={primary!.episode.rating ?? 0} />
+                        <Text style={s.ratingOutOf}>/ 10</Text>
+                      </View>
+                    </View>
+
+                    <View style={s.divider} />
+
+                    {/* Stat strip */}
+                    <View style={s.statStrip}>
+                      <View style={s.statCell}>
+                        <Text style={s.statLabel}>VIEWERS</Text>
+                        <Text style={s.statValue}>
+                          {fmtViewers(primary!.episode.viewers ?? 0)}
+                        </Text>
+                      </View>
+                      <View style={s.statDivider} />
+                      <View style={s.statCell}>
+                        <Text style={s.statLabel}>AD REVENUE</Text>
+                        <Text style={[s.statValue, { color: C.green }]}>
+                          {fmtMoney(primary!.episode.adRevenue ?? 0)}
+                        </Text>
+                      </View>
+                      <View style={s.statDivider} />
+                      <View style={s.statCell}>
+                        <Text style={s.statLabel}>PRESTIGE</Text>
+                        <Text style={[s.statValue, { color: C.gold }]}>
+                          {network.prestige}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* On the Rise / Cooling Off */}
+                    {trendDelta !== null && (
+                      <>
+                        <View style={s.divider} />
+                        <View style={s.trendRow}>
+                          <View style={[s.trendCard, trendDelta >= 0 ? s.trendCardUp : s.trendCardDown]}>
+                            <Text style={[s.trendBadge, trendDelta >= 0 ? s.trendBadgeUp : s.trendBadgeDown]}>
+                              {trendDelta >= 0 ? '▲ ON THE RISE' : '▼ COOLING OFF'}
+                            </Text>
+                            <Text style={s.trendShowTitle} numberOfLines={1}>{primary!.show.title}</Text>
+                            <Text style={s.trendDelta}>
+                              {(primary!.episode.rating! - trendDelta).toFixed(1)}{' → '}{primary!.episode.rating!.toFixed(1)} this ep
+                            </Text>
+                          </View>
+                        </View>
+                      </>
+                    )}
                   </>
                 )}
 
-                {/* ── Social Buzz ── */}
+                {/* ── Social Buzz (both layouts) ── */}
                 {topTweets.length > 0 && (
                   <>
                     <View style={s.divider} />
@@ -552,6 +588,55 @@ const s = StyleSheet.create({
     fontSize: 14,
     color: C.inkMid,
     marginTop: -4,
+  },
+
+  // ── Multi-show layout ────────────────────────────────────────────────────
+  multiShowHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  multiShowTitle: {
+    fontFamily: F.display,
+    fontSize: 22,
+    letterSpacing: 1,
+    color: C.ink,
+    lineHeight: 26,
+  },
+  multiShowEp: {
+    fontFamily: F.bodyMd,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: C.inkLight,
+    marginTop: 2,
+  },
+  multiStatStrip: {
+    marginTop: 6,
+  },
+  pipelineNote: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: C.ruleLine,
+    borderRadius: 2,
+    backgroundColor: C.paperDark,
+  },
+  pipelineNoteText: {
+    fontFamily: F.bodyMd,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    color: C.inkLight,
+  },
+
+  // ── Single-show pipeline note under headline ──────────────────────────────
+  headlinePipelineNote: {
+    fontFamily: F.bodyMd,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    color: C.inkLight,
+    marginTop: 6,
   },
 
   // ── Stat strip ───────────────────────────────────────────────────────────
