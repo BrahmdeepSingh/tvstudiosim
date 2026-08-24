@@ -200,7 +200,6 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
               <Text style={s.mastheadEyebrow}>
                 WEEK {week} · YEAR {year} · INDUSTRY EDITION
               </Text>
-              <View style={s.mastheadRule} />
               <Text style={s.mastheadTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
                 {network.name.toUpperCase()} WEEKLY
               </Text>
@@ -472,7 +471,7 @@ const s = StyleSheet.create({
   sheet: {
     width: CARD_W,
     maxHeight: '88%',
-    borderRadius: 4,
+    borderRadius: 20,
     overflow: 'hidden',
     // Subtle drop shadow
     shadowColor: '#000',
@@ -498,7 +497,7 @@ const s = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 2.5,
     color: C.gold,
-    marginBottom: 7,
+    marginBottom: 4,
   },
   mastheadRule: {
     width: '100%',
@@ -511,7 +510,8 @@ const s = StyleSheet.create({
     fontSize: 36,
     letterSpacing: 4,
     color: C.ink,
-    marginVertical: 2,
+    marginTop: 0,
+    marginBottom: 4,
   },
   mastheadTagline: {
     fontFamily: F.body,
@@ -777,13 +777,13 @@ const s = StyleSheet.create({
   // ── Continue button ──────────────────────────────────────────────────────
   continueBtn: {
     marginHorizontal: 20,
-    borderRadius: 2,
+    borderRadius: 14,
     overflow: 'hidden',
   },
   continueBtnGradient: {
     paddingVertical: 14,
     alignItems: 'center',
-    borderRadius: 2,
+    borderRadius: 14,
   },
   continueBtnText: {
     fontFamily: F.display,
