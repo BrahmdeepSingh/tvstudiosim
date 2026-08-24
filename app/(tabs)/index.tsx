@@ -776,10 +776,6 @@ export default function Dashboard() {
         </View>
       </SafeAreaView>
 
-      {pendingEvent && (
-        <StudioEventModal event={pendingEvent} />
-      )}
-
       <WeeklyRecapModal
         visible={recapVisible}
         onClose={() => setRecapVisible(false)}
@@ -787,7 +783,11 @@ export default function Dashboard() {
         year={recapYear}
       />
 
-      {emmyCeremonyPendingYear !== null && (
+      {!recapVisible && pendingEvent && (
+        <StudioEventModal event={pendingEvent} />
+      )}
+
+      {!recapVisible && emmyCeremonyPendingYear !== null && (
         <EmmyCeremonyModal />
       )}
     </LinearGradient>
