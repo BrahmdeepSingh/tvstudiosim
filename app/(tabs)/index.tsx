@@ -318,7 +318,7 @@ function fmtDelta(n: number): string {
   return `${sign}$${abs}`;
 }
 
-function StudioEventModal({ event: ev }: { event: StudioEvent }) {
+function StudioEventModal({ event: ev, visible }: { event: StudioEvent; visible: boolean }) {
   const { resolveStudioEvent } = useGameStore();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const typeColor = EVENT_COLORS[ev.type] ?? '#9a958e';
@@ -334,7 +334,7 @@ function StudioEventModal({ event: ev }: { event: StudioEvent }) {
   const chosen = selectedIndex !== null ? ev.choices[selectedIndex] : null;
 
   return (
-    <Modal transparent animationType="fade" statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={m.overlay}>
         <View style={m.card}>
           {/* Event type badge + type label */}
@@ -783,8 +783,8 @@ export default function Dashboard() {
         year={recapYear}
       />
 
-      {!recapVisible && pendingEvent && (
-        <StudioEventModal event={pendingEvent} />
+      {pendingEvent && (
+        <StudioEventModal event={pendingEvent} visible={!recapVisible} />
       )}
 
       {!recapVisible && emmyCeremonyPendingYear !== null && (
