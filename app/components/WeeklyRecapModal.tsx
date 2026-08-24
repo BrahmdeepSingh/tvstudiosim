@@ -82,7 +82,7 @@ interface Props {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function WeeklyRecapModal({ visible, onClose, week, year }: Props) {
-  const { shows, network } = useGameStore();
+  const { shows, network, ambientSocialPosts } = useGameStore();
 
   const slideAnim = useRef(new Animated.Value(60)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
@@ -143,6 +143,41 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
     : [];
 
   const hasEpisode = primary !== null;
+
+  // ── Non-airing week data ────────────────────────────────────────────────────
+  // Shows actively in production (not airing, not done)
+  const productionShows = shows.filter(sh =>
+    ['writing', 'filming', 'marketing'].includes(sh.status)
+  );
+
+  // Find the show closest to its next milestone to headline
+  function weeksRemainingInStage(show: Show): number {
+    const season = show.seasons[show.currentSeasonIndex];
+    if (!season) return 99;
+    if (show.status === 'writing')   return season.writingWeeksTotal   - season.writingWeeksCompleted;
+    if (show.status === 'filming')   return season.filmingWeeksTotal   - season.filmingWeeksCompleted;
+    if (show.status === 'marketing') return season.marketingWeeksTotal - season.marketingWeeksCompleted;
+    return 99;
+  }
+
+  function stageLabel(status: string): string {
+    if (status === 'writing')   return 'IN THE WRITERS ROOM';
+    if (status === 'filming')   return 'IN PRODUCTION';
+    if (status === 'marketing') return 'IN MARKETING';
+    return 'IN DEVELOPMENT';
+  }
+
+  const featuredProductionShow = productionShows
+    .slice()
+    .sort((a, b) => weeksRemainingInStage(a) - weeksRemainingInStage(b))[0] ?? null;
+
+  // Top 2 ambient social posts for this week (player shows only, sorted by likes)
+  const thisWeekAmbient = ambientSocialPosts
+    .filter(p => p.week === week && p.year === year && !p.isCompetitor)
+    .sort((a, b) => b.likes - a.likes)
+    .slice(0, 2);
+
+  const isGenuinelyQuiet = productionShows.length === 0 && thisWeekAmbient.length === 0;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -289,8 +324,8 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
                   </>
                 )}
               </>
-            ) : (
-              /* ── Quiet week ── */
+            ) : isGenuinelyQuiet ? (
+              /* ── True quiet week — nothing happening anywhere ── */
               <>
                 <View style={s.headline}>
                   <Text style={s.headlineShow}>A QUIET WEEK</Text>
@@ -298,8 +333,71 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
                 </View>
                 <View style={s.dividerHeavy} />
                 <Text style={s.quietBody}>
-                  No episodes on air this week. Production continues behind the scenes.
+                  Nothing on air and no shows in production. The lot is quiet — for now.
                 </Text>
+              </>
+            ) : (
+              /* ── Production week ── */
+              <>
+                {featuredProductionShow && (
+                  <>
+                    <View style={s.headline}>
+                      <Text style={s.headlineShow} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.7}>
+                        "{featuredProductionShow.title.toUpperCase()}"
+                      </Text>
+                      <Text style={s.headlineEp}>
+                        {stageLabel(featuredProductionShow.status)} · {weeksRemainingInStage(featuredProductionShow)} WK
+                        {weeksRemainingInStage(featuredProductionShow) === 1 ? '' : 'S'} REMAINING
+                      </Text>
+                    </View>
+                    <View style={s.dividerHeavy} />
+
+                    {/* Stat strip: prestige + cash, no ratings */}
+                    <View style={s.statStrip}>
+                      <View style={s.statCell}>
+                        <Text style={s.statLabel}>PRESTIGE</Text>
+                        <Text style={[s.statValue, { color: C.gold }]}>{network.prestige}</Text>
+                      </View>
+                      <View style={s.statDivider} />
+                      <View style={s.statCell}>
+                        <Text style={s.statLabel}>CASH ON HAND</Text>
+                        <Text style={s.statValue}>{fmtMoney(network.cashOnHand).replace('+', '')}</Text>
+                      </View>
+                      {productionShows.length > 1 && (
+                        <>
+                          <View style={s.statDivider} />
+                          <View style={s.statCell}>
+                            <Text style={s.statLabel}>IN PIPELINE</Text>
+                            <Text style={s.statValue}>{productionShows.length} SHOWS</Text>
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  </>
+                )}
+
+                {/* Social buzz from ambient posts this week */}
+                {thisWeekAmbient.length > 0 && (
+                  <>
+                    <View style={s.divider} />
+                    <Text style={s.sectionHead}>THIS WEEK'S SOCIAL BUZZ</Text>
+                    <View style={s.dividerThin} />
+                    {thisWeekAmbient.map((t, i) => (
+                      <View key={i} style={s.tweetRow}>
+                        <View style={s.tweetBullet} />
+                        <View style={s.tweetBody}>
+                          <View style={s.tweetMeta}>
+                            <Text style={s.tweetHandle}>@{t.handle}</Text>
+                            <View style={s.tweetLikesChip}>
+                              <Text style={s.tweetLikesText}>♥ {fmtLikes(t.likes)}</Text>
+                            </View>
+                          </View>
+                          <Text style={s.tweetContent}>"{t.content}"</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                )}
               </>
             )}
 
