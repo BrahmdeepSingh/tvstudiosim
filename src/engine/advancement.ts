@@ -137,13 +137,23 @@ export function advanceWeek(state: GameState): GameState {
       }).length;
       if (strongPriorCount < 2) continue;
 
-      // Override finale viewers to 50 M; keep computed ad revenue to avoid breaking finances
+      // Recompute ad revenue from 50 M viewers using the same formula as ratings.ts
+      const genreConfig = GENRE_CONFIG[currentShow.genre];
+      const effectiveCPM = genreConfig.cpm * (1 + ((finaleEp.rating ?? 9.0) - 5) / 10);
+      const phenomenonAdRevenue = Math.round((50_000_000 / 1000) * effectiveCPM);
+      const adRevenueDelta = phenomenonAdRevenue - (finaleEp.adRevenue ?? 0);
+
       const updatedEps = [...after.episodes];
-      updatedEps[after.episodeCount - 1] = { ...finaleEp, viewers: 50_000_000 };
+      updatedEps[after.episodeCount - 1] = {
+        ...finaleEp,
+        viewers: 50_000_000,
+        adRevenue: phenomenonAdRevenue,
+      };
       const patchedSeason: Season = {
         ...after,
         episodes: updatedEps,
         totalViewers: after.totalViewers - (finaleEp.viewers ?? 0) + 50_000_000,
+        totalAdRevenue: after.totalAdRevenue + adRevenueDelta,
       };
       const patchedSeasons = [...currentShow.seasons];
       patchedSeasons[currentShow.currentSeasonIndex] = patchedSeason;
