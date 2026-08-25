@@ -6,6 +6,7 @@ import {
   EMMY_CEREMONY_WEEK,
   MAX_PITCHES_PER_YEAR,
   PITCH_GENERATE_CHANCE,
+  GENRE_CONFIG,
 } from '../constants/game';
 import { calculateScriptScore, calculateQualityScore } from './quality';
 import { calculateEpisodeRating } from './ratings';
@@ -103,6 +104,49 @@ export function advanceWeek(state: GameState): GameState {
         }
       }
     }
+  }
+
+  // ─── Viewership-based popularity growth (fires when a season finishes) ───────
+  // Boosts lead actors, director, and showrunner based on how the season performed
+  // relative to the genre's baseline viewership. Diminishing returns for high-pop
+  // talent so Unknown→D-List is easier than C-List→B-List.
+  for (let i = 0; i < state.shows.length; i++) {
+    const wasAiring = state.shows[i].status === 'airing';
+    const nowWrapped =
+      shows[i].status === 'renewal-pending' ||
+      (shows[i].status === 'cancelled' && shows[i].cancelledClean);
+    if (!wasAiring || !nowWrapped) continue;
+
+    const season = shows[i].seasons[shows[i].currentSeasonIndex];
+    if (!season) continue;
+
+    const config = GENRE_CONFIG[shows[i].genre];
+    const airedEps = season.episodes.filter(ep => ep.viewers != null && ep.viewers > 0);
+    if (airedEps.length === 0) continue;
+
+    const avgViewers = airedEps.reduce((sum, ep) => sum + (ep.viewers ?? 0), 0) / airedEps.length;
+    const viewerRatio = avgViewers / config.baseViewers;
+
+    const baseGain =
+      viewerRatio >= 2.0 ? 6 :
+      viewerRatio >= 1.5 ? 4 :
+      viewerRatio >= 1.0 ? 2 :
+      viewerRatio >= 0.7 ? 1 : 0;
+
+    if (baseGain === 0) continue;
+
+    const boostedIDs = new Set([
+      ...season.leadActorIDs,
+      season.directorID,
+      season.showrunnerID,
+    ].filter(Boolean) as string[]);
+
+    talent = talent.map(t => {
+      if (!boostedIDs.has(t.id)) return t;
+      const gain = Math.round(baseGain * Math.max(0.4, 1 - t.popularity / 130));
+      if (gain <= 0) return t;
+      return { ...t, popularity: Math.min(95, t.popularity + gain) };
+    });
   }
 
   // ─── Ad revenue: accumulate cash from episodes that aired this week ────────
@@ -393,6 +437,7 @@ export function advanceWeek(state: GameState): GameState {
         const relatedNoms = playerIndividualNoms.filter(a => a.talentID === t.id);
         if (relatedNoms.length === 0) return t;
         let updatedStats = { ...t.stats };
+        let popularityGain = 0;
         for (const nom of relatedNoms) {
           const multiplier = nom.won ? 1.0 : 0.5;
           if (['best-drama-actor', 'best-drama-actress', 'best-comedy-actor', 'best-comedy-actress'].includes(nom.category) &&
@@ -409,9 +454,14 @@ export function advanceWeek(state: GameState): GameState {
             const delta = (cur < 60 ? 4 : cur < 75 ? 3 : cur < 85 ? 2 : 1) * multiplier;
             updatedStats = { ...updatedStats, writing: Math.min(100, cur + delta) };
           }
+          // Popularity boost: win +6, nomination +3, with diminishing returns
+          const popBase = nom.won ? 6 : 3;
+          popularityGain += Math.round(popBase * Math.max(0.4, 1 - t.popularity / 130));
         }
-        if (updatedStats === t.stats) return t;
-        return { ...t, stats: updatedStats };
+        const newPopularity = popularityGain > 0
+          ? Math.min(95, t.popularity + popularityGain)
+          : t.popularity;
+        return { ...t, stats: updatedStats, popularity: newPopularity };
       });
     }
 
