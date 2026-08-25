@@ -9,7 +9,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { getYearsActive } from '../../src/engine/talent';
-import { EMMY_CATEGORY_LABELS, TALENT_FEES, SUPPORTING_ACTOR_FEES, GENRE_CONFIG } from '../../src/constants/game';
+import { EMMY_CATEGORY_LABELS, TALENT_FEES, SUPPORTING_ACTOR_FEES, GENRE_CONFIG, popularityToFeeTier } from '../../src/constants/game';
 import { AVATAR_MAP } from '../../src/utils/avatars';
 import { TalentRole, Talent } from '../../src/types';
 
@@ -68,7 +68,7 @@ function computeLikelihood(
 ): number {
   if (flatFee <= 0) return 0;
   const pop = talent.popularity;
-  const tier = pop < 40 ? 'low' : pop < 70 ? 'mid' : 'high';
+  const tier = popularityToFeeTier(pop);
   const range = (talent.role === 'actor' && actorType === 'supporting')
     ? SUPPORTING_ACTOR_FEES[tier]
     : TALENT_FEES[talent.role][tier];

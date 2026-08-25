@@ -8,7 +8,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { Talent } from '../src/types';
-import { TALENT_FEES, MIN_EPISODES, MAX_EPISODES } from '../src/constants/game';
+import { TALENT_FEES, MIN_EPISODES, MAX_EPISODES, popularityToFeeTier } from '../src/constants/game';
 import { AVATAR_MAP } from '../src/utils/avatars';
 
 const C = {
@@ -41,7 +41,7 @@ function fmt(n: number): string {
 }
 
 function autoResignFee(t: Talent, heatMultiplier: number): number {
-  const tier = t.popularity < 40 ? 'low' : t.popularity < 70 ? 'mid' : 'high';
+  const tier = popularityToFeeTier(t.popularity);
   const range = t.role === 'actor' ? TALENT_FEES.actor[tier] : TALENT_FEES[t.role][tier];
   const base = Math.round((range[0] + range[1]) / 2 / 50_000) * 50_000;
   return Math.round((base * heatMultiplier) / 50_000) * 50_000;
