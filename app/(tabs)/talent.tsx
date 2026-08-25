@@ -34,40 +34,23 @@ function FilmRibbonAmbient() {
   );
 }
 
-function popularityLabel(p: number): string {
-  if (p < 30) return 'Unknown';
-  if (p < 50) return 'Emerging';
-  if (p < 70) return 'Established';
-  if (p < 85) return 'Well-Known';
-  return 'Star';
+function listTier(p: number): string {
+  if (p >= 80) return 'A-List';
+  if (p >= 60) return 'B-List';
+  if (p >= 40) return 'C-List';
+  if (p >= 20) return 'D-List';
+  return 'Unknown';
 }
 
-function getPrimaryStats(t: Talent): { label: string; value: number }[] {
-  if (t.stats.role === 'showrunner') return [
-    { label: 'Writing',     value: t.stats.writing },
-    { label: 'Creativity',  value: t.stats.creativity },
-    { label: 'Consistency', value: t.stats.consistency },
-  ];
-  if (t.stats.role === 'director') return [
-    { label: 'Direction',  value: t.stats.direction },
-    { label: 'Vision',     value: t.stats.vision },
-    { label: 'Efficiency', value: t.stats.efficiency },
-  ];
-  return [
-    { label: 'Acting',    value: t.stats.acting },
-    { label: 'Chemistry', value: t.stats.chemistry },
-  ];
-}
-
-function getTopStat(t: Talent): number {
-  return getPrimaryStats(t)[0].value;
+function blendedSkill(t: Talent): number {
+  if (t.stats.role === 'showrunner') return Math.round((t.stats.writing + t.stats.creativity + t.stats.consistency) / 3);
+  if (t.stats.role === 'director')   return Math.round((t.stats.direction + t.stats.vision) / 2);
+  return Math.round((t.stats.acting + t.stats.chemistry) / 2);
 }
 
 function TalentCard({ talent, onPress }: { talent: Talent; onPress: () => void }) {
   const chemColor = CHEM_COLORS[talent.chemistryColor];
-  const topStat = getTopStat(talent);
-  const statLabel = talent.stats.role === 'showrunner' ? 'Writing'
-    : talent.stats.role === 'director' ? 'Direction' : 'Acting';
+  const skill = blendedSkill(talent);
 
   return (
     <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
@@ -79,16 +62,16 @@ function TalentCard({ talent, onPress }: { talent: Talent; onPress: () => void }
         <View style={{ flex: 1 }}>
           <Text style={s.name}>{talent.name}</Text>
           <Text style={s.meta}>
-            {popularityLabel(talent.popularity)}
-            {' · '}{talent.role.charAt(0).toUpperCase() + talent.role.slice(1)}
+            {listTier(talent.popularity)}
+            {' · Age '}{talent.age}
           </Text>
         </View>
       </View>
       <View style={s.cardRight}>
         <View style={[s.availPip, { backgroundColor: talent.available ? C.green : C.amber }]} />
         <View style={s.statCol}>
-          <Text style={s.statNum}>{topStat}</Text>
-          <Text style={s.statLbl}>{statLabel}</Text>
+          <Text style={s.statNum}>{skill}</Text>
+          <Text style={s.statLbl}>Skill</Text>
         </View>
       </View>
     </TouchableOpacity>

@@ -24,11 +24,19 @@ const CHEM_COLORS = {
   red:   '#c43820',
 };
 
-const ROLE_STAT_LABEL: Record<TalentRole, string> = {
-  showrunner: 'Writing',
-  director:   'Direction',
-  actor:      'Acting',
-};
+function listTier(p: number): string {
+  if (p >= 80) return 'A-List';
+  if (p >= 60) return 'B-List';
+  if (p >= 40) return 'C-List';
+  if (p >= 20) return 'D-List';
+  return 'Unknown';
+}
+
+function blendedSkill(talent: Talent): number {
+  if (talent.stats.role === 'showrunner') return Math.round((talent.stats.writing + talent.stats.creativity + talent.stats.consistency) / 3);
+  if (talent.stats.role === 'director')   return Math.round((talent.stats.direction + talent.stats.vision) / 2);
+  return Math.round((talent.stats.acting + talent.stats.chemistry) / 2);
+}
 
 function FilmRibbonAmbient() {
   return (
@@ -41,20 +49,6 @@ function FilmRibbonAmbient() {
   );
 }
 
-function getPrimaryStatValue(talent: Talent): number {
-  if (talent.stats.role === 'showrunner') return talent.stats.writing;
-  if (talent.stats.role === 'director') return talent.stats.direction;
-  if (talent.stats.role === 'actor') return talent.stats.acting;
-  return 0;
-}
-
-function popularityLabel(p: number): string {
-  if (p < 30)  return 'Unknown';
-  if (p < 50)  return 'Emerging';
-  if (p < 70)  return 'Established';
-  if (p < 85)  return 'Well-Known';
-  return 'Star';
-}
 
 function TalentCard({
   talent,
@@ -65,7 +59,7 @@ function TalentCard({
   onPress: () => void;
   locked?: boolean;
 }) {
-  const primary = getPrimaryStatValue(talent);
+  const skill = blendedSkill(talent);
 
   return (
     <TouchableOpacity
@@ -73,7 +67,6 @@ function TalentCard({
       onPress={locked ? undefined : onPress}
       activeOpacity={locked ? 1 : 0.75}
     >
-      {/* Card content row — always takes full width */}
       <View style={[s.talentCardLeft, locked && s.lockedContent]}>
         <View style={s.avatarWrap}>
           <Image source={AVATAR_MAP[talent.avatarId]} style={s.avatarThumb} />
@@ -82,12 +75,12 @@ function TalentCard({
         <View style={{ flex: 1 }}>
           <Text style={s.talentName}>{talent.name}</Text>
           <Text style={s.talentMeta}>
-            {popularityLabel(talent.popularity)} · Chemistry {talent.chemistryColor.charAt(0).toUpperCase() + talent.chemistryColor.slice(1)}
+            {listTier(talent.popularity)} · Age {talent.age}
           </Text>
         </View>
         <View style={s.talentCardRight}>
-          <Text style={s.talentStat}>{primary}</Text>
-          <Text style={s.talentStatLabel}>{ROLE_STAT_LABEL[talent.role]}</Text>
+          <Text style={s.talentStat}>{skill}</Text>
+          <Text style={s.talentStatLabel}>Skill</Text>
         </View>
       </View>
 
