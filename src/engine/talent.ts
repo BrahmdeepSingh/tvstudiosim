@@ -200,10 +200,19 @@ function makeActorStats(tier: 'low' | 'mid' | 'high'): TalentStats {
 
 function popularityForTier(tier: 'low' | 'mid' | 'high'): number {
   return tier === 'low'
-    ? randomBetween(10, 35)
+    ? randomBetween(5, 39)   // Unknown + D-List
     : tier === 'mid'
-    ? randomBetween(36, 68)
-    : randomBetween(69, 95);
+    ? randomBetween(40, 79)  // C-List + B-List
+    : randomBetween(80, 95); // A-List
+}
+
+// 15% chance a talent's skill tier is one step above their popularity tier.
+// Only goes up — no overrated talent (high pop, low skill).
+function pickStatTier(popTier: 'low' | 'mid' | 'high'): 'low' | 'mid' | 'high' {
+  if (popTier === 'high') return 'high'; // already at ceiling
+  return Math.random() < 0.15
+    ? (popTier === 'low' ? 'mid' : 'high')
+    : popTier;
 }
 
 function prestigeRequiredForTier(tier: 'low' | 'mid' | 'high'): number {
@@ -216,12 +225,13 @@ function makeTalent(
   gender: 'male' | 'female',
   avatarId: string,
 ): Talent {
+  const statTier = pickStatTier(tier);
   const stats: TalentStats =
     role === 'showrunner'
-      ? makeShowrunnerStats(tier)
+      ? makeShowrunnerStats(statTier)
       : role === 'director'
-      ? makeDirectorStats(tier)
-      : makeActorStats(tier);
+      ? makeDirectorStats(statTier)
+      : makeActorStats(statTier);
 
   const age = randomBetween(18, 71);
   const yearsActive = randomBetween(0, Math.max(0, age - 18));
@@ -332,10 +342,11 @@ export function generateReplacementTalent(
   const freePool = pool.filter(id => !usedIds.has(id));
   const avatarId = freePool.length > 0 ? randomItem(freePool) : randomItem(pool);
 
+  const statTier = pickStatTier(tier);
   const stats: TalentStats =
-    role === 'showrunner' ? makeShowrunnerStats(tier)
-    : role === 'director' ? makeDirectorStats(tier)
-    : makeActorStats(tier);
+    role === 'showrunner' ? makeShowrunnerStats(statTier)
+    : role === 'director' ? makeDirectorStats(statTier)
+    : makeActorStats(statTier);
 
   // Age range matches the global rule: 18–71 (72 triggers retirement)
   const age = randomBetween(18, 65);

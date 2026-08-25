@@ -1,4 +1,4 @@
-import { GameState, Show, Season, Episode, ShowStatus, InboxItem, TalentDeal } from '../types';
+import { GameState, Show, Season, Episode, ShowStatus, InboxItem, TalentDeal, Talent } from '../types';
 import {
   WRITING_WEEKS,
   WEEKS_PER_YEAR,
@@ -48,7 +48,7 @@ export function advanceWeek(state: GameState): GameState {
       case 'writing':  return tickWriting(show, season, state);
       case 'filming':  return tickFilming(show, season, state);
       case 'marketing': return tickMarketing(show, season, newWeek, newYear);
-      case 'airing':   return tickAiring(show, season, newWeek, newYear, socialTemplateTracker);
+      case 'airing':   return tickAiring(show, season, newWeek, newYear, socialTemplateTracker, talent);
       default:         return show;
     }
   });
@@ -626,11 +626,19 @@ function tickAiring(
   newWeek: number,
   newYear: number,
   socialTemplateTracker: { ids: string[] },
+  talent: Talent[],
 ): Show {
   const nextIndex = season.episodesAired;
   if (nextIndex >= season.episodeCount) {
     return updateShow(show, season, 'renewal-pending');
   }
+
+  const avgLeadPopularity = season.leadActorIDs.length > 0
+    ? season.leadActorIDs.reduce((sum, id) => {
+        const actor = talent.find(t => t.id === id);
+        return sum + (actor?.popularity ?? 50);
+      }, 0) / season.leadActorIDs.length
+    : undefined;
 
   const prevEpisodes = season.episodes.filter(ep => ep.rating !== null);
   const { rating, viewers: baseViewers, adRevenue: baseAdRevenue } = calculateEpisodeRating(
@@ -638,6 +646,7 @@ function tickAiring(
     nextIndex + 1,
     show.genre,
     prevEpisodes,
+    avgLeadPopularity,
   );
 
   // Apply theme window viewership boost — only viewers/revenue are affected, not the rating

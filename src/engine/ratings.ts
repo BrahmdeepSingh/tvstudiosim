@@ -44,6 +44,7 @@ export function calculateEpisodeRating(
   episodeNumber: number,
   genre: Genre,
   previousEpisodes: Episode[],
+  castPopularity?: number,
 ): EpisodeResult {
   const config = GENRE_CONFIG[genre];
 
@@ -71,7 +72,12 @@ export function calculateEpisodeRating(
   // Organic word-of-mouth scales super-linearly with quality
   const organicBuzz = Math.pow(rating / 5.0, 1.3);
 
-  const viewers = Math.round(config.baseViewers * marketingReach * organicBuzz);
+  // Cast popularity boosts opening viewership, decaying to zero by episode 9
+  const popularityBoost = castPopularity != null
+    ? 1.0 + (castPopularity / 100) * 0.30 * Math.max(0, 1 - (episodeNumber - 1) * 0.12)
+    : 1.0;
+
+  const viewers = Math.round(config.baseViewers * marketingReach * organicBuzz * popularityBoost);
 
   // Higher-rated shows command premium ad rates
   const effectiveCPM = config.cpm * (1 + (rating - 5) / 10);
