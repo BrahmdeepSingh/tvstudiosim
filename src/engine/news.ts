@@ -229,6 +229,35 @@ export function makeStreamingDealNews(
 // PLAYER SHOW MILESTONE NEWS
 // ─────────────────────────────────────────────────────────────────────────────
 
+export function makeNewShowRumorNews(
+  showTitle: string,
+  genre: string,
+  networkName: string,
+  inHouse: boolean,
+  ctx: Ctx,
+): NewsItem {
+  const lines = inHouse ? [
+    `Sources at ${networkName} say the network is developing a new ${genre} project internally, working title "${showTitle}." No official confirmation yet.`,
+    `${networkName} is believed to be quietly developing "${showTitle}," a ${genre} series originating from the network's own creative team. Details remain scarce.`,
+    `Rumors are circulating that ${networkName} has a ${genre} project called "${showTitle}" in early development. Insiders say it's further along than the network is letting on.`,
+    `"${showTitle}" has been whispered about in industry circles as ${networkName}'s next in-house ${genre} venture. The network declined to comment.`,
+    `${networkName} is reportedly incubating a ${genre} project called "${showTitle}" without outside involvement. An announcement is expected once the writing phase concludes.`,
+  ] : [
+    `${networkName} has acquired the rights to "${showTitle}," a ${genre} pitch that's been making the rounds. Writing is expected to begin shortly.`,
+    `"${showTitle}" has found a home at ${networkName}. The ${genre} project was pitched by an independent showrunner and quickly caught the network's attention.`,
+    `Sources confirm that ${networkName} has greenlighted "${showTitle}," a ${genre} project that beat out competing offers. The network moved decisively once the pitch landed.`,
+    `${networkName} snapped up "${showTitle}" in what sources describe as a competitive situation. The ${genre} series will go straight into development.`,
+    `A new ${genre} series called "${showTitle}" is heading to ${networkName} after the network closed a deal with its creative team. The trade calls it a project to watch.`,
+  ];
+  return {
+    id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false, byline: byline(),
+    headline: inHouse
+      ? `${networkName} rumored to be developing new ${genre} series "${showTitle}"`
+      : `${networkName} acquires "${showTitle}" — new ${genre} series in development`,
+    body: randomItem(lines),
+  };
+}
+
 export function makeFilmingWrapNews(showTitle: string, ctx: Ctx): NewsItem {
   const lines = [
     `Principal photography has officially wrapped on "${showTitle}". The production is now entering post-production ahead of its marketing push.`,

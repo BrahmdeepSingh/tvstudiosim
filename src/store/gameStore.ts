@@ -19,7 +19,7 @@ import { generateInitialTalentPool } from '../engine/talent';
 import { generateInitialCompetitors } from '../engine/competitors';
 import { generatePitch } from '../engine/pitches';
 import { saveGameToStorage, loadGameFromStorage } from './storage';
-import { makeStreamingDealNews } from '../engine/news';
+import { makeStreamingDealNews, makeNewShowRumorNews } from '../engine/news';
 import {
   generatePremiereDateAnnouncedPosts,
   generateRenewalPosts,
@@ -270,7 +270,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       heatMultiplier: 1.0,
     };
 
-    set(state => ({ shows: [...state.shows, show] }));
+    const rumorNews = makeNewShowRumorNews(title, genre, get().network.name, true, { week: get().network.currentWeek, year: get().network.currentYear });
+    set(state => ({ shows: [...state.shows, show], newsItems: [...state.newsItems, rumorNews] }));
     const newIDs = checkAchievements(get());
     if (newIDs.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDs], achievementQueue: [...s.achievementQueue, ...newIDs] }));
     return showID;
@@ -658,6 +659,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ),
       talentDeals: [...s.talentDeals, deal],
     }));
+    const greenlitRumorNews = makeNewShowRumorNews(pitch.title, pitch.genre, get().network.name, false, { week: state.network.currentWeek, year: state.network.currentYear });
+    set(s => ({ newsItems: [...s.newsItems, greenlitRumorNews] }));
     const newIDsGl = checkAchievements(get());
     if (newIDsGl.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDsGl], achievementQueue: [...s.achievementQueue, ...newIDsGl] }));
 
