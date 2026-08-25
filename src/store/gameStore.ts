@@ -40,6 +40,7 @@ import {
   MARKETING_CHANNELS,
   WEEKS_PER_YEAR,
   GENRE_CONFIG,
+  popularityToFeeTier,
 } from '../constants/game';
 import { nanoid } from '../utils/nanoid';
 import { randomBetween, randomFloat, clamp } from '../utils/random';
@@ -287,7 +288,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const role = talent.role;
     const popularity = talent.popularity;
 
-    const tierIndex = popularity < 40 ? 'low' : popularity < 70 ? 'mid' : 'high';
+    const tierIndex = popularityToFeeTier(popularity);
     const feeRange = (role === 'actor' && actorType === 'supporting')
       ? SUPPORTING_ACTOR_FEES[tierIndex]
       : TALENT_FEES[role][tierIndex];

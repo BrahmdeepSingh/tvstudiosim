@@ -2,6 +2,8 @@ import { Talent, TalentStats, ChemistryColor, TalentRole, Genre, EmmyCategory, L
 import { nanoid } from '../utils/nanoid';
 import { randomBetween, randomItem, clamp } from '../utils/random';
 import { STARTING_YEAR, TALENT_FEES } from '../constants/game';
+
+const LEGACY_FEE_TIER: Record<'low' | 'mid' | 'high', 'd' | 'c' | 'a'> = { low: 'd', mid: 'c', high: 'a' };
 import { MALE_AVATAR_IDS, FEMALE_AVATAR_IDS } from '../utils/avatars';
 
 const CHEMISTRY_COLORS: ChemistryColor[] = ['green', 'blue', 'red'];
@@ -140,7 +142,7 @@ function generateLegacyCareer(
 
   legacyCredits.sort((a, b) => a.year - b.year);
 
-  const minFeeForTier = TALENT_FEES[role][tier][0];
+  const minFeeForTier = TALENT_FEES[role][LEGACY_FEE_TIER[tier]][0];
   const priorCareerEarnings = numCredits * minFeeForTier;
 
   return { legacyCredits, legacyAwards, priorCareerEarnings };
