@@ -414,6 +414,21 @@ export interface Network {
   totalShowsProduced: number;
 }
 
+// ─── Loan Shark ──────────────────────────────────────────────────────────────
+
+export interface ActiveLoan {
+  id: string;
+  principal: number;        // original amount borrowed
+  amountOwed: number;       // grows 20% per week once overdue
+  interestRate: number;     // e.g. 0.67 — increases with loan number
+  takenWeek: number;
+  takenYear: number;
+  dueWeek: number;          // same week as taken, one year later
+  dueYear: number;
+  weeksOverdue: number;     // 0 while within grace period
+  prestigePenaltyApplied: boolean; // one-time -5 prestige on first overdue tick
+}
+
 // ─── Full Game State ──────────────────────────────────────────────────────────
 import { AmbientSocialPost } from '../engine/ambientsocial';
 
@@ -429,6 +444,8 @@ export interface GameState {
   awards: Award[];
   studioEvents: StudioEvent[];
   emmyCeremonyPendingYear: number | null;
+  activeLoan: ActiveLoan | null;
+  loansTaken: number;
   saveSlot: number;
   lastSaved: string;
   initialized: boolean;

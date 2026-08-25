@@ -18,7 +18,7 @@ import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
 import { tryGenerateStreamingOffer, scheduleNextOfferCheck } from './streaming';
 import { generatePitch } from './pitches';
 import { generateReplacementTalent } from './talent';
-import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews, makeSeriesFinaleNews, makeCulturalPhenomenonNews } from './news';
+import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews, makeSeriesFinaleNews, makeCulturalPhenomenonNews, makeLoanDefaultNews } from './news';
 import { tryGenerateStudioEvent } from './events';
 import { nanoid } from '../utils/nanoid';
 import { randomChance, randomBetween } from '../utils/random';
@@ -624,6 +624,45 @@ export function advanceWeek(state: GameState): GameState {
     }
   }
 
+  // ─── Loan shark tick ──────────────────────────────────────────────────────
+  // Check once per week whether the active loan has gone past its due date.
+  // Grace period is exactly one year (same week, next year). After that the
+  // balance compounds 20% each week until repaid or forcibly collected.
+  let activeLoan = state.activeLoan ?? null;
+  if (activeLoan) {
+    const isPastDue =
+      newYear > activeLoan.dueYear ||
+      (newYear === activeLoan.dueYear && newWeek > activeLoan.dueWeek);
+
+    if (isPastDue) {
+      let updatedLoan = { ...activeLoan, weeksOverdue: activeLoan.weeksOverdue + 1 };
+
+      // First overdue week: prestige penalty + news story
+      if (!updatedLoan.prestigePenaltyApplied) {
+        network = { ...network, prestige: Math.max(0, network.prestige - 5) };
+        newNewsItems.push(makeLoanDefaultNews(network.name, updatedLoan.amountOwed, { week: newWeek, year: newYear }));
+        updatedLoan = { ...updatedLoan, prestigePenaltyApplied: true };
+      }
+
+      // Compound 20% weekly on the outstanding balance
+      updatedLoan = { ...updatedLoan, amountOwed: Math.round(updatedLoan.amountOwed * 1.20) };
+
+      // After 6 weeks overdue: force-collect whatever cash is available
+      if (updatedLoan.weeksOverdue >= 6) {
+        const collected = Math.min(network.cashOnHand, updatedLoan.amountOwed);
+        network = { ...network, cashOnHand: network.cashOnHand - collected, prestige: Math.max(0, network.prestige - 10) };
+        const remaining = updatedLoan.amountOwed - collected;
+        if (remaining <= 0) {
+          activeLoan = null; // fully collected — loan closed
+        } else {
+          activeLoan = { ...updatedLoan, amountOwed: remaining };
+        }
+      } else {
+        activeLoan = updatedLoan;
+      }
+    }
+  }
+
   // ─── Studio events ────────────────────────────────────────────────────────
   const partialState = {
     ...state,
@@ -667,6 +706,7 @@ export function advanceWeek(state: GameState): GameState {
     inboxItems: [...state.inboxItems, ...newInboxItems],
     lastSaved: state.lastSaved,
     emmyCeremonyPendingYear,
+    activeLoan,
     ambientSocialPosts: newAmbientSocialPosts,
     recentSocialTemplateIds,
     recentAmbientTemplateIds,

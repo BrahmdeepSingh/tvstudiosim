@@ -229,6 +229,20 @@ export function makeStreamingDealNews(
 // PLAYER SHOW MILESTONE NEWS
 // ─────────────────────────────────────────────────────────────────────────────
 
+export function makeLoanDefaultNews(networkName: string, amountOwed: number, ctx: Ctx): NewsItem {
+  const fmt = (n: number) => `$${(n / 1_000_000).toFixed(1)}M`;
+  const lines = [
+    `${networkName} has reportedly missed a repayment deadline on a private financing arrangement. The outstanding balance, believed to be around ${fmt(amountOwed)}, is now accruing additional penalties.`,
+    `Industry sources say ${networkName} is behind on a private loan obligation. The network has not responded to requests for comment, fueling speculation about its near-term financial position.`,
+    `Whispers in the industry suggest ${networkName} is in hot water with a private lender. A missed payment window has left the network's finances under scrutiny at an uncomfortable time.`,
+  ];
+  return {
+    id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false, byline: byline(),
+    headline: `${networkName} reportedly misses private loan repayment`,
+    body: randomItem(lines),
+  };
+}
+
 export function makeNewShowRumorNews(
   showTitle: string,
   genre: string,

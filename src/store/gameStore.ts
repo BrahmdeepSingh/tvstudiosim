@@ -88,6 +88,10 @@ interface GameStore extends GameState {
   // Studio events
   resolveStudioEvent: (eventID: string, choiceIndex: number) => void;
 
+  // Loan shark
+  takeLoan: (size: 'small' | 'medium' | 'large') => boolean;
+  repayLoan: () => boolean;
+
   // Emmy ceremony
   dismissEmmyCeremony: () => void;
 
@@ -134,6 +138,8 @@ const EMPTY_STATE: GameState = {
   recentAmbientTemplateIds: [],
   unlockedAchievementIDs: [],
   achievementQueue: [],
+  activeLoan: null,
+  loansTaken: 0,
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -1014,6 +1020,53 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Emmy Ceremony ─────────────────────────────────────────────────────────
 
+  // ── Loan Shark ────────────────────────────────────────────────────────────
+
+  takeLoan: (size) => {
+    const state = get();
+    if (state.activeLoan) return false; // one loan at a time
+
+    const PRINCIPALS = { small: 2_000_000, medium: 5_000_000, large: 10_000_000 };
+    const principal = PRINCIPALS[size];
+
+    // Interest rate increases 10% per prior loan (caps at 87% on 3rd+)
+    const extraInterest = Math.min(2, state.loansTaken) * 0.10;
+    const interestRate = 0.67 + extraInterest;
+    const amountOwed = Math.round(principal * (1 + interestRate));
+
+    const { currentWeek, currentYear } = state.network;
+    const loan: import('../types').ActiveLoan = {
+      id: nanoid(),
+      principal,
+      amountOwed,
+      interestRate,
+      takenWeek: currentWeek,
+      takenYear: currentYear,
+      dueWeek: currentWeek,
+      dueYear: currentYear + 1,
+      weeksOverdue: 0,
+      prestigePenaltyApplied: false,
+    };
+
+    set(s => ({
+      network: { ...s.network, cashOnHand: s.network.cashOnHand + principal },
+      activeLoan: loan,
+      loansTaken: s.loansTaken + 1,
+    }));
+    return true;
+  },
+
+  repayLoan: () => {
+    const state = get();
+    if (!state.activeLoan) return false;
+    if (state.network.cashOnHand < state.activeLoan.amountOwed) return false;
+    set(s => ({
+      network: { ...s.network, cashOnHand: s.network.cashOnHand - s.activeLoan!.amountOwed },
+      activeLoan: null,
+    }));
+    return true;
+  },
+
   dismissEmmyCeremony: () => set({ emmyCeremonyPendingYear: null }),
 
   dismissAchievement: () => set(s => ({ achievementQueue: s.achievementQueue.slice(1) })),
@@ -1099,6 +1152,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       recentAmbientTemplateIds: loaded.recentAmbientTemplateIds ?? [],
       unlockedAchievementIDs: loaded.unlockedAchievementIDs ?? [],
       achievementQueue: [],
+      activeLoan: loaded.activeLoan ?? null,
+      loansTaken: loaded.loansTaken ?? 0,
     });
     return true;
   },
