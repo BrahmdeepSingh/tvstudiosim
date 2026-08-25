@@ -289,6 +289,34 @@ export function makeFinalSeasonAnnouncedNews(showTitle: string, seasonNumber: nu
   };
 }
 
+export function makeCulturalPhenomenonNews(
+  showTitle: string,
+  seasonNumber: number,
+  networkName: string,
+  ctx: Ctx,
+): NewsItem[] {
+  return [
+    {
+      id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false,
+      byline: 'Trade Wire Staff',
+      headline: `"${showTitle}" series finale draws 50 million viewers — a record for the modern era`,
+      body: `In a result that stunned even the most optimistic projections, the ${seasonNumber}-season finale of "${showTitle}" was watched by an estimated 50 million viewers. ${networkName} has not had a number like this in network history. Industry analysts say the figure may represent the single largest scripted audience in decades.`,
+    },
+    {
+      id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false,
+      byline: 'Marcus Oyelaran, Culture Desk',
+      headline: `The night "${showTitle}" stopped everything`,
+      body: `Restaurants reported empty dining rooms. Social media traffic spiked to Super Bowl levels. Coworkers who have never agreed on anything were texting each other at midnight. Whatever "${showTitle}" did across its run, the finale turned it into something rare — a moment everyone experienced at the same time.`,
+    },
+    {
+      id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false,
+      byline: 'Dana Kessler, The Trades',
+      headline: `What 50 million viewers means for ${networkName} — and for the industry`,
+      body: `The advertising and syndication value of a 50-million-viewer event is difficult to overstate. ${networkName} is expected to see a significant prestige uplift, talent negotiation leverage, and streaming rights demand in the wake of tonight's finale. Whether lightning can strike twice is beside the point — this kind of number writes its own legacy.`,
+    },
+  ];
+}
+
 export function makeSeriesFinaleNews(showTitle: string, seasonNumber: number, ctx: Ctx): NewsItem {
   const lines = [
     `The series finale of "${showTitle}" has aired, bringing a ${seasonNumber}-season run to a close. Reaction online is immediate and passionate.`,

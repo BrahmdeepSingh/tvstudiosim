@@ -389,3 +389,30 @@ export function generateSeriesFinaleAiredPosts(
     make(week, year, fn(showTitle, seasonNumber), showTitle),
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. CULTURAL PHENOMENON — fires once per playthrough when a qualifying finale
+//     hits 50 million viewers. Engagement numbers are orders of magnitude above
+//     the normal scale to reflect a true once-in-a-generation television moment.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CULTURAL_PHENOMENON: SeriesFinaleTemplate[] = [
+  (title) => ({ ...P.stan, content: `50 MILLION PEOPLE WATCHED ${title.toUpperCase()} TONIGHT. FIFTY. MILLION. I AM NOT OKAY`, likes: randomBetween(85_000, 140_000), reposts: randomBetween(32_000, 60_000) }),
+  (title) => ({ ...P.recapper, content: `${title} just pulled 50 million viewers for its series finale. That number hasn't been seen in decades. Television just had a moment. 📺`, likes: randomBetween(55_000, 95_000), reposts: randomBetween(20_000, 42_000) }),
+  (title) => ({ ...P.insider, content: `50 million viewers for the ${title} finale. That's not a rating. That's a cultural event. The industry will be talking about this for years.`, likes: randomBetween(40_000, 75_000), reposts: randomBetween(14_000, 30_000) }),
+  (title) => ({ ...P.parasocial, content: `my entire family — and I mean people who haven't watched TV in years — gathered around the TV tonight for the ${title} finale. THAT is what 50 million looks like`, likes: randomBetween(70_000, 120_000), reposts: randomBetween(25_000, 52_000) }),
+  (title) => ({ ...P.meme, content: `the moment ${title} ended tonight: [every group chat, office, family dinner, bar in existence simultaneously exploding]`, likes: randomBetween(95_000, 160_000), reposts: randomBetween(38_000, 70_000) }),
+  (title) => ({ ...P.numbers, content: `50 million viewers. To put that in context: the last time a scripted show hit that number it was a different era of television entirely. ${title} just rewrote the record books.`, likes: randomBetween(35_000, 65_000), reposts: randomBetween(12_000, 26_000) }),
+  (title) => ({ ...P.stan, content: `I called out of work. My neighbor knocked on my door to talk about it. The pizza place around the corner has a sign that says closed for the ${title} finale. THIS IS A CULTURAL MOMENT`, likes: randomBetween(110_000, 190_000), reposts: randomBetween(45_000, 85_000) }),
+  (title, n) => ({ ...P.recapper, content: `${n} seasons. ${title} ends with 50 million people watching. That doesn't happen. Except it just did. 📺`, likes: randomBetween(60_000, 105_000), reposts: randomBetween(22_000, 46_000) }),
+];
+
+export function generateCulturalPhenomenonPosts(
+  showTitle: string,
+  seasonNumber: number,
+  week: number,
+  year: number,
+): AmbientSocialPost[] {
+  // All of them — this is an all-hands event, not a random sample
+  return CULTURAL_PHENOMENON.map(fn => make(week, year, fn(showTitle, seasonNumber), showTitle));
+}

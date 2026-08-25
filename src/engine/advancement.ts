@@ -12,13 +12,13 @@ import { calculateScriptScore, calculateQualityScore } from './quality';
 import { calculateEpisodeRating } from './ratings';
 import { generateSocialReactions, SOCIAL_TEMPLATE_COOLDOWN } from './social';
 import { generateAmbientSocialPosts, AMBIENT_TEMPLATE_COOLDOWN, AmbientSocialPost } from './ambientsocial';
-import { generateEmmyNominationPosts, generateEmmyWinPosts, generateSeriesFinaleAiredPosts } from './milestonesocial';
+import { generateEmmyNominationPosts, generateEmmyWinPosts, generateSeriesFinaleAiredPosts, generateCulturalPhenomenonPosts } from './milestonesocial';
 import { advanceCompetitors } from './competitors';
 import { calculateEmmyNominations, determineEmmyWinners } from './emmys';
 import { tryGenerateStreamingOffer, scheduleNextOfferCheck } from './streaming';
 import { generatePitch } from './pitches';
 import { generateReplacementTalent } from './talent';
-import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews, makeSeriesFinaleNews } from './news';
+import { makeIndustryNews, makeEmmyNominationsNews, makeEmmyCeremonyNews, makeFilmingWrapNews, makePremiereNews, makeFinaleNews, makeSeriesFinaleNews, makeCulturalPhenomenonNews } from './news';
 import { tryGenerateStudioEvent } from './events';
 import { nanoid } from '../utils/nanoid';
 import { randomChance, randomBetween } from '../utils/random';
@@ -160,6 +160,10 @@ export function advanceWeek(state: GameState): GameState {
       shows[i] = { ...currentShow, seasons: patchedSeasons };
 
       network = { ...network, prestige: Math.min(100, network.prestige + 8) };
+
+      // Flood the news feed and social feed — every outlet covers this
+      newNewsItems.push(...makeCulturalPhenomenonNews(currentShow.title, after.seasonNumber, network.name, { week: newWeek, year: newYear }));
+      milestoneAmbientPosts.push(...generateCulturalPhenomenonPosts(currentShow.title, after.seasonNumber, newWeek, newYear));
 
       newInboxItems.push({
         id: nanoid(),
