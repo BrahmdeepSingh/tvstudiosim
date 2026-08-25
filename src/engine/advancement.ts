@@ -106,6 +106,66 @@ export function advanceWeek(state: GameState): GameState {
     }
   }
 
+  // ─── Cultural phenomenon easter egg ──────────────────────────────────────────
+  // Fires at most once per playthrough. Conditions: player-declared final season,
+  // finale episode rating ≥ 9.0, and ≥ 2 prior seasons each averaging ≥ 8.5.
+  // The existing-50M-episode check is the one-shot guard.
+  const phenomenonAlreadyFired = state.shows.some(sh =>
+    sh.seasons.some(se => se.episodes.some(ep => (ep.viewers ?? 0) >= 50_000_000)),
+  );
+  if (!phenomenonAlreadyFired) {
+    for (let i = 0; i < shows.length; i++) {
+      const before = state.shows[i].seasons[state.shows[i].currentSeasonIndex];
+      const after = shows[i].seasons[shows[i].currentSeasonIndex];
+      if (!before || !after || !after.isFinalSeason) continue;
+
+      const finaleJustAired =
+        state.shows[i].status === 'airing' &&
+        before.episodesAired === before.episodeCount - 1 &&
+        after.episodesAired === after.episodeCount;
+      if (!finaleJustAired) continue;
+
+      const finaleEp = after.episodes[after.episodeCount - 1];
+      if (!finaleEp || (finaleEp.rating ?? 0) < 9.0) continue;
+
+      // Require ≥ 2 prior seasons (not the current final season) each averaging ≥ 8.5
+      const currentShow = shows[i];
+      const priorSeasons = currentShow.seasons.slice(0, currentShow.currentSeasonIndex);
+      const strongPriorCount = priorSeasons.filter(se => {
+        const rated = se.episodes.filter(e => e.rating !== null);
+        return rated.length > 0 && rated.reduce((s, e) => s + (e.rating ?? 0), 0) / rated.length >= 8.5;
+      }).length;
+      if (strongPriorCount < 2) continue;
+
+      // Override finale viewers to 50 M; keep computed ad revenue to avoid breaking finances
+      const updatedEps = [...after.episodes];
+      updatedEps[after.episodeCount - 1] = { ...finaleEp, viewers: 50_000_000 };
+      const patchedSeason: Season = {
+        ...after,
+        episodes: updatedEps,
+        totalViewers: after.totalViewers - (finaleEp.viewers ?? 0) + 50_000_000,
+      };
+      const patchedSeasons = [...currentShow.seasons];
+      patchedSeasons[currentShow.currentSeasonIndex] = patchedSeason;
+      shows[i] = { ...currentShow, seasons: patchedSeasons };
+
+      network = { ...network, prestige: Math.min(100, network.prestige + 8) };
+
+      newInboxItems.push({
+        id: nanoid(),
+        type: 'studio-event',
+        week: newWeek,
+        year: newYear,
+        read: false,
+        refID: currentShow.id,
+        title: 'Cultural Phenomenon',
+        preview: `"${currentShow.title}" just made history — 50 million viewers watched the series finale live. A moment the industry will never forget.`,
+      });
+
+      break; // one-shot: never fires again this playthrough
+    }
+  }
+
   // ─── Viewership-based popularity growth (fires when a season finishes) ───────
   // Boosts lead actors, director, and showrunner based on how the season performed
   // relative to the genre's baseline viewership. Diminishing returns for high-pop
