@@ -63,6 +63,7 @@ function TalentCard({ talent, onPress }: { talent: Talent; onPress: () => void }
           <Text style={s.name}>{talent.name}</Text>
           <Text style={s.meta}>
             {listTier(talent.popularity)}
+            {' · '}{talent.role === 'showrunner' ? 'Showrunner' : talent.role === 'director' ? 'Director' : 'Actor'}
             {' · Age '}{talent.age}
           </Text>
         </View>
