@@ -92,12 +92,10 @@ export function advanceWeek(state: GameState): GameState {
           milestoneAmbientPosts.push(
             ...generateSeriesFinaleAiredPosts(shows[i].title, after.seasonNumber, newWeek, newYear),
           );
-          // Free the showrunner (cast/director were already freed at filming→marketing)
-          const showrunnerID = after.showrunnerID;
-          if (showrunnerID) {
-            talent = talent.map(t =>
-              t.id === showrunnerID ? { ...t, available: true, bookedForSeasonID: null } : t,
-            );
+          // Free the showrunner(s) (cast/director were already freed at filming→marketing)
+          const srIDs = new Set(after.showrunnerIDs.filter(Boolean));
+          if (srIDs.size > 0) {
+            talent = talent.map(t => srIDs.has(t.id) ? { ...t, available: true, bookedForSeasonID: null } : t);
           }
         } else {
           newNewsItems.push(makeFinaleNews(shows[i].title, after.seasonNumber, { week: newWeek, year: newYear }));
@@ -212,7 +210,7 @@ export function advanceWeek(state: GameState): GameState {
     const boostedIDs = new Set([
       ...season.leadActorIDs,
       season.directorID,
-      season.showrunnerID,
+      ...season.showrunnerIDs,
     ].filter(Boolean) as string[]);
 
     talent = talent.map(t => {
@@ -720,9 +718,11 @@ function tickWriting(show: Show, season: Season, state: GameState): Show {
   let updatedSeason = { ...season, writingWeeksCompleted: completed };
 
   if (completed >= WRITING_WEEKS) {
-    const showrunner = state.talent.find(t => t.id === season.showrunnerID);
-    if (showrunner) {
-      updatedSeason = { ...updatedSeason, scriptScore: calculateScriptScore(showrunner) };
+    const showrunners = season.showrunnerIDs
+      .map(id => state.talent.find(t => t.id === id))
+      .filter((t): t is Talent => !!t && t.stats.role === 'showrunner');
+    if (showrunners.length > 0) {
+      updatedSeason = { ...updatedSeason, scriptScore: calculateScriptScore(showrunners) };
     }
     return updateShow(show, updatedSeason, 'filming');
   }

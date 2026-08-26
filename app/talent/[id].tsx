@@ -195,10 +195,12 @@ export default function TalentDetailScreen() {
   const eligibleShows = useMemo(() => {
     if (!person || !person.available) return [];
     if (person.role === 'showrunner') {
-      return shows.filter(s =>
-        s.status === 'writing' &&
-        (s.seasons[s.currentSeasonIndex]?.showrunnerID ?? '') === ''
-      );
+      return shows.filter(s => {
+        const season = s.seasons[s.currentSeasonIndex];
+        return s.status === 'writing' &&
+          season != null &&
+          season.showrunnerIDs.length < season.showrunnerSlots;
+      });
     }
     if (person.role === 'director') {
       return shows.filter(s =>
@@ -330,11 +332,7 @@ export default function TalentDetailScreen() {
         setOfferStatus('accepted');
         setTimeout(() => {
           closeOfferSheet();
-          if (hireRole === 'showrunner') {
-            router.replace('/(tabs)/');
-          } else {
-            router.back();
-          }
+          router.back();
         }, 1200);
       }
     } else {

@@ -228,16 +228,18 @@ export interface Season {
   renewalDecisionMade: boolean;
   renewed: boolean;
 
+  showrunnerSlots: number;       // 1–3, decided at creation; 2–3 requires prestige ≥ 80
   leadActorSlots: number;       // decided at show creation
   supportingActorSlots: number; // decided at show creation
+  showrunnerIDs: string[];       // index 0 = primary; filled during casting
   leadActorIDs: string[];       // filled during casting
   supportingActorIDs: string[]; // filled during casting
   directorID: string | null;
-  showrunnerID: string;
-  scriptScore: number;  // 0–100, calculated when writing wraps
+  scriptScore: number;  // 0–100 solo, up to 135 with writers room; calculated when writing wraps
   qualityScore: number; // 0–100, calculated at end of filming
 
   // Renewal suggestions — carry forward from the previous season
+  suggestedShowrunnerIDs: string[];
   suggestedDirectorID: string | null;
   suggestedLeadActorIDs: string[];
   suggestedSupportingActorIDs: string[];

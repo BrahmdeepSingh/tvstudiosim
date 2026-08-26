@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { Talent } from '../src/types';
 import { TALENT_FEES, MIN_EPISODES, MAX_EPISODES, popularityToFeeTier } from '../src/constants/game';
+import { WRITERS_ROOM_PRESTIGE } from '../src/engine/quality';
 import { AVATAR_MAP } from '../src/utils/avatars';
 
 const C = {
@@ -133,7 +134,8 @@ export default function RenewScreen() {
   const [episodeCount, setEpisodeCount] = useState(prevSeason?.episodeCount ?? 10);
   const [leadSlots, setLeadSlots] = useState(prevSeason?.leadActorSlots ?? 2);
   const [supportingSlots, setSupportingSlots] = useState(prevSeason?.supportingActorSlots ?? 2);
-  const [resignShowrunner, setResignShowrunner] = useState(true);
+  const [showrunnerSlots, setShowrunnerSlots] = useState(prevSeason?.showrunnerSlots ?? 1);
+  const [resignShowrunnerIDs, setResignShowrunnerIDs] = useState<string[]>(prevSeason?.showrunnerIDs ?? []);
   const [resignDirector, setResignDirector] = useState(false);
   const [resignLeadIDs, setResignLeadIDs] = useState<string[]>([]);
   const [resignSupportingIDs, setResignSupportingIDs] = useState<string[]>([]);
@@ -152,14 +154,29 @@ export default function RenewScreen() {
   const prevSeasonNumber = prevSeason.seasonNumber;
   const newSeasonNumber = prevSeasonNumber + 1;
 
-  const returningShowrunner = talent.find(t => t.id === prevSeason.showrunnerID) ?? null;
-  const returningDirector   = prevSeason.directorID ? talent.find(t => t.id === prevSeason.directorID) ?? null : null;
-  const returningLeads      = prevSeason.leadActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
-  const returningSupporting = prevSeason.supportingActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
+  const returningShowrunners = prevSeason.showrunnerIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
+  const returningDirector    = prevSeason.directorID ? talent.find(t => t.id === prevSeason.directorID) ?? null : null;
+  const returningLeads       = prevSeason.leadActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
+  const returningSupporting  = prevSeason.supportingActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
 
-  // Showrunner is never marked available mid-season (they work writing + filming).
-  // They're always returnable for their own show's renewal since they're not busy elsewhere.
-  const showrunnerReturnable = returningShowrunner != null;
+  const writersRoomUnlocked = network.prestige >= WRITERS_ROOM_PRESTIGE;
+
+  function toggleShowrunnerResign(id: string) {
+    hap.light();
+    setResignShowrunnerIDs(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      if (prev.length >= showrunnerSlots) return prev;
+      return [...prev, id];
+    });
+  }
+
+  function adjustShowrunnerSlots(delta: number) {
+    const next = Math.max(1, Math.min(3, showrunnerSlots + delta));
+    setShowrunnerSlots(next);
+    if (resignShowrunnerIDs.length > next) {
+      setResignShowrunnerIDs(prev => prev.slice(0, next));
+    }
+  }
 
   function toggleLeadResign(id: string) {
     hap.light();
@@ -195,7 +212,10 @@ export default function RenewScreen() {
     }
   }
 
-  const showrunnerFee  = resignShowrunner && showrunnerReturnable ? autoResignFee(returningShowrunner!, heat) : 0;
+  const showrunnerFee  = resignShowrunnerIDs.reduce((sum, id) => {
+    const t = talent.find(x => x.id === id);
+    return sum + (t ? autoResignFee(t, heat) : 0);
+  }, 0);
   const directorFee    = resignDirector && returningDirector ? autoResignFee(returningDirector, heat) : 0;
   const leadFees       = resignLeadIDs.reduce((sum, id) => {
     const t = talent.find(x => x.id === id);
@@ -210,8 +230,7 @@ export default function RenewScreen() {
 
   function handleStartPreProduction() {
     hap.heavy();
-    // Pass keepShowrunner: renewShow handles booking/freeing internally
-    renewShow(showID!, episodeCount, leadSlots, supportingSlots, resignShowrunner && showrunnerReturnable, isFinalSeason);
+    renewShow(showID!, episodeCount, leadSlots, supportingSlots, showrunnerSlots, resignShowrunnerIDs, isFinalSeason);
 
     if (resignDirector && returningDirector) {
       hireDirector(showID!, returningDirector.id, autoResignFee(returningDirector, heat), 0);
@@ -278,34 +297,54 @@ export default function RenewScreen() {
           />
         </TouchableOpacity>
 
-        {/* Showrunner */}
-        <Text style={s.sectionLabel}>SHOWRUNNER</Text>
-        {returningShowrunner ? (
-          <>
-            <TalentReturnCard
-              talent={returningShowrunner}
-              role="Showrunner"
-              selected={resignShowrunner}
-              returnable={showrunnerReturnable}
-              canSelect={true}
-              onToggle={() => setResignShowrunner(v => !v)}
-              heatMultiplier={heat}
-            />
-            {!resignShowrunner && (
-              <TouchableOpacity
-                style={s.replaceBtn}
-                onPress={() => router.push(`/hire-talent?showID=${showID}&role=showrunner`)}
-              >
-                <Text style={s.replaceBtnText}>Hire New Showrunner →</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        ) : (
+        {/* Showrunner slots */}
+        <Text style={s.sectionLabel}>SHOWRUNNER SLOTS</Text>
+        <View style={s.slotStepper}>
+          <TouchableOpacity
+            style={[s.stepBtn, showrunnerSlots <= 1 && s.stepBtnDisabled]}
+            onPress={() => adjustShowrunnerSlots(-1)}
+          >
+            <Text style={s.stepBtnText}>−</Text>
+          </TouchableOpacity>
+          <Text style={s.slotCount}>{showrunnerSlots} slot{showrunnerSlots !== 1 ? 's' : ''}</Text>
+          <TouchableOpacity
+            style={[s.stepBtn, (showrunnerSlots >= 3 || !writersRoomUnlocked) && s.stepBtnDisabled]}
+            onPress={() => adjustShowrunnerSlots(1)}
+            disabled={showrunnerSlots >= 3 || !writersRoomUnlocked}
+          >
+            <Text style={s.stepBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+        {!writersRoomUnlocked && (
+          <Text style={[s.emptyHint, { marginTop: 6 }]}>
+            Writers Room (2–3 slots) unlocks at Prestige {WRITERS_ROOM_PRESTIGE}
+          </Text>
+        )}
+
+        {returningShowrunners.length > 0 && (
+          <View style={[s.cardGroup, { marginTop: 10 }]}>
+            {returningShowrunners.map(t => (
+              <TalentReturnCard
+                key={t.id}
+                talent={t}
+                role="Showrunner"
+                selected={resignShowrunnerIDs.includes(t.id)}
+                returnable={true}
+                canSelect={resignShowrunnerIDs.length < showrunnerSlots}
+                onToggle={() => toggleShowrunnerResign(t.id)}
+                heatMultiplier={heat}
+              />
+            ))}
+          </View>
+        )}
+        {resignShowrunnerIDs.length < showrunnerSlots && (
           <TouchableOpacity
             style={s.replaceBtn}
             onPress={() => router.push(`/hire-talent?showID=${showID}&role=showrunner`)}
           >
-            <Text style={s.replaceBtnText}>Hire Showrunner →</Text>
+            <Text style={s.replaceBtnText}>
+              {returningShowrunners.length > 0 ? 'Add Another Showrunner →' : 'Hire Showrunner →'}
+            </Text>
           </TouchableOpacity>
         )}
 

@@ -143,12 +143,18 @@ export default function HireTalentScreen() {
     return [...unlocked, ...locked];
   }, [talent, role, searchQuery, network.prestige]);
 
+  const filledShowrunners = season?.showrunnerIDs.length ?? 0;
+  const showrunnerSlots = season?.showrunnerSlots ?? 1;
   const filledLeads = season?.leadActorIDs.length ?? 0;
   const filledSupporting = season?.supportingActorIDs.length ?? 0;
   const leadSlots = season?.leadActorSlots ?? 0;
   const supportingSlots = season?.supportingActorSlots ?? 0;
-  const filledCount = actorType === 'lead' ? filledLeads : filledSupporting;
-  const totalSlots = actorType === 'lead' ? leadSlots : supportingSlots;
+  const filledCount = role === 'showrunner'
+    ? filledShowrunners
+    : actorType === 'lead' ? filledLeads : filledSupporting;
+  const totalSlots = role === 'showrunner'
+    ? showrunnerSlots
+    : actorType === 'lead' ? leadSlots : supportingSlots;
   const slotsRemaining = totalSlots - filledCount;
 
   const roleTitle = {
@@ -183,9 +189,9 @@ export default function HireTalentScreen() {
           <Text style={s.showBannerText}>
             {show.title} · <Text style={{ color: C.muted }}>{show.genre}</Text>
           </Text>
-          {role === 'actor' && season && (
+          {season && (role === 'actor' || (role === 'showrunner' && showrunnerSlots > 1)) && (
             <Text style={s.slotCount}>
-              {actorType === 'lead' ? 'Lead' : 'Supporting'}: {filledCount}/{totalSlots} filled
+              {role === 'showrunner' ? 'Writers Room' : actorType === 'lead' ? 'Lead' : 'Supporting'}: {filledCount}/{totalSlots} filled
               {slotsRemaining > 0 ? ` · ${slotsRemaining} slot${slotsRemaining > 1 ? 's' : ''} remaining` : ' · All filled'}
             </Text>
           )}
@@ -227,10 +233,10 @@ export default function HireTalentScreen() {
         />
       )}
 
-      {role === 'actor' && season && filledCount > 0 && (
+      {(role === 'actor' || role === 'showrunner') && season && filledCount > 0 && (
         <View style={s.footer}>
           <Text style={s.castCount}>
-            {actorType === 'lead' ? 'Lead' : 'Supporting'}: {filledCount}/{totalSlots} hired
+            {role === 'showrunner' ? 'Showrunners' : actorType === 'lead' ? 'Lead' : 'Supporting'}: {filledCount}/{totalSlots} hired
           </Text>
           <TouchableOpacity style={s.doneBtn} onPress={() => router.back()}>
             <LinearGradient
