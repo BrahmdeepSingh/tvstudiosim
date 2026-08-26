@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
-import { ActiveLoan } from '../../src/types';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
@@ -13,7 +12,6 @@ const C = {
   text: '#f0ede8', muted: '#9a958e',
   gold: '#e6b254', goldBtnText: '#161008',
   green: '#4ec46e', amber: '#d4753a', red: '#c43820',
-  redBg: '#2a130f', redBorder: '#c4382044',
 };
 
 function FilmRibbonAmbient() {
@@ -65,132 +63,10 @@ function StatRow({ label, value, color }: { label: string; value: string; color?
   );
 }
 
-const LOAN_OPTIONS: { size: 'small' | 'medium' | 'large'; label: string; principal: number }[] = [
-  { size: 'small',  label: '$2M',  principal: 2_000_000 },
-  { size: 'medium', label: '$5M',  principal: 5_000_000 },
-  { size: 'large',  label: '$10M', principal: 10_000_000 },
-];
-
-function loanInterestRate(loansTaken: number): number {
-  return 0.67 + Math.min(2, loansTaken) * 0.10;
-}
-
-function loanOwed(principal: number, rate: number): number {
-  return Math.round(principal * (1 + rate));
-}
-
-function fmtDue(loan: ActiveLoan): string {
-  return `Wk ${loan.dueWeek}, Yr ${loan.dueYear}`;
-}
-
-function LoanSharkSection({
-  activeLoan, loansTaken, cashOnHand, takeLoan, repayLoan,
-}: {
-  activeLoan: ActiveLoan | null;
-  loansTaken: number;
-  cashOnHand: number;
-  takeLoan: (size: 'small' | 'medium' | 'large') => boolean;
-  repayLoan: () => boolean;
-}) {
-  const rate = loanInterestRate(loansTaken);
-  const rateLabel = `${Math.round(rate * 100)}%`;
-
-  function handleTakeLoan(size: 'small' | 'medium' | 'large', principal: number) {
-    const owed = loanOwed(principal, rate);
-    Alert.alert(
-      '🦈  Loan Shark',
-      `Borrow ${fmt(principal)}, pay back ${fmt(owed)} within one year.\n\nMiss the deadline and the balance grows 20% every week. Don't be late.`,
-      [
-        { text: 'Walk Away', style: 'cancel' },
-        {
-          text: `Take ${fmt(principal)}`,
-          style: 'destructive',
-          onPress: () => {
-            const ok = takeLoan(size);
-            if (!ok) Alert.alert('Already have an active loan. Pay it off first.');
-          },
-        },
-      ],
-    );
-  }
-
-  function handleRepay() {
-    if (!activeLoan) return;
-    if (cashOnHand < activeLoan.amountOwed) {
-      Alert.alert('Not Enough Cash', `You need ${fmt(activeLoan.amountOwed)} to pay off the loan. You only have ${fmt(cashOnHand)}.`);
-      return;
-    }
-    Alert.alert(
-      'Pay Off Loan',
-      `Pay ${fmt(activeLoan.amountOwed)} and close the debt?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Pay Off', onPress: () => repayLoan() },
-      ],
-    );
-  }
-
-  if (activeLoan) {
-    const overdue = activeLoan.weeksOverdue > 0;
-    const canPay = cashOnHand >= activeLoan.amountOwed;
-    const borderColor = overdue ? C.red : C.redBorder;
-    return (
-      <View style={[s.card, { borderColor, borderWidth: overdue ? 1.5 : 1 }]}>
-        <View style={s.loanRow}>
-          <Text style={s.loanSharkTitle}>🦈  Active Loan</Text>
-          {overdue && (
-            <View style={s.overdueBadge}>
-              <Text style={s.overdueBadgeText}>OVERDUE ×{activeLoan.weeksOverdue}</Text>
-            </View>
-          )}
-        </View>
-        <View style={{ height: 10 }} />
-        <StatRow label="Borrowed"  value={fmt(activeLoan.principal)} />
-        <View style={s.divider} />
-        <StatRow label="Owed"      value={fmt(activeLoan.amountOwed)} color={overdue ? C.red : C.amber} />
-        <View style={s.divider} />
-        <StatRow label="Due"       value={fmtDue(activeLoan)} color={overdue ? C.red : undefined} />
-        <View style={{ height: 14 }} />
-        <TouchableOpacity
-          style={[s.repayBtn, !canPay && { opacity: 0.4 }]}
-          onPress={handleRepay}
-          activeOpacity={0.8}
-        >
-          <Text style={s.repayBtnText}>PAY OFF — {fmt(activeLoan.amountOwed)}</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  return (
-    <View style={s.card}>
-      <Text style={s.loanSharkTitle}>🦈  No questions asked.</Text>
-      <Text style={s.loanSharkSub}>
-        {loansTaken === 0
-          ? `Interest: ${rateLabel} flat. One year to pay. Don't be late.`
-          : `Loan #${loansTaken + 1} — interest bumped to ${rateLabel}. Still one year.`}
-      </Text>
-      <View style={{ height: 14 }} />
-      <View style={s.loanOptionsRow}>
-        {LOAN_OPTIONS.map(opt => (
-          <TouchableOpacity
-            key={opt.size}
-            style={s.loanOptionBtn}
-            onPress={() => handleTakeLoan(opt.size, opt.principal)}
-            activeOpacity={0.8}
-          >
-            <Text style={s.loanOptionAmount}>{opt.label}</Text>
-            <Text style={s.loanOptionOwed}>owe {fmt(loanOwed(opt.principal, rate))}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-}
 
 export default function StudioScreen() {
   const router = useRouter();
-  const { network, shows, saveGame, initializeGame, unlockedAchievementIDs, activeLoan, loansTaken, takeLoan, repayLoan } = useGameStore();
+  const { network, shows, saveGame, initializeGame, unlockedAchievementIDs, activeLoan } = useGameStore();
 
   const totalSeasons = shows.reduce((sum, sh) => sum + sh.seasons.length, 0);
   const activeShows = shows.filter(s =>
@@ -275,13 +151,21 @@ export default function StudioScreen() {
 
         {/* Loan Shark */}
         <Text style={s.sectionLabel}>LOAN SHARK</Text>
-        <LoanSharkSection
-          activeLoan={activeLoan}
-          loansTaken={loansTaken}
-          cashOnHand={network.cashOnHand}
-          takeLoan={takeLoan}
-          repayLoan={repayLoan}
-        />
+        <View style={s.actionsCard}>
+          <TouchableOpacity style={s.actionRow} onPress={() => router.push('/loan-shark')} activeOpacity={0.8}>
+            <View>
+              <Text style={s.actionLabel}>🦈  Loan Shark</Text>
+              <Text style={s.actionSub}>
+                {activeLoan
+                  ? activeLoan.weeksOverdue > 0
+                    ? `OVERDUE — owe ${fmt(activeLoan.amountOwed)}`
+                    : `Active — owe ${fmt(activeLoan.amountOwed)}`
+                  : 'Private financing, no questions asked'}
+              </Text>
+            </View>
+            <Text style={[s.actionChevron, { color: activeLoan?.weeksOverdue ? C.red : C.muted }]}>View →</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Achievements */}
         <Text style={s.sectionLabel}>ACHIEVEMENTS</Text>
@@ -362,15 +246,4 @@ const s = StyleSheet.create({
   actionSub:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
   actionChevron:   { fontFamily: 'Manrope_700Bold', fontSize: 14 },
 
-  loanSharkTitle:  { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 15 },
-  loanSharkSub:    { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 4, lineHeight: 18 },
-  loanRow:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  overdueBadge:    { backgroundColor: C.redBg, borderRadius: 6, borderWidth: 1, borderColor: C.red, paddingHorizontal: 8, paddingVertical: 3 },
-  overdueBadgeText:{ color: C.red, fontFamily: 'Manrope_700Bold', fontSize: 10, letterSpacing: 1 },
-  loanOptionsRow:  { flexDirection: 'row', gap: 10 },
-  loanOptionBtn:   { flex: 1, backgroundColor: C.redBg, borderRadius: 10, borderWidth: 1, borderColor: C.redBorder, paddingVertical: 12, alignItems: 'center' },
-  loanOptionAmount:{ color: C.red, fontFamily: 'BebasNeue_400Regular', fontSize: 22, letterSpacing: 1 },
-  loanOptionOwed:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11, marginTop: 2 },
-  repayBtn:        { backgroundColor: C.redBg, borderRadius: 10, borderWidth: 1, borderColor: C.red, paddingVertical: 13, alignItems: 'center' },
-  repayBtnText:    { color: C.red, fontFamily: 'Manrope_700Bold', fontSize: 13, letterSpacing: 0.5 },
 });
