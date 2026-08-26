@@ -2,6 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { useGameStore } from '../src/store/gameStore';
 import { ActiveLoan } from '../src/types';
 
@@ -59,42 +60,33 @@ export default function LoanSharkScreen() {
   const rate = loanInterestRate(loansTaken);
   const rateLabel = `${Math.round(rate * 100)}%`;
 
-  function handleTakeLoan(size: 'small' | 'medium' | 'large', principal: number) {
-    const owed = loanOwed(principal, rate);
-    Alert.alert(
-      '🦈  Loan Shark',
-      `Borrow ${fmt(principal)}, pay back ${fmt(owed)} within one year.\n\nMiss the deadline and the balance grows 20% every week. Don't be late.`,
-      [
-        { text: 'Walk Away', style: 'cancel' },
-        {
-          text: `Take ${fmt(principal)}`,
-          style: 'destructive',
-          onPress: () => {
-            const ok = takeLoan(size);
-            if (!ok) Alert.alert('Loan Declined', 'You already have an active loan. Pay it off first.');
-          },
-        },
-      ],
-    );
+  // inline confirmation state — null = none pending, else the selected option
+  const [pending, setPending] = useState<'small' | 'medium' | 'large' | null>(null);
+  const [confirmRepay, setConfirmRepay] = useState(false);
+
+  function handleSelectLoan(size: 'small' | 'medium' | 'large') {
+    setPending(size);
+    setConfirmRepay(false);
   }
 
-  function handleRepay() {
+  function handleConfirmLoan() {
+    if (!pending) return;
+    takeLoan(pending);
+    setPending(null);
+  }
+
+  function handleRepayPress() {
     if (!activeLoan) return;
     if (cashOnHand < activeLoan.amountOwed) {
-      Alert.alert(
-        'Not Enough Cash',
-        `You need ${fmt(activeLoan.amountOwed)} to pay off the loan. You only have ${fmt(cashOnHand)}.`,
-      );
+      // not enough cash — just show the UI state, no action
       return;
     }
-    Alert.alert(
-      'Pay Off Loan',
-      `Pay ${fmt(activeLoan.amountOwed)} and clear the debt?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Pay Off', onPress: () => repayLoan() },
-      ],
-    );
+    setConfirmRepay(true);
+  }
+
+  function handleConfirmRepay() {
+    repayLoan();
+    setConfirmRepay(false);
   }
 
   const overdue = !!activeLoan && activeLoan.weeksOverdue > 0;
@@ -142,15 +134,29 @@ export default function LoanSharkScreen() {
               <View style={s.divider} />
               <StatRow label="Cash on Hand"   value={fmt(cashOnHand)} color={canPay ? C.green : C.red} />
               <View style={{ height: 16 }} />
-              <TouchableOpacity
-                style={[s.repayBtn, !canPay && s.repayBtnDisabled]}
-                onPress={handleRepay}
-                activeOpacity={canPay ? 0.8 : 1}
-              >
-                <Text style={[s.repayBtnText, !canPay && { color: C.muted }]}>
-                  {canPay ? `PAY OFF — ${fmt(activeLoan.amountOwed)}` : `NEED ${fmt(activeLoan.amountOwed - cashOnHand)} MORE`}
-                </Text>
-              </TouchableOpacity>
+              {confirmRepay ? (
+                <View style={s.confirmRow}>
+                  <Text style={s.confirmText}>Pay {fmt(activeLoan.amountOwed)} and clear the debt?</Text>
+                  <View style={s.confirmBtns}>
+                    <TouchableOpacity style={s.confirmCancel} onPress={() => setConfirmRepay(false)} activeOpacity={0.8}>
+                      <Text style={s.confirmCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.confirmGo} onPress={handleConfirmRepay} activeOpacity={0.8}>
+                      <Text style={s.confirmGoText}>Pay Off</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[s.repayBtn, !canPay && s.repayBtnDisabled]}
+                  onPress={handleRepayPress}
+                  activeOpacity={canPay ? 0.8 : 1}
+                >
+                  <Text style={[s.repayBtnText, !canPay && { color: C.muted }]}>
+                    {canPay ? `PAY OFF — ${fmt(activeLoan.amountOwed)}` : `NEED ${fmt(activeLoan.amountOwed - cashOnHand)} MORE`}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </>
         ) : (
@@ -166,19 +172,43 @@ export default function LoanSharkScreen() {
               </Text>
               <View style={{ height: 16 }} />
               <View style={s.optionsRow}>
-                {LOAN_OPTIONS.map(opt => (
-                  <TouchableOpacity
-                    key={opt.size}
-                    style={s.optionBtn}
-                    onPress={() => handleTakeLoan(opt.size, opt.principal)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={s.optionAmount}>{opt.label}</Text>
-                    <Text style={s.optionOwedLabel}>you owe</Text>
-                    <Text style={s.optionOwed}>{fmt(loanOwed(opt.principal, rate))}</Text>
-                  </TouchableOpacity>
-                ))}
+                {LOAN_OPTIONS.map(opt => {
+                  const selected = pending === opt.size;
+                  return (
+                    <TouchableOpacity
+                      key={opt.size}
+                      style={[s.optionBtn, selected && s.optionBtnSelected]}
+                      onPress={() => handleSelectLoan(opt.size)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[s.optionAmount, selected && { color: C.text }]}>{opt.label}</Text>
+                      <Text style={s.optionOwedLabel}>you owe</Text>
+                      <Text style={[s.optionOwed, selected && { color: C.amber }]}>{fmt(loanOwed(opt.principal, rate))}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
+
+              {/* Inline confirm panel */}
+              {pending && (() => {
+                const opt = LOAN_OPTIONS.find(o => o.size === pending)!;
+                const owed = loanOwed(opt.principal, rate);
+                return (
+                  <View style={s.confirmRow}>
+                    <Text style={s.confirmText}>
+                      Borrow {fmt(opt.principal)}, pay back {fmt(owed)} within one year.{'\n'}Miss the deadline and the balance grows 20% per week.
+                    </Text>
+                    <View style={s.confirmBtns}>
+                      <TouchableOpacity style={s.confirmCancel} onPress={() => setPending(null)} activeOpacity={0.8}>
+                        <Text style={s.confirmCancelText}>Walk Away</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={s.confirmGo} onPress={handleConfirmLoan} activeOpacity={0.8}>
+                        <Text style={s.confirmGoText}>Take {fmt(opt.principal)}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })()}
             </View>
 
             <Text style={s.sectionLabel}>CONSEQUENCES</Text>
@@ -233,9 +263,18 @@ const s = StyleSheet.create({
 
   optionsRow:       { flexDirection: 'row', gap: 10 },
   optionBtn:        { flex: 1, backgroundColor: '#1a1d2e', borderRadius: 10, borderWidth: 1, borderColor: C.border, paddingVertical: 14, alignItems: 'center' },
+  optionBtnSelected:{ borderColor: C.gold, backgroundColor: '#22200e' },
   optionAmount:     { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 26, letterSpacing: 1 },
   optionOwedLabel:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 10, marginTop: 4, letterSpacing: 0.5 },
   optionOwed:       { color: C.amber, fontFamily: 'Manrope_600SemiBold', fontSize: 12, marginTop: 2 },
+
+  confirmRow:       { marginTop: 14, backgroundColor: '#111420', borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14 },
+  confirmText:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 20, marginBottom: 12 },
+  confirmBtns:      { flexDirection: 'row', gap: 10 },
+  confirmCancel:    { flex: 1, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingVertical: 10, alignItems: 'center' },
+  confirmCancelText:{ color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
+  confirmGo:        { flex: 1, borderRadius: 8, borderWidth: 1, borderColor: C.amber, backgroundColor: '#2a1e0a', paddingVertical: 10, alignItems: 'center' },
+  confirmGoText:    { color: C.amber, fontFamily: 'Manrope_700Bold', fontSize: 13 },
 
   consequenceLine:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 22 },
 });
