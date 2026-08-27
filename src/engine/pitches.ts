@@ -5,6 +5,7 @@ import {
   TALENT_FEES,
   PITCH_EXPIRY_WEEKS,
   WEEKS_PER_YEAR,
+  popularityToFeeTier,
 } from '../constants/game';
 import { nanoid } from '../utils/nanoid';
 import { randomBetween, randomItem, randomFloat, roundToNearest } from '../utils/random';
@@ -80,12 +81,7 @@ export function generatePitch(
     Math.max(10, Math.min(95, baseQuality + randomFloat(-12, 12))),
   );
 
-  const feeRange =
-    showrunner.popularity < 40
-      ? TALENT_FEES.showrunner.low
-      : showrunner.popularity < 70
-      ? TALENT_FEES.showrunner.mid
-      : TALENT_FEES.showrunner.high;
+  const feeRange = TALENT_FEES.showrunner[popularityToFeeTier(showrunner.popularity)];
 
   const askingFlatFee = roundToNearest(
     randomBetween(feeRange[0], feeRange[1]),

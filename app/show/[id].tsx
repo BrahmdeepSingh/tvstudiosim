@@ -1,12 +1,13 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, Image,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
 import { Season, Episode } from '../../src/types';
 import { AVATAR_MAP } from '../../src/utils/avatars';
+import { hap } from '../../src/utils/haptics';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -188,7 +189,7 @@ export default function ShowDetailScreen() {
   if (!show) {
     return (
       <LinearGradient colors={['#141726', '#0c0f1a', '#070a12']} style={{ flex: 1 }}>
-        <SafeAreaView style={sd.container}>
+        <SafeAreaView edges={['top']} style={sd.container}>
           <Text style={{ fontFamily: F.body, color: C.muted, padding: 32 }}>Show not found.</Text>
         </SafeAreaView>
       </LinearGradient>
@@ -225,7 +226,7 @@ export default function ShowDetailScreen() {
   return (
     <LinearGradient colors={['#141726', '#0c0f1a', '#070a12']} locations={[0, 0.55, 1]} style={{ flex: 1 }}>
       <FilmRibbonAmbient />
-      <SafeAreaView style={sd.container}>
+      <SafeAreaView edges={['top']} style={sd.container}>
 
         {/* ── Header ── */}
         <View style={sd.header}>
@@ -446,7 +447,7 @@ export default function ShowDetailScreen() {
               </View>
               <TouchableOpacity
                 style={sd.renewBtn}
-                onPress={() => router.push(`/renew?showID=${show.id}`)}
+                onPress={() => { hap.heavy(); router.push(`/renew?showID=${show.id}`); }}
                 activeOpacity={0.88}
               >
                 <LinearGradient colors={['#f0c060', C.goldMid]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={sd.renewBtnGrad}>
@@ -692,8 +693,8 @@ const sd = StyleSheet.create({
   streamingDeclineText:  { fontFamily: 'Manrope_700Bold', color: C.muted, fontSize: 11, letterSpacing: 0.5 },
   streamingNonExclBtn:   { flex: 1.4, backgroundColor: C.teal + '33', borderWidth: 1, borderColor: C.teal + '66', borderRadius: 10, padding: 11, alignItems: 'center' },
   streamingNonExclText:  { fontFamily: 'Manrope_700Bold', color: C.teal, fontSize: 11, letterSpacing: 0.5 },
-  streamingExclBtn:      { flex: 2, borderRadius: 10, overflow: 'hidden' },
-  streamingExclGrad:     { padding: 11, alignItems: 'center' },
+  streamingExclBtn:      { flex: 2, borderRadius: 10 },
+  streamingExclGrad:     { padding: 11, alignItems: 'center', borderRadius: 10 },
   streamingExclText:     { fontFamily: 'Manrope_800ExtraBold', color: '#0a2018', fontSize: 11, letterSpacing: 0.5 },
 
   // ── Streaming deals ──────────────────────────────────────────────────────────
@@ -712,8 +713,8 @@ const sd = StyleSheet.create({
   renewalStat:       { alignItems: 'center' },
   renewalStatValue:  { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 28 },
   renewalStatLabel:  { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 1.5, marginTop: 2 },
-  renewBtn:          { borderRadius: 999, overflow: 'hidden', marginBottom: 10 },
-  renewBtnGrad:      { paddingVertical: 15, alignItems: 'center' },
+  renewBtn:          { borderRadius: 999, marginBottom: 10 },
+  renewBtnGrad:      { paddingVertical: 15, alignItems: 'center', borderRadius: 999 },
   renewBtnText:      { fontFamily: 'BebasNeue_400Regular', color: '#161008', fontSize: 16, letterSpacing: 3 },
   cancelBtn:         { borderWidth: 1, borderColor: C.border, borderRadius: 999, paddingVertical: 13, alignItems: 'center' },
   cancelBtnText:     { fontFamily: 'BebasNeue_400Regular', color: C.muted, fontSize: 14, letterSpacing: 2 },

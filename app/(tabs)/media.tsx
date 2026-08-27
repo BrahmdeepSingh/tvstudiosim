@@ -1,7 +1,6 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, Image, Alert,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useMemo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -314,7 +313,7 @@ export default function MediaScreen() {
     ?? (trendingReaction?.isAmbient ? 'Industry buzz' : 'Social buzz');
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 

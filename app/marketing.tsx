@@ -1,6 +1,6 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -63,7 +63,7 @@ export default function MarketingScreen() {
 
   if (!show || !season || show.status !== 'marketing') {
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
         <Text style={{ color: C.muted, padding: 32, fontFamily: 'Manrope_400Regular' }}>No show in marketing phase.</Text>
       </SafeAreaView>
@@ -91,7 +91,7 @@ export default function MarketingScreen() {
   const totalSpend = season.marketingSpend;
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 
@@ -400,8 +400,8 @@ const s = StyleSheet.create({
   airDateActions:   { flexDirection: 'row', gap: 10 },
   cancelBtn:        { borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
   cancelBtnText:    { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  setAirBtn:        { flex: 1, borderRadius: 12, overflow: 'hidden' },
-  setAirBtnGrad:    { padding: 14, alignItems: 'center' },
+  setAirBtn:        { flex: 1, borderRadius: 12 },
+  setAirBtnGrad:    { padding: 14, alignItems: 'center', borderRadius: 12 },
   setAirBtnText:    { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 15 },
 
   channelCard:          { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 10 },
@@ -421,9 +421,9 @@ const s = StyleSheet.create({
   channelCost:          { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 15 },
   purchasedBadge:       { backgroundColor: C.green + '22', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
   purchasedText:        { color: C.green, fontFamily: 'Manrope_700Bold', fontSize: 12 },
-  buyBtn:               { borderRadius: 8, overflow: 'hidden' },
-  buyBtnDisabled:       { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border },
-  buyBtnGrad:           { paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center' },
+  buyBtn:               { borderRadius: 8 },
+  buyBtnDisabled:       { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 8 },
+  buyBtnGrad:           { paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
   buyBtnText:           { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 13 },
   buyBtnTextDisabled:   { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
 

@@ -222,6 +222,17 @@ export const ACHIEVEMENTS: Achievement[] = [
       s.shows.filter(sh => sh.status === 'completed').map(sh => sh.genre)
     ).size >= 4,
   },
+  // ── Cultural Phenomenon ───────────────────────────────────────────────────
+  {
+    id: 'cultural-phenomenon',
+    emoji: '🌍',
+    title: 'Cultural Phenomenon',
+    description: 'A series finale drew 50 million viewers — a once-in-a-generation television moment.',
+    rarity: 'legendary',
+    check: s => s.shows.some(sh =>
+      sh.seasons.some(se => se.episodes.some(ep => (ep.viewers ?? 0) >= 50_000_000)),
+    ),
+  },
   // ── Streaming ─────────────────────────────────────────────────────────────
   {
     id: 'streaming-deal',

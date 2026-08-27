@@ -822,7 +822,7 @@ export default function PosterCreatorScreen() {
 
   if (!show || !season) {
     return (
-      <SafeAreaView style={st.container}>
+      <SafeAreaView edges={['top']} style={st.container}>
         <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
         <Text style={{ color: C.muted, padding: 32, fontFamily: F.body }}>Show not found.</Text>
       </SafeAreaView>
@@ -878,7 +878,7 @@ export default function PosterCreatorScreen() {
 
   return (
     <LinearGradient colors={['#141726', '#0c0f1a', '#070a12']} locations={[0, 0.55, 1]} style={{ flex: 1 }}>
-      <SafeAreaView style={st.safeArea}>
+      <SafeAreaView edges={['top']} style={st.safeArea}>
 
         {/* Header */}
         <View style={st.header}>
@@ -1132,7 +1132,7 @@ const st = StyleSheet.create({
   },
   charCount: { fontFamily: F.body, color: C.mutedMid, fontSize: 11, textAlign: 'right', paddingRight: 16, marginTop: 4 },
 
-  confirmBtn:     { marginHorizontal: 16, marginTop: 28, borderRadius: 14, overflow: 'hidden' },
-  confirmBtnGrad: { padding: 16, alignItems: 'center' },
+  confirmBtn:     { marginHorizontal: 16, marginTop: 28, borderRadius: 14 },
+  confirmBtnGrad: { padding: 16, alignItems: 'center', borderRadius: 14 },
   confirmBtnText: { fontFamily: F.bodyXBd, color: C.goldText, fontSize: 15, letterSpacing: 0.5 },
 });

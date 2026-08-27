@@ -76,34 +76,51 @@ export const MAX_PITCHES_PER_YEAR = 4;
 export const PITCH_GENERATE_CHANCE = 0.08; // per week
 
 // ─── Talent Fee Ranges (per season flat fee) ──────────────────────────────────
+// Five tiers matching the display labels: unknown (0–19), d (20–39), c (40–59),
+// b (60–79), a (80–100). Each is [min, max] used for both offer generation and
+// acceptance threshold in evaluateOffer().
 
-export const TALENT_FEES: Record<TalentRole, {
-  low: [number, number];
-  mid: [number, number];
-  high: [number, number];
-}> = {
+export type TalentFeeTier = 'unknown' | 'd' | 'c' | 'b' | 'a';
+
+export const TALENT_FEES: Record<TalentRole, Record<TalentFeeTier, [number, number]>> = {
   showrunner: {
-    low:  [1_500_000,  3_000_000],
-    mid:  [4_000_000,  8_000_000],
-    high: [10_000_000, 20_000_000],
+    unknown: [1_000_000,  2_000_000],
+    d:       [2_000_000,  3_500_000],
+    c:       [3_500_000,  7_000_000],
+    b:       [7_000_000, 13_000_000],
+    a:       [13_000_000, 22_000_000],
   },
   director: {
-    low:  [1_000_000,  2_000_000],
-    mid:  [3_000_000,  6_000_000],
-    high: [7_000_000, 15_000_000],
+    unknown: [750_000,   1_500_000],
+    d:       [1_500_000, 2_500_000],
+    c:       [2_500_000, 5_000_000],
+    b:       [5_000_000, 10_000_000],
+    a:       [10_000_000, 18_000_000],
   },
   actor: {
-    low:  [2_000_000,  4_000_000],
-    mid:  [5_000_000, 10_000_000],
-    high: [12_000_000, 25_000_000],
+    unknown: [1_500_000,  3_000_000],
+    d:       [3_000_000,  5_000_000],
+    c:       [5_000_000,  9_000_000],
+    b:       [9_000_000, 16_000_000],
+    a:       [16_000_000, 28_000_000],
   },
 };
 
-export const SUPPORTING_ACTOR_FEES = {
-  low:  [1_000_000, 2_000_000],
-  mid:  [2_500_000, 5_000_000],
-  high: [6_000_000, 12_000_000],
-} as const;
+export const SUPPORTING_ACTOR_FEES: Record<TalentFeeTier, [number, number]> = {
+  unknown: [750_000,  1_250_000],
+  d:       [1_250_000, 2_500_000],
+  c:       [2_500_000, 4_500_000],
+  b:       [4_500_000, 8_000_000],
+  a:       [8_000_000, 13_000_000],
+};
+
+export function popularityToFeeTier(popularity: number): TalentFeeTier {
+  if (popularity >= 80) return 'a';
+  if (popularity >= 60) return 'b';
+  if (popularity >= 40) return 'c';
+  if (popularity >= 20) return 'd';
+  return 'unknown';
+}
 
 // ─── Genre Config ─────────────────────────────────────────────────────────────
 

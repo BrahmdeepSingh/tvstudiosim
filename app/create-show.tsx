@@ -1,13 +1,16 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Image,
-} from 'react-native';
+  StyleSheet, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../src/store/gameStore';
 import { Genre, Theme } from '../src/types';
 import { MIN_EPISODES, MAX_EPISODES, getShowCapacity, ACTIVE_SHOW_STATUSES } from '../src/constants/game';
+import { WRITERS_ROOM_PRESTIGE } from '../src/engine/quality';
+import { hap } from '../src/utils/haptics';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -125,9 +128,12 @@ export default function CreateShowScreen() {
   const [genre, setGenre]               = useState<Genre | null>(null);
   const [theme, setTheme]               = useState<Theme | null>(null);
   const [episodes, setEpisodes]         = useState(10);
+  const [showrunnerSlots, setShowrunnerSlots] = useState(1);
   const [leadSlots, setLeadSlots]       = useState(2);
   const [supportingSlots, setSupportingSlots] = useState(3);
   const [titleFocused, setTitleFocused] = useState(false);
+
+  const writersRoomUnlocked = network.prestige >= WRITERS_ROOM_PRESTIGE;
 
   const capacity = getShowCapacity(network.prestige);
   const activeCount = shows.filter(s => ACTIVE_SHOW_STATUSES.has(s.status)).length;
@@ -137,7 +143,8 @@ export default function CreateShowScreen() {
 
   function handleCreate() {
     if (!canProceed || !genre || !theme) return;
-    const showID = createShow(title.trim(), genre, theme, episodes, leadSlots, supportingSlots);
+    hap.heavy();
+    const showID = createShow(title.trim(), genre, theme, episodes, showrunnerSlots, leadSlots, supportingSlots);
     router.replace(`/hire-talent?showID=${showID}&role=showrunner`);
   }
 
@@ -148,7 +155,7 @@ export default function CreateShowScreen() {
       style={{ flex: 1 }}
     >
       <FilmRibbonAmbient />
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
@@ -234,6 +241,35 @@ export default function CreateShowScreen() {
                 More episodes = more potential ad revenue, but higher upfront cost and longer production time.
               </Text>
             </View>
+
+            {/* ── Writers room ── */}
+            <SectionLabel>WRITERS ROOM</SectionLabel>
+            <View style={s.castCard}>
+              <View style={s.castRow}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={s.castRowLabel}>Showrunner Slots</Text>
+                  <Text style={s.castRowSub}>
+                    {writersRoomUnlocked
+                      ? '2–3 showrunners collaborate for higher script scores'
+                      : `Writers Room unlocks at Prestige ${WRITERS_ROOM_PRESTIGE}`}
+                  </Text>
+                </View>
+                <Stepper
+                  value={showrunnerSlots}
+                  onDec={() => setShowrunnerSlots(n => Math.max(1, n - 1))}
+                  onInc={() => setShowrunnerSlots(n => Math.min(3, n + 1))}
+                  disableDec={showrunnerSlots <= 1}
+                  disableInc={showrunnerSlots >= 3 || !writersRoomUnlocked}
+                />
+              </View>
+            </View>
+            {showrunnerSlots > 1 && (
+              <View style={s.hint}>
+                <Text style={s.hintText}>
+                  Writers Room active ({showrunnerSlots} showrunners). All same chemistry color gives +8 script bonus; red clashing with any other color gives −10.
+                </Text>
+              </View>
+            )}
 
             {/* ── Cast slots ── */}
             <SectionLabel>CAST SLOTS</SectionLabel>
@@ -377,8 +413,8 @@ const s = StyleSheet.create({
   capacityBanner:      { backgroundColor: '#1a0e0e', borderRadius: 10, borderWidth: 1, borderColor: '#c4382044', padding: 12, alignItems: 'center', gap: 4 },
   capacityBannerTitle: { color: '#c43820', fontFamily: 'Manrope_700Bold', fontSize: 13 },
   capacityBannerSub:   { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, textAlign: 'center', lineHeight: 17 },
-  nextBtn:             { borderRadius: 999, overflow: 'hidden' },
-  nextBtnGradient:     { paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+  nextBtn:             { borderRadius: 999 },
+  nextBtnGradient:     { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
   nextBtnInactive:     { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 999 },
   nextBtnTextActive:   { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
   nextBtnTextInactive: { fontFamily: 'BebasNeue_400Regular', color: C.mutedMid, fontSize: 16, letterSpacing: 3 },

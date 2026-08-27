@@ -2,6 +2,8 @@ import { Talent, TalentStats, ChemistryColor, TalentRole, Genre, EmmyCategory, L
 import { nanoid } from '../utils/nanoid';
 import { randomBetween, randomItem, clamp } from '../utils/random';
 import { STARTING_YEAR, TALENT_FEES } from '../constants/game';
+
+const LEGACY_FEE_TIER: Record<'low' | 'mid' | 'high', 'd' | 'c' | 'a'> = { low: 'd', mid: 'c', high: 'a' };
 import { MALE_AVATAR_IDS, FEMALE_AVATAR_IDS } from '../utils/avatars';
 
 const CHEMISTRY_COLORS: ChemistryColor[] = ['green', 'blue', 'red'];
@@ -140,7 +142,7 @@ function generateLegacyCareer(
 
   legacyCredits.sort((a, b) => a.year - b.year);
 
-  const minFeeForTier = TALENT_FEES[role][tier][0];
+  const minFeeForTier = TALENT_FEES[role][LEGACY_FEE_TIER[tier]][0];
   const priorCareerEarnings = numCredits * minFeeForTier;
 
   return { legacyCredits, legacyAwards, priorCareerEarnings };
@@ -148,17 +150,52 @@ function generateLegacyCareer(
 
 // ─── Stat generation by tier ──────────────────────────────────────────────────
 
+type StatTier = 'unknown' | 'd' | 'c' | 'b' | 'a';
+
 function statInRange(low: number, high: number): number {
   return randomBetween(low, high);
 }
 
-function makeShowrunnerStats(tier: 'low' | 'mid' | 'high'): TalentStats {
-  const ranges = {
-    low:  { writing: [30, 55], creativity: [28, 52], consistency: [32, 56] },
-    mid:  { writing: [55, 75], creativity: [52, 73], consistency: [56, 76] },
-    high: { writing: [75, 95], creativity: [73, 93], consistency: [76, 96] },
+function popularityForTier(tier: 'low' | 'mid' | 'high'): number {
+  return tier === 'low'
+    ? randomBetween(5, 39)   // Unknown + D-List
+    : tier === 'mid'
+    ? randomBetween(40, 79)  // C-List + B-List
+    : randomBetween(80, 95); // A-List
+}
+
+function popularityToStatTier(popularity: number): StatTier {
+  if (popularity >= 80) return 'a';
+  if (popularity >= 60) return 'b';
+  if (popularity >= 40) return 'c';
+  if (popularity >= 20) return 'd';
+  return 'unknown';
+}
+
+// 15% chance a talent's skill tier is one step above their popularity tier.
+// Only goes up — no overrated talent (high pop, low skill).
+function pickIsHiddenGem(popTier: StatTier): boolean {
+  if (popTier === 'a') return false; // already at ceiling
+  return Math.random() < 0.15;
+}
+
+function makeShowrunnerStats(tier: StatTier, hiddenGem: boolean): TalentStats {
+  type R = { writing: [number, number]; creativity: [number, number]; consistency: [number, number] };
+  const normal: Record<StatTier, R> = {
+    unknown: { writing: [30, 55], creativity: [28, 52], consistency: [32, 56] },
+    d:       { writing: [30, 55], creativity: [28, 52], consistency: [32, 56] },
+    c:       { writing: [55, 75], creativity: [52, 73], consistency: [56, 76] },
+    b:       { writing: [75, 85], creativity: [73, 83], consistency: [76, 86] },
+    a:       { writing: [85, 95], creativity: [83, 93], consistency: [86, 96] },
   };
-  const r = ranges[tier];
+  const gem: Record<StatTier, R> = {
+    unknown: { writing: [55, 75], creativity: [52, 73], consistency: [56, 76] },
+    d:       { writing: [55, 75], creativity: [52, 73], consistency: [56, 76] },
+    c:       { writing: [75, 95], creativity: [73, 93], consistency: [76, 96] },
+    b:       { writing: [85, 95], creativity: [83, 93], consistency: [86, 96] },
+    a:       { writing: [85, 95], creativity: [83, 93], consistency: [86, 96] },
+  };
+  const r = hiddenGem ? gem[tier] : normal[tier];
   return {
     role: 'showrunner',
     writing:     statInRange(r.writing[0], r.writing[1]),
@@ -167,13 +204,23 @@ function makeShowrunnerStats(tier: 'low' | 'mid' | 'high'): TalentStats {
   };
 }
 
-function makeDirectorStats(tier: 'low' | 'mid' | 'high'): TalentStats {
-  const ranges = {
-    low:  { direction: [30, 55], vision: [28, 52], efficiency: [32, 56] },
-    mid:  { direction: [55, 75], vision: [52, 73], efficiency: [56, 76] },
-    high: { direction: [75, 95], vision: [73, 93], efficiency: [76, 96] },
+function makeDirectorStats(tier: StatTier, hiddenGem: boolean): TalentStats {
+  type R = { direction: [number, number]; vision: [number, number]; efficiency: [number, number] };
+  const normal: Record<StatTier, R> = {
+    unknown: { direction: [30, 55], vision: [28, 52], efficiency: [32, 56] },
+    d:       { direction: [30, 55], vision: [28, 52], efficiency: [32, 56] },
+    c:       { direction: [55, 75], vision: [52, 73], efficiency: [56, 76] },
+    b:       { direction: [75, 85], vision: [73, 83], efficiency: [76, 86] },
+    a:       { direction: [85, 95], vision: [83, 93], efficiency: [86, 96] },
   };
-  const r = ranges[tier];
+  const gem: Record<StatTier, R> = {
+    unknown: { direction: [55, 75], vision: [52, 73], efficiency: [56, 76] },
+    d:       { direction: [55, 75], vision: [52, 73], efficiency: [56, 76] },
+    c:       { direction: [75, 95], vision: [73, 93], efficiency: [76, 96] },
+    b:       { direction: [85, 95], vision: [83, 93], efficiency: [86, 96] },
+    a:       { direction: [85, 95], vision: [83, 93], efficiency: [86, 96] },
+  };
+  const r = hiddenGem ? gem[tier] : normal[tier];
   return {
     role: 'director',
     direction:  statInRange(r.direction[0], r.direction[1]),
@@ -182,26 +229,28 @@ function makeDirectorStats(tier: 'low' | 'mid' | 'high'): TalentStats {
   };
 }
 
-function makeActorStats(tier: 'low' | 'mid' | 'high'): TalentStats {
-  const ranges = {
-    low:  { acting: [30, 55], chemistry: [28, 55] },
-    mid:  { acting: [55, 76], chemistry: [54, 76] },
-    high: { acting: [76, 96], chemistry: [75, 96] },
+function makeActorStats(tier: StatTier, hiddenGem: boolean): TalentStats {
+  type R = { acting: [number, number]; chemistry: [number, number] };
+  const normal: Record<StatTier, R> = {
+    unknown: { acting: [30, 55], chemistry: [28, 55] },
+    d:       { acting: [30, 55], chemistry: [28, 55] },
+    c:       { acting: [55, 75], chemistry: [53, 73] },
+    b:       { acting: [75, 85], chemistry: [73, 85] },
+    a:       { acting: [85, 95], chemistry: [83, 95] },
   };
-  const r = ranges[tier];
+  const gem: Record<StatTier, R> = {
+    unknown: { acting: [55, 75], chemistry: [53, 73] },
+    d:       { acting: [55, 75], chemistry: [53, 73] },
+    c:       { acting: [75, 95], chemistry: [73, 95] },
+    b:       { acting: [85, 95], chemistry: [83, 95] },
+    a:       { acting: [85, 95], chemistry: [83, 95] },
+  };
+  const r = hiddenGem ? gem[tier] : normal[tier];
   return {
     role: 'actor',
     acting:    statInRange(r.acting[0], r.acting[1]),
     chemistry: statInRange(r.chemistry[0], r.chemistry[1]),
   };
-}
-
-function popularityForTier(tier: 'low' | 'mid' | 'high'): number {
-  return tier === 'low'
-    ? randomBetween(10, 35)
-    : tier === 'mid'
-    ? randomBetween(36, 68)
-    : randomBetween(69, 95);
 }
 
 function prestigeRequiredForTier(tier: 'low' | 'mid' | 'high'): number {
@@ -214,17 +263,19 @@ function makeTalent(
   gender: 'male' | 'female',
   avatarId: string,
 ): Talent {
+  const popularity = popularityForTier(tier);
+  const popTier = popularityToStatTier(popularity);
+  const hiddenGem = pickIsHiddenGem(popTier);
   const stats: TalentStats =
     role === 'showrunner'
-      ? makeShowrunnerStats(tier)
+      ? makeShowrunnerStats(popTier, hiddenGem)
       : role === 'director'
-      ? makeDirectorStats(tier)
-      : makeActorStats(tier);
+      ? makeDirectorStats(popTier, hiddenGem)
+      : makeActorStats(popTier, hiddenGem);
 
   const age = randomBetween(18, 71);
   const yearsActive = randomBetween(0, Math.max(0, age - 18));
   const debutYear = STARTING_YEAR - yearsActive;
-  const popularity = popularityForTier(tier);
 
   const { legacyCredits, legacyAwards, priorCareerEarnings } =
     generateLegacyCareer(role, tier, popularity, yearsActive, debutYear, gender);
@@ -330,16 +381,18 @@ export function generateReplacementTalent(
   const freePool = pool.filter(id => !usedIds.has(id));
   const avatarId = freePool.length > 0 ? randomItem(freePool) : randomItem(pool);
 
+  const popularity = popularityForTier(tier);
+  const popTier = popularityToStatTier(popularity);
+  const hiddenGem = pickIsHiddenGem(popTier);
   const stats: TalentStats =
-    role === 'showrunner' ? makeShowrunnerStats(tier)
-    : role === 'director' ? makeDirectorStats(tier)
-    : makeActorStats(tier);
+    role === 'showrunner' ? makeShowrunnerStats(popTier, hiddenGem)
+    : role === 'director' ? makeDirectorStats(popTier, hiddenGem)
+    : makeActorStats(popTier, hiddenGem);
 
   // Age range matches the global rule: 18–71 (72 triggers retirement)
   const age = randomBetween(18, 65);
   const yearsActive = randomBetween(0, Math.max(0, age - 18));
   const debutYear = currentYear - yearsActive;
-  const popularity = popularityForTier(tier);
 
   const { legacyCredits, legacyAwards, priorCareerEarnings } =
     generateLegacyCareer(role, tier, popularity, yearsActive, debutYear, gender);

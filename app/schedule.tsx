@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Dimensions,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
@@ -273,7 +273,7 @@ export default function ScheduleScreen() {
   const laneAreaBottom = HDR_H + laneAreaH + 6;
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
 
       {/* Header */}

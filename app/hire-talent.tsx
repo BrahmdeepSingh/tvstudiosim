@@ -1,7 +1,8 @@
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, SafeAreaView, Image,
-} from 'react-native';
+  StyleSheet, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { useState, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,11 +24,19 @@ const CHEM_COLORS = {
   red:   '#c43820',
 };
 
-const ROLE_STAT_LABEL: Record<TalentRole, string> = {
-  showrunner: 'Writing',
-  director:   'Direction',
-  actor:      'Acting',
-};
+function listTier(p: number): string {
+  if (p >= 80) return 'A-List';
+  if (p >= 60) return 'B-List';
+  if (p >= 40) return 'C-List';
+  if (p >= 20) return 'D-List';
+  return 'Unknown';
+}
+
+function blendedSkill(talent: Talent): number {
+  if (talent.stats.role === 'showrunner') return Math.round((talent.stats.writing + talent.stats.creativity + talent.stats.consistency) / 3);
+  if (talent.stats.role === 'director')   return Math.round((talent.stats.direction + talent.stats.vision) / 2);
+  return Math.round((talent.stats.acting + talent.stats.chemistry) / 2);
+}
 
 function FilmRibbonAmbient() {
   return (
@@ -40,20 +49,6 @@ function FilmRibbonAmbient() {
   );
 }
 
-function getPrimaryStatValue(talent: Talent): number {
-  if (talent.stats.role === 'showrunner') return talent.stats.writing;
-  if (talent.stats.role === 'director') return talent.stats.direction;
-  if (talent.stats.role === 'actor') return talent.stats.acting;
-  return 0;
-}
-
-function popularityLabel(p: number): string {
-  if (p < 30)  return 'Unknown';
-  if (p < 50)  return 'Emerging';
-  if (p < 70)  return 'Established';
-  if (p < 85)  return 'Well-Known';
-  return 'Star';
-}
 
 function TalentCard({
   talent,
@@ -64,7 +59,7 @@ function TalentCard({
   onPress: () => void;
   locked?: boolean;
 }) {
-  const primary = getPrimaryStatValue(talent);
+  const skill = blendedSkill(talent);
 
   return (
     <TouchableOpacity
@@ -72,25 +67,24 @@ function TalentCard({
       onPress={locked ? undefined : onPress}
       activeOpacity={locked ? 1 : 0.75}
     >
-      {/* Card content — always rendered so the layout is visible beneath the overlay */}
       <View style={[s.talentCardLeft, locked && s.lockedContent]}>
         <View style={s.avatarWrap}>
           <Image source={AVATAR_MAP[talent.avatarId]} style={s.avatarThumb} />
           <View style={[s.chemPip, { backgroundColor: CHEM_COLORS[talent.chemistryColor] }]} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[s.talentName, locked && s.lockedText]}>{talent.name}</Text>
-          <Text style={[s.talentMeta, locked && s.lockedText]}>
-            {popularityLabel(talent.popularity)} · Chemistry {talent.chemistryColor.charAt(0).toUpperCase() + talent.chemistryColor.slice(1)}
+          <Text style={s.talentName}>{talent.name}</Text>
+          <Text style={s.talentMeta}>
+            {listTier(talent.popularity)} · Age {talent.age}
           </Text>
         </View>
-      </View>
-      <View style={[s.talentCardRight, locked && s.lockedContent]}>
-        <Text style={[s.talentStat, locked && s.lockedText]}>{primary}</Text>
-        <Text style={[s.talentStatLabel, locked && s.lockedText]}>{ROLE_STAT_LABEL[talent.role]}</Text>
+        <View style={s.talentCardRight}>
+          <Text style={s.talentStat}>{skill}</Text>
+          <Text style={s.talentStatLabel}>Skill</Text>
+        </View>
       </View>
 
-      {/* Prestige lock overlay */}
+      {/* Prestige lock overlay — absolutely positioned over the whole card */}
       {locked && (
         <View style={s.lockOverlay} pointerEvents="none">
           <View style={s.lockBadge}>
@@ -149,12 +143,18 @@ export default function HireTalentScreen() {
     return [...unlocked, ...locked];
   }, [talent, role, searchQuery, network.prestige]);
 
+  const filledShowrunners = season?.showrunnerIDs.length ?? 0;
+  const showrunnerSlots = season?.showrunnerSlots ?? 1;
   const filledLeads = season?.leadActorIDs.length ?? 0;
   const filledSupporting = season?.supportingActorIDs.length ?? 0;
   const leadSlots = season?.leadActorSlots ?? 0;
   const supportingSlots = season?.supportingActorSlots ?? 0;
-  const filledCount = actorType === 'lead' ? filledLeads : filledSupporting;
-  const totalSlots = actorType === 'lead' ? leadSlots : supportingSlots;
+  const filledCount = role === 'showrunner'
+    ? filledShowrunners
+    : actorType === 'lead' ? filledLeads : filledSupporting;
+  const totalSlots = role === 'showrunner'
+    ? showrunnerSlots
+    : actorType === 'lead' ? leadSlots : supportingSlots;
   const slotsRemaining = totalSlots - filledCount;
 
   const roleTitle = {
@@ -172,7 +172,7 @@ export default function HireTalentScreen() {
   }[role];
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 
@@ -189,9 +189,9 @@ export default function HireTalentScreen() {
           <Text style={s.showBannerText}>
             {show.title} · <Text style={{ color: C.muted }}>{show.genre}</Text>
           </Text>
-          {role === 'actor' && season && (
+          {season && (role === 'actor' || (role === 'showrunner' && showrunnerSlots > 1)) && (
             <Text style={s.slotCount}>
-              {actorType === 'lead' ? 'Lead' : 'Supporting'}: {filledCount}/{totalSlots} filled
+              {role === 'showrunner' ? 'Writers Room' : actorType === 'lead' ? 'Lead' : 'Supporting'}: {filledCount}/{totalSlots} filled
               {slotsRemaining > 0 ? ` · ${slotsRemaining} slot${slotsRemaining > 1 ? 's' : ''} remaining` : ' · All filled'}
             </Text>
           )}
@@ -233,10 +233,10 @@ export default function HireTalentScreen() {
         />
       )}
 
-      {role === 'actor' && season && filledCount > 0 && (
+      {(role === 'actor' || role === 'showrunner') && season && filledCount > 0 && (
         <View style={s.footer}>
           <Text style={s.castCount}>
-            {actorType === 'lead' ? 'Lead' : 'Supporting'}: {filledCount}/{totalSlots} hired
+            {role === 'showrunner' ? 'Showrunners' : actorType === 'lead' ? 'Lead' : 'Supporting'}: {filledCount}/{totalSlots} hired
           </Text>
           <TouchableOpacity style={s.doneBtn} onPress={() => router.back()}>
             <LinearGradient
@@ -271,16 +271,16 @@ const s = StyleSheet.create({
   searchRow:      { paddingHorizontal: 16, paddingBottom: 8 },
   searchInput:    { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 15 },
 
-  talentCard:       { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
-  talentCardLeft:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  talentCard:       { position: 'relative', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14 },
+  talentCardLeft:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatarWrap:       { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
   avatarThumb:      { width: 44, height: 52 },
   chemPip:          { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
   talentName:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  talentMeta:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
-  talentCardRight:{ alignItems: 'flex-end' },
-  talentStat:     { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
-  talentStatLabel:{ color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11 },
+  talentMeta:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
+  talentCardRight:  { marginLeft: 'auto', alignItems: 'flex-end' },
+  talentStat:       { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
+  talentStatLabel:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11 },
 
   // ── Prestige lock ──────────────────────────────────────────────────────────
   lockOverlay:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,12,22,0.72)', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
@@ -295,7 +295,7 @@ const s = StyleSheet.create({
 
   footer:         { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
   castCount:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, textAlign: 'center' },
-  doneBtn:        { borderRadius: 14, overflow: 'hidden' },
-  doneBtnGrad:    { padding: 16, alignItems: 'center' },
+  doneBtn:        { borderRadius: 14 },
+  doneBtnGrad:    { padding: 16, alignItems: 'center', borderRadius: 14 },
   doneBtnText:    { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
 });

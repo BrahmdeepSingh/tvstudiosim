@@ -1,6 +1,6 @@
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, SafeAreaView, Image,
-} from 'react-native';
+  View, Text, FlatList, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -325,7 +325,7 @@ export default function ShowsScreen() {
   const endedCount  = shows.filter(s => s.status === 'completed' || s.status === 'cancelled').length;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       <LinearGradient
         colors={['#131829', '#0f1220', '#0a0d18']}
         style={StyleSheet.absoluteFill}

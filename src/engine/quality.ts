@@ -1,14 +1,35 @@
 import { Talent } from '../types';
 import { clamp, randomFloat } from '../utils/random';
 
-export function calculateScriptScore(showrunner: Talent): number {
-  if (showrunner.stats.role !== 'showrunner') return 50;
-  const raw =
-    showrunner.stats.writing     * 0.50 +
-    showrunner.stats.creativity  * 0.30 +
-    showrunner.stats.consistency * 0.20;
+const WRITERS_ROOM_PRESTIGE = 80;
+export { WRITERS_ROOM_PRESTIGE };
+
+function showrunnerRaw(t: Talent): number {
+  if (t.stats.role !== 'showrunner') return 0;
+  return t.stats.writing * 0.50 + t.stats.creativity * 0.30 + t.stats.consistency * 0.20;
+}
+
+export function calculateScriptScore(showrunners: Talent[]): number {
+  const primary = showrunners[0];
+  if (!primary || primary.stats.role !== 'showrunner') return 50;
+
+  const primaryRaw = showrunnerRaw(primary);
   const variance = randomFloat(-6, 6);
-  return clamp(Math.round(raw + variance), 0, 100);
+
+  if (showrunners.length === 1) {
+    return clamp(Math.round(primaryRaw + variance), 0, 95);
+  }
+
+  // Writers room: additional showrunners each contribute 35% of their weighted stats
+  const additionalBonus = showrunners.slice(1).reduce((sum, t) => sum + showrunnerRaw(t) * 0.35, 0);
+
+  // Chemistry modifier: all same color → +8; any red paired with non-red → -10
+  const colors = showrunners.map(t => t.chemistryColor);
+  const allSame = colors.every(c => c === colors[0]);
+  const hasRedClash = colors.includes('red') && colors.some(c => c !== 'red');
+  const chemMod = allSame ? 8 : hasRedClash ? -10 : 0;
+
+  return clamp(Math.round(primaryRaw + additionalBonus + chemMod + variance), 0, 135);
 }
 
 export function calculateQualityScore(

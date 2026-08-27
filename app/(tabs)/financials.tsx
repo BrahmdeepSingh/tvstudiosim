@@ -1,6 +1,7 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Alert, Image,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
@@ -62,9 +63,10 @@ function StatRow({ label, value, color }: { label: string; value: string; color?
   );
 }
 
+
 export default function StudioScreen() {
   const router = useRouter();
-  const { network, shows, saveGame, initializeGame, unlockedAchievementIDs } = useGameStore();
+  const { network, shows, saveGame, initializeGame, unlockedAchievementIDs, activeLoan } = useGameStore();
 
   const totalSeasons = shows.reduce((sum, sh) => sum + sh.seasons.length, 0);
   const activeShows = shows.filter(s =>
@@ -91,7 +93,7 @@ export default function StudioScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient
         colors={['#131829', '#0f1220', '#0a0d18']}
         style={StyleSheet.absoluteFill}
@@ -145,6 +147,24 @@ export default function StudioScreen() {
           <StatRow label="Emmys won"        value={String(network.emmysWon)} color={network.emmysWon > 0 ? C.amber : undefined} />
           <View style={s.divider} />
           <StatRow label="Current week"     value={`Week ${network.currentWeek}, Year ${network.currentYear}`} />
+        </View>
+
+        {/* Loan Shark */}
+        <Text style={s.sectionLabel}>LOAN SHARK</Text>
+        <View style={s.actionsCard}>
+          <TouchableOpacity style={s.actionRow} onPress={() => router.push('/loan-shark')} activeOpacity={0.8}>
+            <View>
+              <Text style={s.actionLabel}>🦈  Loan Shark</Text>
+              <Text style={s.actionSub}>
+                {activeLoan
+                  ? activeLoan.weeksOverdue > 0
+                    ? `OVERDUE — owe ${fmt(activeLoan.amountOwed)}`
+                    : `Active — owe ${fmt(activeLoan.amountOwed)}`
+                  : 'Private financing, no questions asked'}
+              </Text>
+            </View>
+            <Text style={[s.actionChevron, { color: activeLoan?.weeksOverdue ? C.red : C.muted }]}>View →</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Achievements */}
@@ -225,4 +245,5 @@ const s = StyleSheet.create({
   actionLabel:     { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15, marginBottom: 2 },
   actionSub:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
   actionChevron:   { fontFamily: 'Manrope_700Bold', fontSize: 14 },
+
 });

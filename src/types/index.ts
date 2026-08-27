@@ -228,16 +228,18 @@ export interface Season {
   renewalDecisionMade: boolean;
   renewed: boolean;
 
+  showrunnerSlots: number;       // 1–3, decided at creation; 2–3 requires prestige ≥ 80
   leadActorSlots: number;       // decided at show creation
   supportingActorSlots: number; // decided at show creation
+  showrunnerIDs: string[];       // index 0 = primary; filled during casting
   leadActorIDs: string[];       // filled during casting
   supportingActorIDs: string[]; // filled during casting
   directorID: string | null;
-  showrunnerID: string;
-  scriptScore: number;  // 0–100, calculated when writing wraps
+  scriptScore: number;  // 0–100 solo, up to 135 with writers room; calculated when writing wraps
   qualityScore: number; // 0–100, calculated at end of filming
 
   // Renewal suggestions — carry forward from the previous season
+  suggestedShowrunnerIDs: string[];
   suggestedDirectorID: string | null;
   suggestedLeadActorIDs: string[];
   suggestedSupportingActorIDs: string[];
@@ -263,6 +265,7 @@ export interface Show {
   streamingOfferCheckYear: number | null;
   streamingCheckedAtSeasonCount: number; // how many completed seasons were present at last offer attempt
   cancelledClean: boolean;
+  heatMultiplier: number; // drifts up on hits, down on flops; floor 0.80, cap 2.0
 }
 
 // ─── Pitch ───────────────────────────────────────────────────────────────────
@@ -413,6 +416,21 @@ export interface Network {
   totalShowsProduced: number;
 }
 
+// ─── Loan Shark ──────────────────────────────────────────────────────────────
+
+export interface ActiveLoan {
+  id: string;
+  principal: number;        // original amount borrowed
+  amountOwed: number;       // grows 20% per week once overdue
+  interestRate: number;     // e.g. 0.67 — increases with loan number
+  takenWeek: number;
+  takenYear: number;
+  dueWeek: number;          // same week as taken, one year later
+  dueYear: number;
+  weeksOverdue: number;     // 0 while within grace period
+  prestigePenaltyApplied: boolean; // one-time -5 prestige on first overdue tick
+}
+
 // ─── Full Game State ──────────────────────────────────────────────────────────
 import { AmbientSocialPost } from '../engine/ambientsocial';
 
@@ -428,6 +446,8 @@ export interface GameState {
   awards: Award[];
   studioEvents: StudioEvent[];
   emmyCeremonyPendingYear: number | null;
+  activeLoan: ActiveLoan | null;
+  loansTaken: number;
   saveSlot: number;
   lastSaved: string;
   initialized: boolean;

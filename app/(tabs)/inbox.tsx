@@ -1,7 +1,9 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { useState, useEffect, useRef } from 'react';
+import { hap } from '../../src/utils/haptics';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
@@ -70,6 +72,7 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
     if (atCapacity) return;
     const ok = greenlightPitch(pitch!.id);
     if (ok) {
+      hap.heavy();
       markInboxRead(item.id);
       onDone();
     }
@@ -169,6 +172,7 @@ function StreamingOfferDetail({ item, onDone }: { item: InboxItem; onDone: () =>
       : `Seasons ${offer.seasonsToInclude.join(', ')}`;
 
   function handleAccept(dealType: 'exclusive' | 'non-exclusive') {
+    hap.success();
     acceptStreamingOffer(show!.id, dealType);
     markInboxRead(item.id);
     onDone();
@@ -355,7 +359,7 @@ export default function InboxScreen() {
   if (selected) {
     const meta = TYPE_META[selected.type] ?? { label: 'MESSAGE', color: C.muted };
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
         <FilmRibbonAmbient />
         <View style={s.header}>
@@ -405,7 +409,7 @@ export default function InboxScreen() {
   // ── List view ──────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
       <View style={s.header}>
@@ -482,8 +486,8 @@ const d = StyleSheet.create({
   actionRow:        { flexDirection: 'row', gap: 10 },
   passBtn:          { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 15, alignItems: 'center', justifyContent: 'center' },
   passBtnText:      { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  primaryBtn:       { flex: 2, borderRadius: 12, overflow: 'hidden' },
-  primaryBtnGrad:   { padding: 15, alignItems: 'center' },
+  primaryBtn:       { flex: 2, borderRadius: 12 },
+  primaryBtnGrad:   { padding: 15, alignItems: 'center', borderRadius: 12 },
   primaryBtnText:   { color: '#161008', fontFamily: 'Manrope_800ExtraBold', fontSize: 15 },
 
   expiredNote:      { borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, alignItems: 'center' },

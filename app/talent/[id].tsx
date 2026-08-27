@@ -1,13 +1,15 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView,
-  Image, TextInput, Animated,
-} from 'react-native';
-import { useMemo, useState, useRef } from 'react';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  Image, TextInput, Animated, Keyboard, Platform } from 'react-native';
+import { hap } from '../../src/utils/haptics';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { getYearsActive } from '../../src/engine/talent';
-import { EMMY_CATEGORY_LABELS, TALENT_FEES, SUPPORTING_ACTOR_FEES, GENRE_CONFIG } from '../../src/constants/game';
+import { EMMY_CATEGORY_LABELS, TALENT_FEES, SUPPORTING_ACTOR_FEES, GENRE_CONFIG, popularityToFeeTier } from '../../src/constants/game';
 import { AVATAR_MAP } from '../../src/utils/avatars';
 import { TalentRole, Talent } from '../../src/types';
 
@@ -62,15 +64,16 @@ function computeLikelihood(
   networkPrestige: number,
   actorType: 'lead' | 'supporting',
   expectedSeasonRevenue: number,
+  heatMultiplier: number,
 ): number {
   if (flatFee <= 0) return 0;
   const pop = talent.popularity;
-  const tier = pop < 40 ? 'low' : pop < 70 ? 'mid' : 'high';
+  const tier = popularityToFeeTier(pop);
   const range = (talent.role === 'actor' && actorType === 'supporting')
     ? SUPPORTING_ACTOR_FEES[tier]
     : TALENT_FEES[talent.role][tier];
   const prestigeMod = 1 - Math.min(Math.max((networkPrestige - talent.prestigeRequired) / 200, 0), 0.15);
-  const effectiveMin = range[0] * prestigeMod;
+  const effectiveMin = range[0] * prestigeMod * heatMultiplier;
   const revShareValue = (revSharePercent / 100) * expectedSeasonRevenue;
   const combinedValue = flatFee + revShareValue;
   return Math.min(100, Math.floor((combinedValue / effectiveMin) * 100));
@@ -154,6 +157,27 @@ export default function TalentDetailScreen() {
   const [offerStatus, setOfferStatus] = useState<OfferStatus>('idle');
   const [lastRejected, setLastRejected] = useState(false);
   const sheetAnim = useRef(new Animated.Value(400)).current;
+  const sheetKeyboardOffset = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = Keyboard.addListener(showEvent, e => {
+      Animated.timing(sheetKeyboardOffset, {
+        toValue: e.endCoordinates.height,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+    const onHide = Keyboard.addListener(hideEvent, () => {
+      Animated.timing(sheetKeyboardOffset, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => { onShow.remove(); onHide.remove(); };
+  }, [sheetKeyboardOffset]);
 
   // Expected season ad revenue for the hire-context show (genre baseline at rating 7)
   const hireShow = shows.find(s => s.id === hireShowID);
@@ -171,10 +195,12 @@ export default function TalentDetailScreen() {
   const eligibleShows = useMemo(() => {
     if (!person || !person.available) return [];
     if (person.role === 'showrunner') {
-      return shows.filter(s =>
-        s.status === 'writing' &&
-        (s.seasons[s.currentSeasonIndex]?.showrunnerID ?? '') === ''
-      );
+      return shows.filter(s => {
+        const season = s.seasons[s.currentSeasonIndex];
+        return s.status === 'writing' &&
+          season != null &&
+          season.showrunnerIDs.length < season.showrunnerSlots;
+      });
     }
     if (person.role === 'director') {
       return shows.filter(s =>
@@ -195,7 +221,7 @@ export default function TalentDetailScreen() {
 
   if (!person) {
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
         <FilmRibbonAmbient />
         <View style={s.header}>
@@ -258,8 +284,9 @@ export default function TalentDetailScreen() {
   const cashValid = !isNaN(flatFee) && flatFee > 0 && flatFee <= cashOnHand;
   const validOffer = cashValid; // cash required; rev share is optional on top
   const hasTyped = offerText.trim().length > 0;
+  const hireShowHeat = hireShow?.heatMultiplier ?? 1.0;
   const likelihood = (hasTyped && !isNaN(flatFee) && flatFee > 0)
-    ? computeLikelihood(person, flatFee, revShare, network.prestige, hireActorType, expectedSeasonRevenue)
+    ? computeLikelihood(person, flatFee, revShare, network.prestige, hireActorType, expectedSeasonRevenue, hireShowHeat)
     : 0;
   const voiceLine = getVoiceLine(person, likelihood, offerStatus, hasTyped);
   const lColor = likelihoodColor(likelihood);
@@ -281,6 +308,8 @@ export default function TalentDetailScreen() {
   }
 
   function closeOfferSheet() {
+    Keyboard.dismiss();
+    sheetKeyboardOffset.setValue(0);
     Animated.timing(sheetAnim, {
       toValue: 400,
       duration: 220,
@@ -290,6 +319,7 @@ export default function TalentDetailScreen() {
 
   function handleOffer() {
     if (!validOffer) return;
+    hap.medium();
     const accepted = evaluateOffer(person.id, flatFee, revShare, network.prestige, hireShowID, hireActorType);
     if (accepted) {
       let success = false;
@@ -298,17 +328,15 @@ export default function TalentDetailScreen() {
       else success = hireActor(hireShowID, person.id, flatFee, revShare, hireActorType);
 
       if (success) {
+        hap.success();
         setOfferStatus('accepted');
         setTimeout(() => {
           closeOfferSheet();
-          if (hireRole === 'showrunner') {
-            router.replace('/(tabs)/');
-          } else {
-            router.back();
-          }
+          router.back();
         }, 1200);
       }
     } else {
+      hap.error();
       setOfferStatus('rejected');
       setLastRejected(true);
       setTimeout(() => setOfferStatus('idle'), 1500);
@@ -316,7 +344,7 @@ export default function TalentDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 
@@ -547,7 +575,7 @@ export default function TalentDetailScreen() {
           />
           {/* Animated sheet */}
           <Animated.View
-            style={[m.sheet, { transform: [{ translateY: sheetAnim }] }]}
+            style={[m.sheet, { transform: [{ translateY: Animated.subtract(sheetAnim, sheetKeyboardOffset) }] }]}
             pointerEvents="auto"
           >
             <View style={m.handle} />
@@ -606,7 +634,7 @@ export default function TalentDetailScreen() {
                 <View style={m.revShareRow}>
                   <TouchableOpacity
                     style={m.stepBtn}
-                    onPress={() => setRevShare(r => Math.max(0, r - 1))}
+                    onPress={() => { hap.light(); setRevShare(r => Math.max(0, r - 1)); }}
                     disabled={revShare === 0}
                   >
                     <Text style={[m.stepBtnText, revShare === 0 && { color: C.border }]}>−</Text>
@@ -621,7 +649,7 @@ export default function TalentDetailScreen() {
                   </View>
                   <TouchableOpacity
                     style={m.stepBtn}
-                    onPress={() => setRevShare(r => Math.min(10, r + 1))}
+                    onPress={() => { hap.light(); setRevShare(r => Math.min(10, r + 1)); }}
                     disabled={revShare === 10}
                   >
                     <Text style={[m.stepBtnText, revShare === 10 && { color: C.border }]}>+</Text>
@@ -778,9 +806,9 @@ const m = StyleSheet.create({
   millionLabel: { color: '#9a958e', fontSize: 18 },
   cashAvail:  { color: '#9a958e', fontFamily: 'Manrope_400Regular', fontSize: 12, marginBottom: 16 },
 
-  submitBtn:         { borderRadius: 14, overflow: 'hidden' },
+  submitBtn:         { borderRadius: 14 },
   submitBtnDisabled: { backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#252840', borderRadius: 14 },
-  submitBtnGrad:     { padding: 16, alignItems: 'center' },
+  submitBtnGrad:     { padding: 16, alignItems: 'center', borderRadius: 14 },
   submitBtnText:     { color: '#161008', fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
   submitBtnTextDisabled: { color: '#9a958e', fontFamily: 'Manrope_600SemiBold', fontSize: 16 },
 

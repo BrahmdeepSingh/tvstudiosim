@@ -1,7 +1,7 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, Animated, Image, Modal,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
@@ -10,6 +10,8 @@ import { Show, NewsItem, StudioEvent } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { THEME_WINDOWS } from '../../src/constants/schedule';
 import { EmmyCeremonyModal } from '../components/EmmyCeremonyModal';
+import WeeklyRecapModal from '../components/WeeklyRecapModal';
+import { hap } from '../../src/utils/haptics';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -316,13 +318,14 @@ function fmtDelta(n: number): string {
   return `${sign}$${abs}`;
 }
 
-function StudioEventModal({ event: ev }: { event: StudioEvent }) {
+function StudioEventModal({ event: ev, visible }: { event: StudioEvent; visible: boolean }) {
   const { resolveStudioEvent } = useGameStore();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const typeColor = EVENT_COLORS[ev.type] ?? '#9a958e';
 
   function handleConfirm() {
     if (selectedIndex === null) return;
+    hap.medium();
     resolveStudioEvent(ev.id, selectedIndex);
     // Modal disappears automatically when the store marks the event resolved
     // and pendingEvent becomes null in the parent — no manual dismiss needed.
@@ -331,7 +334,7 @@ function StudioEventModal({ event: ev }: { event: StudioEvent }) {
   const chosen = selectedIndex !== null ? ev.choices[selectedIndex] : null;
 
   return (
-    <Modal transparent animationType="fade" statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={m.overlay}>
         <View style={m.card}>
           {/* Event type badge + type label */}
@@ -425,6 +428,10 @@ export default function Dashboard() {
   const expiringRef = useRef<Set<string>>(new Set());
   const glowAnim    = useRef(new Animated.Value(0)).current;
 
+  const [recapVisible, setRecapVisible]   = useState(false);
+  const [recapWeek,    setRecapWeek]      = useState(1);
+  const [recapYear,    setRecapYear]      = useState(1);
+
   // Derive the current pending event directly — when it's resolved in the store
   // this becomes null and the modal disappears automatically with no stale-closure issues.
   const pendingEvent = (studioEvents ?? []).find(e => !e.resolved) ?? null;
@@ -463,7 +470,7 @@ export default function Dashboard() {
     return (
       <LinearGradient colors={['#141726', '#0c0f1a', '#070a12']} style={{ flex: 1 }}>
         <FilmRibbonAmbient />
-        <SafeAreaView style={s.setupContainer}>
+        <SafeAreaView edges={['top']} style={s.setupContainer}>
           <Text style={s.setupTitle}>TV STUDIO SIM</Text>
           <TouchableOpacity
             style={s.advanceBtn}
@@ -484,9 +491,16 @@ export default function Dashboard() {
   }
 
   // ── Derived data ────────────────────────────────────────────────────────────
-  const activeShows = shows.filter(sh =>
-    ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(sh.status)
-  );
+  const activeShows = shows
+    .filter(sh => ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(sh.status))
+    .sort((a, b) => {
+      const airingScore = (sh: typeof a) => sh.status === 'airing' ? 1 : 0;
+      if (airingScore(b) !== airingScore(a)) return airingScore(b) - airingScore(a);
+      // Both airing: most recently aired episode first
+      const aEps = a.seasons[a.currentSeasonIndex]?.episodesAired ?? 0;
+      const bEps = b.seasons[b.currentSeasonIndex]?.episodesAired ?? 0;
+      return bEps - aEps;
+    });
 
   const unreadInbox = inboxItems
     .filter(i => !i.read && !fadedIds.has(i.id) && (itemAgeWeeks(i) < 2 || expiringRef.current.has(i.id)))
@@ -559,7 +573,7 @@ export default function Dashboard() {
       style={{ flex: 1 }}
     >
       <FilmRibbonAmbient />
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
           {/* ── Header ── */}
@@ -737,7 +751,17 @@ export default function Dashboard() {
               },
             ]}
           />
-          <TouchableOpacity style={s.advanceBtn} onPress={advanceWeek} activeOpacity={0.88}>
+          <TouchableOpacity style={s.advanceBtn} onPress={() => {
+            hap.medium();
+            setTimeout(() => {
+              advanceWeek();
+              // Read week/year AFTER advance so they match weekAired on episodes
+              const { network: net } = useGameStore.getState();
+              setRecapWeek(net.currentWeek);
+              setRecapYear(net.currentYear);
+              setRecapVisible(true);
+            }, 16);
+          }} activeOpacity={0.88}>
             <LinearGradient
               colors={['#f0c060', '#c49440']}
               start={{ x: 0, y: 0 }}
@@ -752,11 +776,18 @@ export default function Dashboard() {
         </View>
       </SafeAreaView>
 
+      <WeeklyRecapModal
+        visible={recapVisible}
+        onClose={() => setRecapVisible(false)}
+        week={recapWeek}
+        year={recapYear}
+      />
+
       {pendingEvent && (
-        <StudioEventModal event={pendingEvent} />
+        <StudioEventModal event={pendingEvent} visible={!recapVisible} />
       )}
 
-      {emmyCeremonyPendingYear !== null && (
+      {!recapVisible && emmyCeremonyPendingYear !== null && (
         <EmmyCeremonyModal />
       )}
     </LinearGradient>
@@ -866,7 +897,7 @@ const s = StyleSheet.create({
   // ── Advance Week ─────────────────────────────────────────────────────────────
   advanceWrap:        { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: C.border },
   advanceGlowRing:    { position: 'absolute', left: 16, right: 16, top: 12, borderRadius: 999, height: 56, backgroundColor: C.gold },
-  advanceBtn:         { borderRadius: 999, overflow: 'hidden' },
+  advanceBtn:         { borderRadius: 999 },
   advanceBtnGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
   advanceBtnText:     { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
 });
@@ -913,7 +944,7 @@ const m = StyleSheet.create({
   confirmRow:     { flexDirection: 'row', gap: 10 },
   backBtn:        { flex: 1, borderWidth: 1, borderColor: '#252840', borderRadius: 12, padding: 13, alignItems: 'center' },
   backBtnText:    { fontFamily: 'Manrope_600SemiBold', color: '#9a958e', fontSize: 14 },
-  confirmBtn:     { flex: 2, borderRadius: 12, overflow: 'hidden' },
-  confirmBtnGrad: { padding: 13, alignItems: 'center' },
+  confirmBtn:     { flex: 2, borderRadius: 12 },
+  confirmBtnGrad: { padding: 13, alignItems: 'center', borderRadius: 12 },
   confirmBtnText: { fontFamily: 'Manrope_800ExtraBold', color: '#0f1220', fontSize: 14 },
 });

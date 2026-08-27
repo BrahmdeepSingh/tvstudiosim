@@ -229,6 +229,49 @@ export function makeStreamingDealNews(
 // PLAYER SHOW MILESTONE NEWS
 // ─────────────────────────────────────────────────────────────────────────────
 
+export function makeLoanDefaultNews(networkName: string, amountOwed: number, ctx: Ctx): NewsItem {
+  const fmt = (n: number) => `$${(n / 1_000_000).toFixed(1)}M`;
+  const lines = [
+    `${networkName} has reportedly missed a repayment deadline on a private financing arrangement. The outstanding balance, believed to be around ${fmt(amountOwed)}, is now accruing additional penalties.`,
+    `Industry sources say ${networkName} is behind on a private loan obligation. The network has not responded to requests for comment, fueling speculation about its near-term financial position.`,
+    `Whispers in the industry suggest ${networkName} is in hot water with a private lender. A missed payment window has left the network's finances under scrutiny at an uncomfortable time.`,
+  ];
+  return {
+    id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false, byline: byline(),
+    headline: `${networkName} reportedly misses private loan repayment`,
+    body: randomItem(lines),
+  };
+}
+
+export function makeNewShowRumorNews(
+  showTitle: string,
+  genre: string,
+  networkName: string,
+  inHouse: boolean,
+  ctx: Ctx,
+): NewsItem {
+  const lines = inHouse ? [
+    `Sources at ${networkName} say the network is developing a new ${genre} project internally, working title "${showTitle}." No official confirmation yet.`,
+    `${networkName} is believed to be quietly developing "${showTitle}," a ${genre} series originating from the network's own creative team. Details remain scarce.`,
+    `Rumors are circulating that ${networkName} has a ${genre} project called "${showTitle}" in early development. Insiders say it's further along than the network is letting on.`,
+    `"${showTitle}" has been whispered about in industry circles as ${networkName}'s next in-house ${genre} venture. The network declined to comment.`,
+    `${networkName} is reportedly incubating a ${genre} project called "${showTitle}" without outside involvement. An announcement is expected once the writing phase concludes.`,
+  ] : [
+    `${networkName} has acquired the rights to "${showTitle}," a ${genre} pitch that's been making the rounds. Writing is expected to begin shortly.`,
+    `"${showTitle}" has found a home at ${networkName}. The ${genre} project was pitched by an independent showrunner and quickly caught the network's attention.`,
+    `Sources confirm that ${networkName} has greenlighted "${showTitle}," a ${genre} project that beat out competing offers. The network moved decisively once the pitch landed.`,
+    `${networkName} snapped up "${showTitle}" in what sources describe as a competitive situation. The ${genre} series will go straight into development.`,
+    `A new ${genre} series called "${showTitle}" is heading to ${networkName} after the network closed a deal with its creative team. The trade calls it a project to watch.`,
+  ];
+  return {
+    id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false, byline: byline(),
+    headline: inHouse
+      ? `${networkName} rumored to be developing new ${genre} series "${showTitle}"`
+      : `${networkName} acquires "${showTitle}" — new ${genre} series in development`,
+    body: randomItem(lines),
+  };
+}
+
 export function makeFilmingWrapNews(showTitle: string, ctx: Ctx): NewsItem {
   const lines = [
     `Principal photography has officially wrapped on "${showTitle}". The production is now entering post-production ahead of its marketing push.`,
@@ -287,6 +330,34 @@ export function makeFinalSeasonAnnouncedNews(showTitle: string, seasonNumber: nu
     headline: `"${showTitle}" to end with Season ${seasonNumber}`,
     body: randomItem(lines),
   };
+}
+
+export function makeCulturalPhenomenonNews(
+  showTitle: string,
+  seasonNumber: number,
+  networkName: string,
+  ctx: Ctx,
+): NewsItem[] {
+  return [
+    {
+      id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false,
+      byline: 'Trade Wire Staff',
+      headline: `"${showTitle}" series finale draws 50 million viewers — a record for the modern era`,
+      body: `In a result that stunned even the most optimistic projections, the ${seasonNumber}-season finale of "${showTitle}" was watched by an estimated 50 million viewers. ${networkName} has not had a number like this in network history. Industry analysts say the figure may represent the single largest scripted audience in decades.`,
+    },
+    {
+      id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false,
+      byline: 'Marcus Oyelaran, Culture Desk',
+      headline: `The night "${showTitle}" stopped everything`,
+      body: `Restaurants reported empty dining rooms. Social media traffic spiked to Super Bowl levels. Coworkers who have never agreed on anything were texting each other at midnight. Whatever "${showTitle}" did across its run, the finale turned it into something rare — a moment everyone experienced at the same time.`,
+    },
+    {
+      id: nanoid(), week: ctx.week, year: ctx.year, type: 'player', read: false,
+      byline: 'Dana Kessler, The Trades',
+      headline: `What 50 million viewers means for ${networkName} — and for the industry`,
+      body: `The advertising and syndication value of a 50-million-viewer event is difficult to overstate. ${networkName} is expected to see a significant prestige uplift, talent negotiation leverage, and streaming rights demand in the wake of tonight's finale. Whether lightning can strike twice is beside the point — this kind of number writes its own legacy.`,
+    },
+  ];
 }
 
 export function makeSeriesFinaleNews(showTitle: string, seasonNumber: number, ctx: Ctx): NewsItem {

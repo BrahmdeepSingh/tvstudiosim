@@ -1,12 +1,15 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Image, Switch,
-} from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Switch } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { useState } from 'react';
+import { hap } from '../src/utils/haptics';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { Talent } from '../src/types';
-import { TALENT_FEES, MIN_EPISODES, MAX_EPISODES } from '../src/constants/game';
+import { TALENT_FEES, MIN_EPISODES, MAX_EPISODES, popularityToFeeTier } from '../src/constants/game';
+import { WRITERS_ROOM_PRESTIGE } from '../src/engine/quality';
 import { AVATAR_MAP } from '../src/utils/avatars';
 
 const C = {
@@ -38,10 +41,11 @@ function fmt(n: number): string {
   return `${sign}$${abs}`;
 }
 
-function autoResignFee(t: Talent): number {
-  const tier = t.popularity < 40 ? 'low' : t.popularity < 70 ? 'mid' : 'high';
+function autoResignFee(t: Talent, heatMultiplier: number): number {
+  const tier = popularityToFeeTier(t.popularity);
   const range = t.role === 'actor' ? TALENT_FEES.actor[tier] : TALENT_FEES[t.role][tier];
-  return Math.round((range[0] + range[1]) / 2 / 50_000) * 50_000;
+  const base = Math.round((range[0] + range[1]) / 2 / 50_000) * 50_000;
+  return Math.round((base * heatMultiplier) / 50_000) * 50_000;
 }
 
 function isReturnable(t: Talent): boolean {
@@ -55,6 +59,7 @@ function TalentReturnCard({
   returnable,
   canSelect,
   onToggle,
+  heatMultiplier,
 }: {
   talent: Talent;
   role: string;
@@ -62,9 +67,10 @@ function TalentReturnCard({
   returnable: boolean;
   canSelect: boolean;
   onToggle: () => void;
+  heatMultiplier: number;
 }) {
   const chemColor = CHEM_COLORS[talent.chemistryColor];
-  const fee = autoResignFee(talent);
+  const fee = autoResignFee(talent, heatMultiplier);
 
   let primaryStat = 0;
   let primaryLabel = '';
@@ -128,33 +134,52 @@ export default function RenewScreen() {
   const [episodeCount, setEpisodeCount] = useState(prevSeason?.episodeCount ?? 10);
   const [leadSlots, setLeadSlots] = useState(prevSeason?.leadActorSlots ?? 2);
   const [supportingSlots, setSupportingSlots] = useState(prevSeason?.supportingActorSlots ?? 2);
-  const [resignShowrunner, setResignShowrunner] = useState(true);
+  const [showrunnerSlots, setShowrunnerSlots] = useState(prevSeason?.showrunnerSlots ?? 1);
+  const [resignShowrunnerIDs, setResignShowrunnerIDs] = useState<string[]>(prevSeason?.showrunnerIDs ?? []);
   const [resignDirector, setResignDirector] = useState(false);
   const [resignLeadIDs, setResignLeadIDs] = useState<string[]>([]);
   const [resignSupportingIDs, setResignSupportingIDs] = useState<string[]>([]);
 
   if (!show || !prevSeason || show.status !== 'renewal-pending') {
     return (
-      <SafeAreaView style={s.container}>
+      <SafeAreaView edges={['top']} style={s.container}>
         <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
         <Text style={{ color: C.muted, padding: 32, fontFamily: 'Manrope_400Regular' }}>Show not available for renewal.</Text>
       </SafeAreaView>
     );
   }
 
+  const heat = show.heatMultiplier ?? 1.0;
+
   const prevSeasonNumber = prevSeason.seasonNumber;
   const newSeasonNumber = prevSeasonNumber + 1;
 
-  const returningShowrunner = talent.find(t => t.id === prevSeason.showrunnerID) ?? null;
-  const returningDirector   = prevSeason.directorID ? talent.find(t => t.id === prevSeason.directorID) ?? null : null;
-  const returningLeads      = prevSeason.leadActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
-  const returningSupporting = prevSeason.supportingActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
+  const returningShowrunners = prevSeason.showrunnerIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
+  const returningDirector    = prevSeason.directorID ? talent.find(t => t.id === prevSeason.directorID) ?? null : null;
+  const returningLeads       = prevSeason.leadActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
+  const returningSupporting  = prevSeason.supportingActorIDs.map(id => talent.find(t => t.id === id)).filter(Boolean) as Talent[];
 
-  // Showrunner is never marked available mid-season (they work writing + filming).
-  // They're always returnable for their own show's renewal since they're not busy elsewhere.
-  const showrunnerReturnable = returningShowrunner != null;
+  const writersRoomUnlocked = network.prestige >= WRITERS_ROOM_PRESTIGE;
+
+  function toggleShowrunnerResign(id: string) {
+    hap.light();
+    setResignShowrunnerIDs(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      if (prev.length >= showrunnerSlots) return prev;
+      return [...prev, id];
+    });
+  }
+
+  function adjustShowrunnerSlots(delta: number) {
+    const next = Math.max(1, Math.min(3, showrunnerSlots + delta));
+    setShowrunnerSlots(next);
+    if (resignShowrunnerIDs.length > next) {
+      setResignShowrunnerIDs(prev => prev.slice(0, next));
+    }
+  }
 
   function toggleLeadResign(id: string) {
+    hap.light();
     setResignLeadIDs(prev => {
       if (prev.includes(id)) return prev.filter(x => x !== id);
       if (prev.length >= leadSlots) return prev;
@@ -163,6 +188,7 @@ export default function RenewScreen() {
   }
 
   function toggleSupportingResign(id: string) {
+    hap.light();
     setResignSupportingIDs(prev => {
       if (prev.includes(id)) return prev.filter(x => x !== id);
       if (prev.length >= supportingSlots) return prev;
@@ -186,33 +212,36 @@ export default function RenewScreen() {
     }
   }
 
-  const showrunnerFee  = resignShowrunner && showrunnerReturnable ? autoResignFee(returningShowrunner!) : 0;
-  const directorFee    = resignDirector && returningDirector ? autoResignFee(returningDirector) : 0;
+  const showrunnerFee  = resignShowrunnerIDs.reduce((sum, id) => {
+    const t = talent.find(x => x.id === id);
+    return sum + (t ? autoResignFee(t, heat) : 0);
+  }, 0);
+  const directorFee    = resignDirector && returningDirector ? autoResignFee(returningDirector, heat) : 0;
   const leadFees       = resignLeadIDs.reduce((sum, id) => {
     const t = talent.find(x => x.id === id);
-    return sum + (t ? autoResignFee(t) : 0);
+    return sum + (t ? autoResignFee(t, heat) : 0);
   }, 0);
   const supportingFees = resignSupportingIDs.reduce((sum, id) => {
     const t = talent.find(x => x.id === id);
-    return sum + (t ? autoResignFee(t) : 0);
+    return sum + (t ? autoResignFee(t, heat) : 0);
   }, 0);
   const totalResignCost = showrunnerFee + directorFee + leadFees + supportingFees;
   const canAfford = network.cashOnHand >= totalResignCost;
 
   function handleStartPreProduction() {
-    // Pass keepShowrunner: renewShow handles booking/freeing internally
-    renewShow(showID!, episodeCount, leadSlots, supportingSlots, resignShowrunner && showrunnerReturnable, isFinalSeason);
+    hap.heavy();
+    renewShow(showID!, episodeCount, leadSlots, supportingSlots, showrunnerSlots, resignShowrunnerIDs, isFinalSeason);
 
     if (resignDirector && returningDirector) {
-      hireDirector(showID!, returningDirector.id, autoResignFee(returningDirector), 0);
+      hireDirector(showID!, returningDirector.id, autoResignFee(returningDirector, heat), 0);
     }
     for (const id of resignLeadIDs) {
       const t = talent.find(x => x.id === id);
-      if (t) hireActor(showID!, t.id, autoResignFee(t), 0, 'lead');
+      if (t) hireActor(showID!, t.id, autoResignFee(t, heat), 0, 'lead');
     }
     for (const id of resignSupportingIDs) {
       const t = talent.find(x => x.id === id);
-      if (t) hireActor(showID!, t.id, autoResignFee(t), 0, 'supporting');
+      if (t) hireActor(showID!, t.id, autoResignFee(t, heat), 0, 'supporting');
     }
 
     router.replace(`/show/${showID}`);
@@ -221,7 +250,7 @@ export default function RenewScreen() {
   const directorReturnable = returningDirector ? isReturnable(returningDirector) : false;
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 
@@ -268,33 +297,54 @@ export default function RenewScreen() {
           />
         </TouchableOpacity>
 
-        {/* Showrunner */}
-        <Text style={s.sectionLabel}>SHOWRUNNER</Text>
-        {returningShowrunner ? (
-          <>
-            <TalentReturnCard
-              talent={returningShowrunner}
-              role="Showrunner"
-              selected={resignShowrunner}
-              returnable={showrunnerReturnable}
-              canSelect={true}
-              onToggle={() => setResignShowrunner(v => !v)}
-            />
-            {!resignShowrunner && (
-              <TouchableOpacity
-                style={s.replaceBtn}
-                onPress={() => router.push(`/hire-talent?showID=${showID}&role=showrunner`)}
-              >
-                <Text style={s.replaceBtnText}>Hire New Showrunner →</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        ) : (
+        {/* Showrunner slots */}
+        <Text style={s.sectionLabel}>SHOWRUNNER SLOTS</Text>
+        <View style={s.slotStepper}>
+          <TouchableOpacity
+            style={[s.stepBtn, showrunnerSlots <= 1 && s.stepBtnDisabled]}
+            onPress={() => adjustShowrunnerSlots(-1)}
+          >
+            <Text style={s.stepBtnText}>−</Text>
+          </TouchableOpacity>
+          <Text style={s.slotCount}>{showrunnerSlots} slot{showrunnerSlots !== 1 ? 's' : ''}</Text>
+          <TouchableOpacity
+            style={[s.stepBtn, (showrunnerSlots >= 3 || !writersRoomUnlocked) && s.stepBtnDisabled]}
+            onPress={() => adjustShowrunnerSlots(1)}
+            disabled={showrunnerSlots >= 3 || !writersRoomUnlocked}
+          >
+            <Text style={s.stepBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+        {!writersRoomUnlocked && (
+          <Text style={[s.emptyHint, { marginTop: 6 }]}>
+            Writers Room (2–3 slots) unlocks at Prestige {WRITERS_ROOM_PRESTIGE}
+          </Text>
+        )}
+
+        {returningShowrunners.length > 0 && (
+          <View style={[s.cardGroup, { marginTop: 10 }]}>
+            {returningShowrunners.map(t => (
+              <TalentReturnCard
+                key={t.id}
+                talent={t}
+                role="Showrunner"
+                selected={resignShowrunnerIDs.includes(t.id)}
+                returnable={true}
+                canSelect={resignShowrunnerIDs.length < showrunnerSlots}
+                onToggle={() => toggleShowrunnerResign(t.id)}
+                heatMultiplier={heat}
+              />
+            ))}
+          </View>
+        )}
+        {resignShowrunnerIDs.length < showrunnerSlots && (
           <TouchableOpacity
             style={s.replaceBtn}
             onPress={() => router.push(`/hire-talent?showID=${showID}&role=showrunner`)}
           >
-            <Text style={s.replaceBtnText}>Hire Showrunner →</Text>
+            <Text style={s.replaceBtnText}>
+              {returningShowrunners.length > 0 ? 'Add Another Showrunner →' : 'Hire Showrunner →'}
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -330,6 +380,7 @@ export default function RenewScreen() {
               returnable={directorReturnable}
               canSelect={true}
               onToggle={() => setResignDirector(v => !v)}
+              heatMultiplier={heat}
             />
           </>
         )}
@@ -363,6 +414,7 @@ export default function RenewScreen() {
                 returnable={isReturnable(t)}
                 canSelect={resignLeadIDs.length < leadSlots}
                 onToggle={() => toggleLeadResign(t.id)}
+                heatMultiplier={heat}
               />
             ))}
           </View>
@@ -397,6 +449,7 @@ export default function RenewScreen() {
                 returnable={isReturnable(t)}
                 canSelect={resignSupportingIDs.length < supportingSlots}
                 onToggle={() => toggleSupportingResign(t.id)}
+                heatMultiplier={heat}
               />
             ))}
           </View>
@@ -525,9 +578,9 @@ const s = StyleSheet.create({
 
   footer:              { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
   footerNote:          { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, textAlign: 'center' },
-  proceedBtn:          { borderRadius: 14, overflow: 'hidden' },
+  proceedBtn:          { borderRadius: 14 },
   proceedBtnDisabled:  { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 14 },
-  proceedBtnGrad:      { padding: 16, alignItems: 'center' },
+  proceedBtnGrad:      { padding: 16, alignItems: 'center', borderRadius: 14 },
   proceedBtnText:      { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 15 },
   proceedBtnTextDisabled: { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
 
