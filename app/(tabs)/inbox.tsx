@@ -50,7 +50,7 @@ const TYPE_META: Record<string, { label: string; color: string }> = {
 
 function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) {
   const router = useRouter();
-  const { pitches, talent, shows, network, greenlightPitch, passPitch, markInboxRead } = useGameStore();
+  const { pitches, talent, shows, network, passPitch, markInboxRead } = useGameStore();
   const pitch = pitches.find(p => p.id === item.refID);
   const showrunner = pitch ? talent.find(t => t.id === pitch.showrunnerID) : null;
 
@@ -68,14 +68,9 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
 
   const expired = pitch.passed || pitch.greenlitByPlayer;
 
-  function handleGreenlight() {
+  function handleEnterBidding() {
     if (atCapacity) return;
-    const ok = greenlightPitch(pitch!.id);
-    if (ok) {
-      hap.heavy();
-      markInboxRead(item.id);
-      onDone();
-    }
+    router.push(`/bidding/${pitch!.id}`);
   }
 
   function handlePass() {
@@ -95,28 +90,27 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
       <Text style={d.logline}>"{pitch.logline}"</Text>
 
       <View style={d.infoBlock}>
-        <Row label="Showrunner"  value={showrunner?.name ?? '—'} />
-        <Row label="Asking fee"  value={fmt(pitch.askingFlatFee)} />
-        <Row label="Rev share"   value={pitch.askingRevenueSharePercent > 0 ? `${pitch.askingRevenueSharePercent}%` : 'None'} />
-        <Row label="Expires"     value={`Week ${pitch.expiresWeek}, Year ${pitch.expiresYear}`} />
+        <Row label="Produced by"  value={showrunner?.name ?? '—'} />
+        <Row label="Asking price" value={fmt(pitch.askingFlatFee)} />
+        <Row label="Rev share"    value={pitch.askingRevenueSharePercent > 0 ? `${pitch.askingRevenueSharePercent}%` : 'None'} />
+        <Row label="Expires"      value={`Week ${pitch.expiresWeek}, Year ${pitch.expiresYear}`} />
       </View>
 
       <View style={d.noteCard}>
         <Text style={d.noteText}>
-          Greenlighting covers the showrunner's fee. You'll hire a director and cast once filming begins.
-          The showrunner's skill determines a hidden quality floor for this series.
+          This show is fully produced and ready to air. Win the bidding war and it lands in your slate — set a marketing plan and air date. Renewing for Season 2 is when you take full creative control.
         </Text>
       </View>
 
       {atCapacity && !expired && (
         <View style={d.capacityBanner}>
           <Text style={d.capacityBannerTitle}>
-            Production Capacity Reached  ({activeCount}/{capacity === Infinity ? '∞' : capacity})
+            Slate Capacity Reached ({activeCount}/{capacity === Infinity ? '∞' : capacity})
           </Text>
           <Text style={d.capacityBannerSub}>
             {network.prestige < 21
-              ? 'Reach Prestige 21 to greenlight a 3rd show at once.'
-              : 'Reach Prestige 41 to greenlight unlimited shows.'}
+              ? 'Reach Prestige 21 to acquire a 3rd show at once.'
+              : 'Reach Prestige 41 to acquire unlimited shows.'}
           </Text>
         </View>
       )}
@@ -128,7 +122,7 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
           </TouchableOpacity>
           <TouchableOpacity
             style={[d.primaryBtn, atCapacity && { opacity: 0.4 }]}
-            onPress={handleGreenlight}
+            onPress={handleEnterBidding}
             disabled={atCapacity}
           >
             <LinearGradient
@@ -137,7 +131,7 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
               end={{ x: 1, y: 0 }}
               style={d.primaryBtnGrad}
             >
-              <Text style={d.primaryBtnText}>Greenlight →</Text>
+              <Text style={d.primaryBtnText}>Enter Bidding →</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -145,7 +139,7 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
       {expired && (
         <View style={d.expiredNote}>
           <Text style={d.expiredText}>
-            {pitch.greenlitByPlayer ? '✓ Greenlighted' : '✗ Passed on this pitch'}
+            {pitch.greenlitByPlayer ? '✓ Won Bidding War' : '✗ Passed on this pitch'}
           </Text>
         </View>
       )}

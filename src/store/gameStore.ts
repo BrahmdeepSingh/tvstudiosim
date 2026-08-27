@@ -71,7 +71,7 @@ interface GameStore extends GameState {
   savePosterConfig: (showID: string, config: PosterConfig) => void;
 
   // Pitches
-  greenlightPitch: (pitchID: string) => boolean;
+  acquireShow: (pitchID: string, winningBid: number) => boolean;
   passPitch: (pitchID: string) => void;
 
   // Renewal / cancellation
@@ -568,14 +568,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Pitches ───────────────────────────────────────────────────────────────
 
-  greenlightPitch: (pitchID) => {
+  acquireShow: (pitchID, winningBid) => {
     const state = get();
     const pitch = state.pitches.find(p => p.id === pitchID);
     if (!pitch || pitch.greenlitByPlayer || pitch.passed) return false;
-
-    const showrunner = state.talent.find(t => t.id === pitch.showrunnerID);
-    if (!showrunner || !showrunner.available) return false;
-    if (state.network.cashOnHand < pitch.askingFlatFee) return false;
+    if (state.network.cashOnHand < winningBid) return false;
 
     const showID = nanoid();
     const seasonID = nanoid();
@@ -592,15 +589,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       socialReactions: [],
     }));
 
+    // Show is fully produced — writing and filming are already complete.
+    // Quality is baked in from the hidden score; no talent slots needed for S1.
     const season: Season = {
       id: seasonID,
       showID,
       seasonNumber: 1,
       episodeCount: pitch.proposedEpisodeCount,
       writingWeeksTotal: WRITING_WEEKS,
-      writingWeeksCompleted: 0,
+      writingWeeksCompleted: WRITING_WEEKS,
       filmingWeeksTotal: pitch.proposedEpisodeCount,
-      filmingWeeksCompleted: 0,
+      filmingWeeksCompleted: pitch.proposedEpisodeCount,
       marketingWeeksTotal: 0,
       marketingWeeksCompleted: 0,
       airDateWeek: null,
@@ -609,20 +608,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
       episodes,
       totalViewers: 0,
       totalAdRevenue: 0,
-      productionCost: pitch.askingFlatFee,
+      productionCost: winningBid,
       marketingSpend: 0,
       marketingChannelIDs: [],
       streamingRevenue: 0,
       renewalDecisionMade: false,
       renewed: false,
-      leadActorSlots: 2,
-      supportingActorSlots: 2,
+      leadActorSlots: 0,
+      supportingActorSlots: 0,
       leadActorIDs: [],
       supportingActorIDs: [],
       directorID: null,
-      showrunnerSlots: 1,
-      showrunnerIDs: [pitch.showrunnerID],
-      scriptScore: 0,
+      showrunnerSlots: 0,
+      showrunnerIDs: [],
+      scriptScore: Math.min(100, Math.round(pitch.hiddenQualityScore * 1.05)),
       qualityScore: pitch.hiddenQualityScore,
       suggestedShowrunnerIDs: [],
       suggestedDirectorID: null,
@@ -636,7 +635,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       genre: pitch.genre,
       theme: pitch.theme,
       inHouse: false,
-      status: 'writing',
+      status: 'marketing',
       seasons: [season],
       currentSeasonIndex: 0,
       streamingDeals: [],
@@ -648,37 +647,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
       heatMultiplier: 1.0,
     };
 
-    const deal: TalentDeal = {
-      id: nanoid(),
-      talentID: pitch.showrunnerID,
-      showID,
-      seasonID,
-      flatFee: pitch.askingFlatFee,
-      revenueSharePercent: pitch.askingRevenueSharePercent,
-      agreedWeek: state.network.currentWeek,
-      agreedYear: state.network.currentYear,
-    };
-
     set(s => ({
       network: {
         ...s.network,
-        cashOnHand: s.network.cashOnHand - pitch.askingFlatFee,
+        cashOnHand: s.network.cashOnHand - winningBid,
       },
       shows: [...s.shows, show],
       pitches: s.pitches.map(p =>
         p.id === pitchID ? { ...p, greenlitByPlayer: true } : p,
       ),
-      talent: s.talent.map(t =>
-        t.id === pitch.showrunnerID
-          ? { ...t, available: false, bookedForSeasonID: seasonID, careerShowIDs: t.careerShowIDs.includes(showID) ? t.careerShowIDs : [...t.careerShowIDs, showID] }
-          : t,
-      ),
-      talentDeals: [...s.talentDeals, deal],
     }));
-    const greenlitRumorNews = makeNewShowRumorNews(pitch.title, pitch.genre, get().network.name, false, { week: state.network.currentWeek, year: state.network.currentYear });
-    set(s => ({ newsItems: [...s.newsItems, greenlitRumorNews] }));
-    const newIDsGl = checkAchievements(get());
-    if (newIDsGl.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDsGl], achievementQueue: [...s.achievementQueue, ...newIDsGl] }));
+
+    const acquisitionNews = makeNewShowRumorNews(
+      pitch.title, pitch.genre, get().network.name, false,
+      { week: state.network.currentWeek, year: state.network.currentYear },
+    );
+    set(s => ({ newsItems: [...s.newsItems, acquisitionNews] }));
+
+    const newIDsAcq = checkAchievements(get());
+    if (newIDsAcq.length > 0) {
+      set(s => ({
+        unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDsAcq],
+        achievementQueue: [...s.achievementQueue, ...newIDsAcq],
+      }));
+    }
 
     return true;
   },
