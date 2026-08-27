@@ -754,12 +754,13 @@ export default function Dashboard() {
           <TouchableOpacity style={s.advanceBtn} onPress={() => {
             hap.medium();
             setTimeout(() => {
-              advanceWeek();
-              // Read week/year AFTER advance so they match weekAired on episodes
-              const { network: net } = useGameStore.getState();
-              setRecapWeek(net.currentWeek);
-              setRecapYear(net.currentYear);
+              // Set recap visible BEFORE advanceWeek so any event generated during
+              // the tick starts hidden — avoids the event flashing before the recap.
+              // nextWeek/nextYear are pre-computed above and match what advanceWeek sets.
+              setRecapWeek(nextWeek);
+              setRecapYear(nextYear);
               setRecapVisible(true);
+              advanceWeek();
             }, 16);
           }} activeOpacity={0.88}>
             <LinearGradient
