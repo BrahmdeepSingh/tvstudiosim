@@ -714,6 +714,8 @@ export function advanceWeek(state: GameState): GameState {
 // ─── Stage tick functions ──────────────────────────────────────────────────────
 
 function tickWriting(show: Show, season: Season, state: GameState): Show {
+  if (season.showrunnerIDs.length === 0) return show; // waiting on player
+
   const completed = season.writingWeeksCompleted + 1;
   let updatedSeason = { ...season, writingWeeksCompleted: completed };
 
