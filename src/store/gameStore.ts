@@ -442,6 +442,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const season = show.seasons[show.currentSeasonIndex];
     if (!season) return false;
 
+    if (actorType === 'lead' && season.leadActorIDs.length >= season.leadActorSlots) return false;
+    if (actorType === 'supporting' && season.supportingActorIDs.length >= season.supportingActorSlots) return false;
+
     const deal: TalentDeal = {
       id: nanoid(),
       talentID,
