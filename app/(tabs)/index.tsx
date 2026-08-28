@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { LogoBadge } from '../studio-setup';
+import { LogoBadge } from '../components/LogoBadge';
 import { Show, NewsItem, StudioEvent } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { THEME_WINDOWS } from '../../src/constants/schedule';

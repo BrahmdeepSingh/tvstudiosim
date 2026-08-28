@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
-import { LogoBadge } from '../studio-setup';
+import { LogoBadge } from '../components/LogoBadge';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
