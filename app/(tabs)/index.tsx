@@ -467,10 +467,13 @@ export default function Dashboard() {
   }, [network.currentWeek, network.currentYear, initialized]);
 
   // ── New-game redirect ────────────────────────────────────────────────────────
-  if (!initialized) {
-    router.replace('/studio-setup' as any);
-    return null;
-  }
+  useEffect(() => {
+    if (!initialized) {
+      router.replace('/studio-setup' as any);
+    }
+  }, [initialized]);
+
+  if (!initialized) return null;
 
   // ── Derived data ────────────────────────────────────────────────────────────
   const activeShows = shows

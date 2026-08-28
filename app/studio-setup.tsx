@@ -486,7 +486,7 @@ function Step1({ bgColors, textColors, logoBg, setLogoBg, logoIcon, setLogoIcon,
           {bgColors.map(bc => (
             <TouchableOpacity
               key={bc.id}
-              onPress={() => { hap.selection(); setLogoBg(bc.color); }}
+              onPress={() => { hap.light(); setLogoBg(bc.color); }}
               style={[ss.swatch, { backgroundColor: bc.color },
                 bc.color === logoBg && ss.swatchSelected]}
             />
@@ -500,7 +500,7 @@ function Step1({ bgColors, textColors, logoBg, setLogoBg, logoIcon, setLogoIcon,
         <View style={ss.iconGrid}>
           {/* "None" option = initials only */}
           <TouchableOpacity
-            onPress={() => { hap.selection(); setLogoIcon(null); }}
+            onPress={() => { hap.light(); setLogoIcon(null); }}
             style={[ss.iconCell, logoIcon === null && ss.iconCellSelected]}
           >
             <Text style={[ss.iconNoneText, { color: logoIcon === null ? C.gold : C.mutedMid }]}>
@@ -514,7 +514,7 @@ function Step1({ bgColors, textColors, logoBg, setLogoBg, logoIcon, setLogoIcon,
           {ICONS.map(icon => (
             <TouchableOpacity
               key={icon.id}
-              onPress={() => { hap.selection(); setLogoIcon(icon.id); }}
+              onPress={() => { hap.light(); setLogoIcon(icon.id); }}
               style={[ss.iconCell, logoIcon === icon.id && ss.iconCellSelected]}
             >
               <LogoIcon id={icon.id} size={32} color={logoIcon === icon.id ? C.gold : C.muted} />
@@ -533,7 +533,7 @@ function Step1({ bgColors, textColors, logoBg, setLogoBg, logoIcon, setLogoIcon,
           {textColors.map(tc => (
             <TouchableOpacity
               key={tc.id}
-              onPress={() => { hap.selection(); setLogoText(tc.color); }}
+              onPress={() => { hap.light(); setLogoText(tc.color); }}
               style={[ss.swatch, { backgroundColor: tc.color },
                 tc.color === logoText && ss.swatchSelected]}
             />
@@ -592,7 +592,7 @@ function Step2({ studioName, displayInitials, logoConfig, mode, setMode, onFound
             key={m.id}
             style={[ss.modeCard,
               selected && { borderColor: accentColor, backgroundColor: accentColor + '12' }]}
-            onPress={() => { hap.selection(); setMode(m.id); }}
+            onPress={() => { hap.light(); setMode(m.id); }}
             activeOpacity={0.8}
           >
             <View style={ss.modeCardTop}>
