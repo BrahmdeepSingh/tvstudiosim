@@ -171,22 +171,20 @@ export default function BiddingScreen() {
 
     const startingBid = pitch.askingFlatFee;
 
-    // Build studio list — all competitors participate
+    // Build studio list — all competitors participate.
+    // maxBid is anchored to the asking fee so studios are always willing to
+    // bid above opening; quality scales how much above they'll go (1.1x–3.5x).
+    const qMult = 1.1 + (pitch.hiddenQualityScore / 100) * 2.4;
     const auctionStudios: AuctionStudio[] = competitors.map(c => ({
       id:      c.id,
       name:    c.name,
       maxBid:  randNearest(
-        (pitch.hiddenQualityScore / 100) * 1_200_000,
-        (pitch.hiddenQualityScore / 100) * 2_500_000,
+        startingBid * 1.05,
+        startingBid * qMult,
         50_000,
       ),
       dropped: false,
     }));
-
-    // Guarantee at least one studio can afford more than asking
-    if (auctionStudios.every(s => s.maxBid <= startingBid)) {
-      auctionStudios[0].maxBid = startingBid + randNearest(150_000, 400_000, 50_000);
-    }
 
     // Studio with highest maxBid opens at asking price (first bid, always)
     const opener = [...auctionStudios].sort((a, b) => b.maxBid - a.maxBid)[0];
