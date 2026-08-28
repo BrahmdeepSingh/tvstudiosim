@@ -1,4 +1,4 @@
-import { CompetitorStudio, CompetitorShow, NewsItem, Genre, Talent } from '../types';
+import { CompetitorStudio, CompetitorShow, NewsItem, Genre, Talent, LogoConfig } from '../types';
 import {
   COMPETITOR_STUDIO_CONFIGS,
   COMPETITOR_CANCEL_THRESHOLD,
@@ -159,6 +159,25 @@ function computePrestigeDelta(avgRating: number, cancelled: boolean): number {
 
 // ─── Initial generation ───────────────────────────────────────────────────────
 
+const LOGO_BG_COLORS = [
+  '#e6b254', '#c43820', '#3b6fd4', '#2da85e',
+  '#8b4fbd', '#2aa89a', '#d4753a', '#1a2a5e',
+  '#7a1f38', '#3a4a6a',
+];
+const LOGO_TEXT_COLORS = ['#0f1220', '#f0ede8', '#e6b254', '#f5e6c8'];
+const LOGO_ICON_IDS = [
+  null, 'star', 'crown', 'bolt', 'flame', 'eye',
+  'shield', 'trophy', 'diamond', 'play', 'film',
+] as const;
+
+function randomLogoConfig(): LogoConfig {
+  return {
+    bgColor:   LOGO_BG_COLORS[randomBetween(0, LOGO_BG_COLORS.length - 1)],
+    iconID:    LOGO_ICON_IDS[randomBetween(0, LOGO_ICON_IDS.length - 1)] ?? null,
+    textColor: LOGO_TEXT_COLORS[randomBetween(0, LOGO_TEXT_COLORS.length - 1)],
+  };
+}
+
 export function generateInitialCompetitors(
   talent: Talent[],
 ): { competitors: CompetitorStudio[]; updatedTalent: Talent[] } {
@@ -189,6 +208,7 @@ export function generateInitialCompetitors(
       activeShows: initialShows,
       emmysWon: cfg.tier === 'powerhouse' ? randomBetween(1, 4) : randomBetween(0, 2),
       totalShowsProduced: cfg.tier === 'powerhouse' ? randomBetween(4, 10) : randomBetween(1, 5),
+      logoConfig: randomLogoConfig(),
     });
   }
 

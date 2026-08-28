@@ -1172,6 +1172,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       capital: 25_000_000,
       showsGreenlitThisYear: 0,
       preferredGenres: [],
+      logoConfig: EMPTY_STATE.network.logoConfig,
       ...c,
       activeShows: (c.activeShows ?? []).map((s: any) => ({
         marketingWeeksRemaining: 0,
