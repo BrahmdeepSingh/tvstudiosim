@@ -451,7 +451,7 @@ export default function BiddingScreen() {
           </View>
           <View style={s.incRow}>
             {BID_INCREMENTS.map(inc => {
-              const ok = network.cashOnHand >= currentBid + inc;
+              const ok = !playerLeads && network.cashOnHand >= currentBid + inc;
               return (
                 <TouchableOpacity
                   key={inc}
