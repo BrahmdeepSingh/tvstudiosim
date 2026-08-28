@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
+import { LogoBadge } from '../studio-setup';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
@@ -108,9 +109,7 @@ export default function StudioScreen() {
 
         {/* Network identity */}
         <View style={s.identityCard}>
-          <View style={s.networkBadge}>
-            <Text style={s.networkInitials}>{network.initials}</Text>
-          </View>
+          <LogoBadge size={52} initials={network.initials} config={network.logoConfig} />
           <View style={{ flex: 1 }}>
             <Text style={s.networkName}>{network.name}</Text>
             <Text style={s.networkSub}>Independent · Founded Year {network.foundedYear}</Text>

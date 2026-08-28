@@ -399,12 +399,21 @@ export interface InboxItem {
   preview: string;
 }
 
+// ─── Logo Config ─────────────────────────────────────────────────────────────
+
+export interface LogoConfig {
+  bgColor: string;
+  iconID: string | null; // null = initials only
+  textColor: string;
+}
+
 // ─── Network (player) ────────────────────────────────────────────────────────
 
 export interface Network {
   id: string;
   name: string;
   initials: string; // 2 chars
+  logoConfig: LogoConfig;
   foundedYear: number;
   currentWeek: number;
   currentYear: number;

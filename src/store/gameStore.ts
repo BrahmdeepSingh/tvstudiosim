@@ -12,6 +12,7 @@ import {
   InboxItem,
   NewsItem,
   PosterConfig,
+  LogoConfig,
 } from '../types';
 import { advanceWeek as engineAdvanceWeek } from '../engine/advancement';
 import { checkAchievements } from '../engine/achievements';
@@ -49,7 +50,7 @@ import { randomBetween, randomFloat, clamp } from '../utils/random';
 
 interface GameStore extends GameState {
   // Setup
-  initializeGame: (networkName: string, initials: string) => void;
+  initializeGame: (networkName: string, initials: string, startingCash?: number, logoConfig?: LogoConfig) => void;
 
   // Core loop
   advanceWeek: () => void;
@@ -110,6 +111,7 @@ const EMPTY_STATE: GameState = {
     id: '',
     name: '',
     initials: '',
+    logoConfig: { bgColor: '#e6b254', iconID: null, textColor: '#161008' },
     foundedYear: STARTING_YEAR,
     currentWeek: STARTING_WEEK,
     currentYear: STARTING_YEAR,
@@ -149,11 +151,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Setup ────────────────────────────────────────────────────────────────
 
-  initializeGame: (networkName, initials) => {
+  initializeGame: (networkName, initials, startingCash, logoConfig) => {
     const initialTalent = generateInitialTalentPool();
     const { competitors, updatedTalent: talent } = generateInitialCompetitors(initialTalent);
-
-    const starterInbox: InboxItem[] = [];
 
     set({
       ...EMPTY_STATE,
@@ -162,11 +162,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         id: nanoid(),
         name: networkName,
         initials: initials.toUpperCase().slice(0, 2),
+        logoConfig: logoConfig ?? EMPTY_STATE.network.logoConfig,
+        cashOnHand: startingCash ?? STARTING_CASH,
       },
       talent,
       competitors,
       pitches: [],
-      inboxItems: starterInbox,
+      inboxItems: [],
       initialized: true,
     });
   },
@@ -1196,6 +1198,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({
       ...loaded,
+      network: {
+        ...loaded.network,
+        logoConfig: loaded.network.logoConfig ?? EMPTY_STATE.network.logoConfig,
+      },
       shows: migratedShows,
       competitors: migratedCompetitors,
       awards: migratedAwards,
