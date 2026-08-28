@@ -289,14 +289,14 @@ export default function MediaScreen() {
         </View>
         <View style={s.headerRight}>
           <Text style={s.weekLabel}>WEEK {network.currentWeek} · YEAR {network.currentYear}</Text>
-          {unreadCount > 0 && (
-            <TouchableOpacity style={s.inboxBtn} onPress={() => router.push('/(tabs)/inbox')} activeOpacity={0.8}>
-              <Text style={s.inboxBtnText}>INBOX</Text>
+          <TouchableOpacity style={s.inboxBtn} onPress={() => router.push('/(tabs)/inbox')} activeOpacity={0.8}>
+            <Text style={s.inboxBtnText}>INBOX</Text>
+            {unreadCount > 0 && (
               <View style={s.inboxBadge}>
                 <Text style={s.inboxBadgeText}>{unreadCount}</Text>
               </View>
-            </TouchableOpacity>
-          )}
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
