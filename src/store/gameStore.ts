@@ -577,24 +577,40 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const showID = nanoid();
     const seasonID = nanoid();
 
-    // Attach crew — the show is fully produced, fees are baked into the bid
+    // Attach crew — the show is fully produced, fees are baked into the bid.
+    // Crew popularity is matched to the show's quality so the roster feels
+    // appropriate (high-quality shows arrive with more prominent talent).
     const avail = state.talent.filter(t => t.available);
+
+    const q = pitch.hiddenQualityScore;
+    const popMin = q >= 67 ? 55 : q >= 34 ? 25 : 0;
+    const popMax = q >= 67 ? 100 : q >= 34 ? 70 : 45;
+
+    function pickTiered(pool: Talent[]): Talent | null {
+      const tiered = pool.filter(t => t.popularity >= popMin && t.popularity <= popMax);
+      const src = tiered.length > 0 ? tiered : pool;
+      return src.length > 0 ? src[Math.floor(Math.random() * src.length)] : null;
+    }
 
     const showrunner =
       avail.find(t => t.id === pitch.showrunnerID && t.role === 'showrunner') ??
-      avail.find(t => t.role === 'showrunner') ??
+      pickTiered(avail.filter(t => t.role === 'showrunner')) ??
       null;
 
-    const directors = avail.filter(t => t.role === 'director' && t.id !== showrunner?.id);
-    const director = directors.length > 0
-      ? directors[Math.floor(Math.random() * directors.length)]
-      : null;
+    const directorPool = avail.filter(t => t.role === 'director' && t.id !== showrunner?.id);
+    const director = pickTiered(directorPool);
 
-    const actors = avail
-      .filter(t => t.role === 'actor' && t.id !== showrunner?.id && t.id !== director?.id)
+    const used = new Set([showrunner?.id, director?.id].filter(Boolean));
+    const actorPool = avail
+      .filter(t => t.role === 'actor' && !used.has(t.id))
       .sort(() => Math.random() - 0.5);
-    const leadActors       = actors.slice(0, 2);
-    const supportingActors = actors.slice(2, 4);
+    // Within each slot type, prefer the quality tier; fallback handled inside pickTiered
+    const tieredActors = [
+      ...actorPool.filter(t => t.popularity >= popMin && t.popularity <= popMax),
+      ...actorPool.filter(t => t.popularity < popMin || t.popularity > popMax),
+    ];
+    const leadActors       = tieredActors.slice(0, 2);
+    const supportingActors = tieredActors.slice(2, 4);
 
     const crewIDs = [
       ...(showrunner ? [showrunner.id] : []),
