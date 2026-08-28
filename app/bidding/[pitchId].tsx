@@ -10,7 +10,7 @@ import { hap } from '../../src/utils/haptics';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const AUCTION_TICKS  = 220;  // 22.0 seconds total (each tick = 100 ms)
+const AUCTION_TICKS  = 100;  // 10.0 seconds total (each tick = 100 ms)
 const TICK_MS        = 100;
 const LATE_THRESHOLD = 50;   // < 5.0 s remaining triggers extension
 const EXTENSION      = 30;   // +3.0 s added on a late bid
@@ -218,8 +218,8 @@ export default function BiddingScreen() {
 
     for (const studio of auctionStudios) {
       const attempts = 2 + Math.floor(Math.random() * 3);
-      // Spread bids from 1.5 s in to 17 s (leave last 5 s as tension window)
-      const window = (AUCTION_TICKS * TICK_MS) - 6000;
+      // Spread bids from 1.5 s in; leave last 5 s as tension window
+      const window = (AUCTION_TICKS * TICK_MS) - (LATE_THRESHOLD * TICK_MS);
 
       for (let i = 0; i < attempts; i++) {
         const fireAt = 1500 + Math.random() * window;

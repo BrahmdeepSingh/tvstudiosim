@@ -577,6 +577,44 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const showID = nanoid();
     const seasonID = nanoid();
 
+    // Attach crew — the show is fully produced, fees are baked into the bid
+    const avail = state.talent.filter(t => t.available);
+
+    const showrunner =
+      avail.find(t => t.id === pitch.showrunnerID && t.role === 'showrunner') ??
+      avail.find(t => t.role === 'showrunner') ??
+      null;
+
+    const directors = avail.filter(t => t.role === 'director' && t.id !== showrunner?.id);
+    const director = directors.length > 0
+      ? directors[Math.floor(Math.random() * directors.length)]
+      : null;
+
+    const actors = avail
+      .filter(t => t.role === 'actor' && t.id !== showrunner?.id && t.id !== director?.id)
+      .sort(() => Math.random() - 0.5);
+    const leadActors       = actors.slice(0, 2);
+    const supportingActors = actors.slice(2, 4);
+
+    const crewIDs = [
+      ...(showrunner ? [showrunner.id] : []),
+      ...(director   ? [director.id]   : []),
+      ...leadActors.map(a => a.id),
+      ...supportingActors.map(a => a.id),
+    ];
+
+    // Zero-fee deals — cost is already captured in the winning bid
+    const acquiredDeals: TalentDeal[] = crewIDs.map(talentID => ({
+      id: nanoid(),
+      talentID,
+      showID,
+      seasonID,
+      flatFee: 0,
+      revenueSharePercent: 0,
+      agreedWeek: state.network.currentWeek,
+      agreedYear: state.network.currentYear,
+    }));
+
     const episodes: Episode[] = Array.from({ length: pitch.proposedEpisodeCount }, (_, i) => ({
       id: nanoid(),
       seasonID,
@@ -590,7 +628,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }));
 
     // Show is fully produced — writing and filming are already complete.
-    // Quality is baked in from the hidden score; no talent slots needed for S1.
     const season: Season = {
       id: seasonID,
       showID,
@@ -614,13 +651,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       streamingRevenue: 0,
       renewalDecisionMade: false,
       renewed: false,
-      leadActorSlots: 0,
-      supportingActorSlots: 0,
-      leadActorIDs: [],
-      supportingActorIDs: [],
-      directorID: null,
-      showrunnerSlots: 0,
-      showrunnerIDs: [],
+      showrunnerSlots: showrunner ? 1 : 0,
+      showrunnerIDs: showrunner ? [showrunner.id] : [],
+      leadActorSlots: leadActors.length,
+      leadActorIDs: leadActors.map(a => a.id),
+      supportingActorSlots: supportingActors.length,
+      supportingActorIDs: supportingActors.map(a => a.id),
+      directorID: director?.id ?? null,
       scriptScore: Math.min(100, Math.round(pitch.hiddenQualityScore * 1.05)),
       qualityScore: pitch.hiddenQualityScore,
       suggestedShowrunnerIDs: [],
@@ -656,6 +693,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pitches: s.pitches.map(p =>
         p.id === pitchID ? { ...p, greenlitByPlayer: true } : p,
       ),
+      talent: s.talent.map(t =>
+        crewIDs.includes(t.id)
+          ? {
+              ...t,
+              available: false,
+              bookedForSeasonID: seasonID,
+              careerShowIDs: t.careerShowIDs.includes(showID) ? t.careerShowIDs : [...t.careerShowIDs, showID],
+            }
+          : t,
+      ),
+      talentDeals: [...s.talentDeals, ...acquiredDeals],
     }));
 
     const acquisitionNews = makeNewShowRumorNews(
