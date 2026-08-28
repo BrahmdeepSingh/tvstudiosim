@@ -153,24 +153,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const initialTalent = generateInitialTalentPool();
     const { competitors, updatedTalent: talent } = generateInitialCompetitors(initialTalent);
 
-    // Generate one starter pitch so inbox isn't empty
-    const showrunners = talent.filter(t => t.role === 'showrunner' && t.available);
-    const starterPitch = generatePitch(showrunners, STARTING_WEEK, STARTING_YEAR);
-
-    const starterInbox: InboxItem[] = starterPitch
-      ? [
-          {
-            id: nanoid(),
-            type: 'pitch',
-            week: STARTING_WEEK,
-            year: STARTING_YEAR,
-            read: false,
-            refID: starterPitch.id,
-            title: `New pitch: "${starterPitch.title}"`,
-            preview: `${starterPitch.genre} · Showrunner: ${talent.find(t => t.id === starterPitch.showrunnerID)?.name ?? 'Unknown'}`,
-          },
-        ]
-      : [];
+    const starterInbox: InboxItem[] = [];
 
     set({
       ...EMPTY_STATE,
@@ -182,7 +165,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
       talent,
       competitors,
-      pitches: starterPitch ? [starterPitch] : [],
+      pitches: [],
       inboxItems: starterInbox,
       initialized: true,
     });
