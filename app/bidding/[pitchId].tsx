@@ -213,11 +213,16 @@ export default function BiddingScreen() {
     }]);
     setTicks(AUCTION_TICKS);
 
-    // Schedule AI bids — each studio makes 2–4 attempts at random times
+    // Schedule AI bids — attempt count and increment size scale with quality
     const timeouts: ReturnType<typeof setTimeout>[] = [];
+    const q = pitch.hiddenQualityScore;
+    const minAttempts = q >= 67 ? 3 : q >= 34 ? 2 : 1;
+    const maxAttempts = q >= 67 ? 5 : q >= 34 ? 3 : 2;
+    const incMin = q >= 67 ? 150_000 : q >= 34 ? 100_000 : 50_000;
+    const incMax = q >= 67 ? 400_000 : q >= 34 ? 250_000 : 150_000;
 
     for (const studio of auctionStudios) {
-      const attempts = 2 + Math.floor(Math.random() * 3);
+      const attempts = minAttempts + Math.floor(Math.random() * (maxAttempts - minAttempts + 1));
       // Spread bids from 1.5 s in; leave last 5 s as tension window
       const window = (AUCTION_TICKS * TICK_MS) - (LATE_THRESHOLD * TICK_MS);
 
@@ -231,7 +236,7 @@ export default function BiddingScreen() {
           if (!me || me.dropped) return;
           if (live.current.leaderId === studio.id) return; // already winning
 
-          const needed = live.current.currentBid + randNearest(50_000, 200_000, 50_000);
+          const needed = live.current.currentBid + randNearest(incMin, incMax, 50_000);
 
           if (needed > me.maxBid) {
             // Can't keep up — drop out

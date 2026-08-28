@@ -89,8 +89,28 @@ function PitchDetail({ item, onDone }: { item: InboxItem; onDone: () => void }) 
 
       <Text style={d.logline}>"{pitch.logline}"</Text>
 
+      {/* Overall quality bar */}
+      {(() => {
+        const q = pitch.hiddenQualityScore;
+        const qColor = q >= 67 ? C.green : q >= 34 ? C.amber : '#c43820';
+        const qLabel = q >= 80 ? 'Highly Sought' : q >= 67 ? 'High Demand' : q >= 34 ? 'Moderate Demand' : 'Low Demand';
+        return (
+          <View style={d.overallCard}>
+            <View style={d.overallTop}>
+              <Text style={d.overallLabel}>OVERALL</Text>
+              <Text style={[d.overallDemand, { color: qColor }]}>{qLabel}</Text>
+            </View>
+            <View style={d.overallTrack}>
+              <View style={[d.overallFill, { width: `${q}%` as any, backgroundColor: qColor }]} />
+            </View>
+            <Text style={[d.overallScore, { color: qColor }]}>{q}<Text style={d.overallScoreOf}>/100</Text></Text>
+          </View>
+        );
+      })()}
+
       <View style={d.infoBlock}>
         <Row label="Produced by"  value={showrunner?.name ?? '—'} />
+        <Row label="Cast"         value="2 Lead · 2 Supporting" />
         <Row label="Asking price" value={fmt(pitch.askingFlatFee)} />
         <Row label="Rev share"    value={pitch.askingRevenueSharePercent > 0 ? `${pitch.askingRevenueSharePercent}%` : 'None'} />
         <Row label="Expires"      value={`Week ${pitch.expiresWeek}, Year ${pitch.expiresYear}`} />
@@ -468,6 +488,15 @@ const d = StyleSheet.create({
   tagText:          { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 0.5 },
 
   logline:          { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 15, lineHeight: 22, fontStyle: 'italic', marginBottom: 18 },
+
+  overallCard:      { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 14 },
+  overallTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  overallLabel:     { color: C.mutedMid, fontFamily: 'Manrope_800ExtraBold', fontSize: 10, letterSpacing: 1.5 },
+  overallDemand:    { fontFamily: 'Manrope_700Bold', fontSize: 11 },
+  overallTrack:     { height: 6, backgroundColor: C.border, borderRadius: 999, overflow: 'hidden', marginBottom: 8 },
+  overallFill:      { height: '100%', borderRadius: 999 },
+  overallScore:     { fontFamily: 'BebasNeue_400Regular', fontSize: 32, letterSpacing: 1, lineHeight: 34 },
+  overallScoreOf:   { color: C.mutedMid, fontFamily: 'Manrope_400Regular', fontSize: 16 },
 
   infoBlock:        { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginBottom: 14, overflow: 'hidden' },
   row:              { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
