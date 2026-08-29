@@ -154,6 +154,13 @@ export default function StudioSetup() {
 
         {/* Header */}
         <View style={ss.header}>
+          {step > 0 ? (
+            <TouchableOpacity onPress={handleBack} style={ss.headerBack} activeOpacity={0.7}>
+              <Text style={ss.headerBackText}>←</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={ss.headerBack} />
+          )}
           <Text style={ss.wordmark}>TV STUDIO SIM</Text>
           <StepDots step={step} />
         </View>
@@ -359,16 +366,11 @@ function Step1({ bgColors, textColors, logoBg, setLogoBg, logoIcon, setLogoIcon,
       </View>
 
       {/* Nav buttons */}
-      <View style={ss.navRow}>
-        <TouchableOpacity style={ss.backBtn} onPress={onBack} activeOpacity={0.8}>
-          <Text style={ss.backBtnText}>← BACK</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={ss.nextBtnSmall} onPress={onNext} activeOpacity={0.85}>
-          <LinearGradient colors={['#f0c060', '#c49440']} style={ss.nextBtnGradSmall}>
-            <Text style={ss.nextBtnText}>SELECT MODE →</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity style={ss.nextBtnSmall} onPress={onNext} activeOpacity={0.85}>
+        <LinearGradient colors={['#f0c060', '#c49440']} style={ss.nextBtnGradSmall}>
+          <Text style={ss.nextBtnText}>SELECT MODE →</Text>
+        </LinearGradient>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -421,19 +423,9 @@ function Step2({ studioName, displayInitials, logoConfig, mode, setMode, onFound
               </Text>
             </View>
             <Text style={ss.modeDesc}>{m.desc}</Text>
-            {selected && (
-              <View style={[ss.modeSelectedDot, { backgroundColor: accentColor }]} />
-            )}
           </TouchableOpacity>
         );
       })}
-
-      {/* Nav */}
-      <View style={ss.navRow}>
-        <TouchableOpacity style={ss.backBtn} onPress={onBack} activeOpacity={0.8}>
-          <Text style={ss.backBtnText}>← BACK</Text>
-        </TouchableOpacity>
-      </View>
 
       <TouchableOpacity style={ss.foundBtn} onPress={onFound} activeOpacity={0.85}>
         <LinearGradient colors={['#f0c060', '#c49440']} style={ss.nextBtnGrad}>
@@ -452,6 +444,8 @@ const ss = StyleSheet.create({
   header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
                  paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10 },
   wordmark:    { fontFamily: F.display, color: C.gold, fontSize: 22, letterSpacing: 4 },
+  headerBack:  { width: 40, alignItems: 'flex-start', justifyContent: 'center' },
+  headerBackText: { color: C.gold, fontSize: 22, fontFamily: F.body },
 
   stepContent: { padding: 20, paddingBottom: 40 },
   stepTitle:   { fontFamily: F.display, color: C.text, fontSize: 34, letterSpacing: 2, marginBottom: 6 },
