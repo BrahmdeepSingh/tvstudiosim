@@ -72,6 +72,9 @@ const EMBLEM_LABELS: Record<string, string> = {
   directorchair: 'Chair',
   mountain:      'Mountain',
   filmroll:      'Film Roll',
+  crown:         'Crown',
+  lightbulb:     'Lightbulb',
+  star:          'Star',
 };
 const ICONS: { id: IconID; label: string }[] = [
   ...EMBLEM_IDS.map(id => ({ id: id as IconID, label: EMBLEM_LABELS[id] })),

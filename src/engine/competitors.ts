@@ -168,6 +168,7 @@ const LOGO_TEXT_COLORS = ['#0f1220', '#f0ede8', '#e6b254', '#f5e6c8'];
 const LOGO_ICON_IDS = [
   null,
   'filmcamera', 'clapperboard', 'antenna', 'directorchair', 'mountain', 'filmroll',
+  'crown', 'lightbulb', 'star',
   'trophy', 'play', 'film',
 ] as const;
 

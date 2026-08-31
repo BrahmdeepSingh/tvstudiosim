@@ -17,7 +17,7 @@
 //   SVGs must have NO background rectangle — the badge background color is
 //   applied by LogoBadge. Delete any <rect fill="white"/> or similar.
 
-export type EmblemID = 'filmcamera' | 'clapperboard' | 'antenna' | 'directorchair' | 'mountain' | 'filmroll';
+export type EmblemID = 'filmcamera' | 'clapperboard' | 'antenna' | 'directorchair' | 'mountain' | 'filmroll' | 'crown' | 'lightbulb' | 'star';
 
 export const EMBLEMS: Record<EmblemID, string> = {
   filmcamera: `<svg width="649" height="574" viewBox="0 0 649 574" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -73,5 +73,21 @@ export const EMBLEMS: Record<EmblemID, string> = {
 </svg>`,
 };
 
+  crown: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none">
+<!-- PASTE your crown.svg content here (delete this comment line) -->
+<polygon points="300,80 540,480 60,480" fill="white"/>
+</svg>`,
+
+  lightbulb: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none">
+<!-- PASTE your lightbulb.svg content here (delete this comment line) -->
+<circle cx="300" cy="240" r="160" fill="white"/>
+</svg>`,
+
+  star: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none">
+<!-- PASTE your star.svg content here (delete this comment line) -->
+<polygon points="300,60 370,220 540,240 415,360 450,530 300,450 150,530 185,360 60,240 230,220" fill="white"/>
+</svg>`,
+};
+
 // Convenience: all valid emblem IDs for the logo builder picker
-export const EMBLEM_IDS: EmblemID[] = ['filmcamera', 'clapperboard', 'antenna', 'directorchair', 'mountain', 'filmroll'];
+export const EMBLEM_IDS: EmblemID[] = ['filmcamera', 'clapperboard', 'antenna', 'directorchair', 'mountain', 'filmroll', 'crown', 'lightbulb', 'star'];
