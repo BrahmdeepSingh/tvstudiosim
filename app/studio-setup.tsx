@@ -38,26 +38,25 @@ const F = {
   bodyXBd: 'Manrope_800ExtraBold',
 };
 
-// ── Logo colors ───────────────────────────────────────────────────────────────
-const BG_COLORS = [
-  { id: 'gold',    color: '#e6b254' },
-  { id: 'red',     color: '#c43820' },
-  { id: 'blue',    color: '#3b6fd4' },
-  { id: 'green',   color: '#2da85e' },
-  { id: 'purple',  color: '#8b4fbd' },
-  { id: 'teal',    color: '#2aa89a' },
-  { id: 'orange',  color: '#d4753a' },
-  { id: 'navy',    color: '#1a2a5e' },
-  { id: 'maroon',  color: '#7a1f38' },
-  { id: 'slate',   color: '#3a4a6a' },
+// ── Logo colors — shared palette for both background and text pickers ─────────
+const ALL_COLORS = [
+  { id: 'dark',   color: '#0f1220' },
+  { id: 'navy',   color: '#1a2a5e' },
+  { id: 'slate',  color: '#3a4a6a' },
+  { id: 'maroon', color: '#7a1f38' },
+  { id: 'red',    color: '#c43820' },
+  { id: 'orange', color: '#d4753a' },
+  { id: 'gold',   color: '#e6b254' },
+  { id: 'cream',  color: '#f5e6c8' },
+  { id: 'white',  color: '#f0ede8' },
+  { id: 'green',  color: '#2da85e' },
+  { id: 'teal',   color: '#2aa89a' },
+  { id: 'blue',   color: '#3b6fd4' },
+  { id: 'purple', color: '#8b4fbd' },
 ];
 
-const TEXT_COLORS = [
-  { id: 'dark',  color: '#0f1220' },
-  { id: 'white', color: '#f0ede8' },
-  { id: 'gold',  color: '#e6b254' },
-  { id: 'cream', color: '#f5e6c8' },
-];
+const BG_COLORS   = ALL_COLORS;
+const TEXT_COLORS = ALL_COLORS;
 
 // ── Logo icons list ───────────────────────────────────────────────────────────
 const LEGACY_ICONS: { id: IconID; label: string }[] = [

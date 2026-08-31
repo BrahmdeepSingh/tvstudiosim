@@ -159,12 +159,13 @@ function computePrestigeDelta(avgRating: number, cancelled: boolean): number {
 
 // ─── Initial generation ───────────────────────────────────────────────────────
 
-const LOGO_BG_COLORS = [
-  '#e6b254', '#c43820', '#3b6fd4', '#2da85e',
-  '#8b4fbd', '#2aa89a', '#d4753a', '#1a2a5e',
-  '#7a1f38', '#3a4a6a',
+const LOGO_ALL_COLORS = [
+  '#0f1220', '#1a2a5e', '#3a4a6a', '#7a1f38',
+  '#c43820', '#d4753a', '#e6b254', '#f5e6c8',
+  '#f0ede8', '#2da85e', '#2aa89a', '#3b6fd4', '#8b4fbd',
 ];
-const LOGO_TEXT_COLORS = ['#0f1220', '#f0ede8', '#e6b254', '#f5e6c8'];
+const LOGO_BG_COLORS   = LOGO_ALL_COLORS;
+const LOGO_TEXT_COLORS = LOGO_ALL_COLORS;
 const LOGO_ICON_IDS = [
   null,
   'filmcamera', 'clapperboard', 'antenna', 'directorchair', 'mountain', 'filmroll',
