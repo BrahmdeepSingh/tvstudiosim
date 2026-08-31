@@ -12,8 +12,11 @@ export type IconID = EmblemID;
 function EmblemIcon({ id, size, color }: { id: EmblemID; size: number; color: string }) {
   const raw = EMBLEMS[id];
   if (!raw) return null;
-  // Replace every occurrence of the sentinel color (case-insensitive) with the chosen color
-  const colored = raw.replace(/#[Ff][Ff][Ff][Ff][Ff][Ff]/g, color);
+  // Replace the sentinel color in both hex and CSS-name forms (Figma exports either)
+  const colored = raw
+    .replace(/#[Ff][Ff][Ff][Ff][Ff][Ff]/g, color)
+    .replace(/fill="white"/gi, `fill="${color}"`)
+    .replace(/stroke="white"/gi, `stroke="${color}"`);
   return <SvgXml xml={colored} width={size} height={size} />;
 }
 
