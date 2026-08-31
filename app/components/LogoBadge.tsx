@@ -5,7 +5,7 @@ import { EMBLEMS, EmblemID } from '../../src/assets/emblems';
 
 const PAGE_BG = '#0f1220';
 
-export type IconID = EmblemID | 'star' | 'crown' | 'bolt' | 'flame' | 'eye' | 'shield' | 'trophy' | 'diamond' | 'play' | 'film';
+export type IconID = EmblemID | 'trophy' | 'play' | 'film';
 
 /** Renders a Figma-exported SVG emblem with the player's chosen text color applied. */
 function EmblemIcon({ id, size, color }: { id: EmblemID; size: number; color: string }) {
@@ -18,85 +18,11 @@ function EmblemIcon({ id, size, color }: { id: EmblemID; size: number; color: st
   return <SvgXml xml={colored} width={size} height={size} />;
 }
 
-/** Renders the original View-based icons. */
+/** Renders the kept View-based icons (trophy, play, film). */
 function LegacyIcon({ id, size, color }: { id: string; size: number; color: string }) {
   const s = size;
   const c = color;
   switch (id) {
-    case 'star': {
-      const half = s * 0.44;
-      const h1 = s * 0.82;
-      const h2 = s * 0.32;
-      return (
-        <View style={{ width: s, height: s, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ position: 'absolute', width: 0, height: 0,
-            borderLeftWidth: half, borderRightWidth: half, borderBottomWidth: h1,
-            borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: c,
-            top: s * 0.05 }} />
-          <View style={{ position: 'absolute', width: 0, height: 0,
-            borderLeftWidth: half * 0.95, borderRightWidth: half * 0.95, borderTopWidth: h2,
-            borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: c,
-            top: s * 0.34 }} />
-        </View>
-      );
-    }
-    case 'crown': {
-      return (
-        <View style={{ width: s, height: s, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ position: 'absolute', bottom: s * 0.12, left: s * 0.1, right: s * 0.1, height: s * 0.22, backgroundColor: c, borderRadius: 2 }} />
-          <View style={{ position: 'absolute', bottom: s * 0.32, left: s * 0.1, width: 0, height: 0,
-            borderLeftWidth: s * 0.14, borderRightWidth: s * 0.14, borderBottomWidth: s * 0.36,
-            borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: c }} />
-          <View style={{ position: 'absolute', bottom: s * 0.32, left: s * 0.5 - s * 0.14, width: 0, height: 0,
-            borderLeftWidth: s * 0.14, borderRightWidth: s * 0.14, borderBottomWidth: s * 0.48,
-            borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: c }} />
-          <View style={{ position: 'absolute', bottom: s * 0.32, right: s * 0.1, width: 0, height: 0,
-            borderLeftWidth: s * 0.14, borderRightWidth: s * 0.14, borderBottomWidth: s * 0.36,
-            borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: c }} />
-        </View>
-      );
-    }
-    case 'bolt': {
-      return (
-        <View style={{ width: s, height: s, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ position: 'absolute', top: s * 0.04, left: s * 0.34, width: s * 0.36, height: s * 0.46, backgroundColor: c, borderTopLeftRadius: 2,
-            transform: [{ skewX: '-14deg' }] }} />
-          <View style={{ position: 'absolute', bottom: s * 0.04, right: s * 0.22, width: s * 0.38, height: s * 0.46, backgroundColor: c, borderBottomRightRadius: 2,
-            transform: [{ skewX: '-14deg' }] }} />
-        </View>
-      );
-    }
-    case 'flame': {
-      return (
-        <View style={{ width: s, height: s, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ position: 'absolute', bottom: s * 0.06, width: s * 0.54, height: s * 0.72,
-            backgroundColor: c, borderTopLeftRadius: s * 0.28, borderTopRightRadius: s * 0.28,
-            borderBottomLeftRadius: s * 0.16, borderBottomRightRadius: s * 0.16 }} />
-          <View style={{ position: 'absolute', bottom: s * 0.22, width: s * 0.26, height: s * 0.36,
-            backgroundColor: PAGE_BG, borderRadius: s * 0.13 }} />
-        </View>
-      );
-    }
-    case 'eye': {
-      return (
-        <View style={{ width: s, height: s, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: s * 0.82, height: s * 0.42, borderRadius: s * 0.21,
-            backgroundColor: c, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ width: s * 0.28, height: s * 0.28, borderRadius: s * 0.14, backgroundColor: PAGE_BG }} />
-          </View>
-        </View>
-      );
-    }
-    case 'shield': {
-      return (
-        <View style={{ width: s, height: s, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ position: 'absolute', top: s * 0.1, left: s * 0.14, right: s * 0.14, height: s * 0.55, backgroundColor: c, borderTopLeftRadius: 6, borderTopRightRadius: 6 }} />
-          <View style={{ position: 'absolute', bottom: s * 0.06, width: 0, height: 0,
-            borderLeftWidth: s * 0.36, borderRightWidth: s * 0.36, borderTopWidth: s * 0.34,
-            borderLeftColor: 'transparent', borderRightColor: 'transparent', borderTopColor: c }} />
-        </View>
-      );
-    }
     case 'trophy': {
       return (
         <View style={{ width: s, height: s, alignItems: 'center', justifyContent: 'center' }}>
@@ -108,13 +34,6 @@ function LegacyIcon({ id, size, color }: { id: string; size: number; color: stri
             borderWidth: s * 0.06, borderColor: c, borderRadius: s * 0.08, borderRightWidth: 0 }} />
           <View style={{ position: 'absolute', top: s * 0.16, right: s * 0.06, width: s * 0.14, height: s * 0.26,
             borderWidth: s * 0.06, borderColor: c, borderRadius: s * 0.08, borderLeftWidth: 0 }} />
-        </View>
-      );
-    }
-    case 'diamond': {
-      return (
-        <View style={{ width: s, height: s, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: s * 0.62, height: s * 0.62, backgroundColor: c, transform: [{ rotate: '45deg' }], borderRadius: 3 }} />
         </View>
       );
     }

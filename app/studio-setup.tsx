@@ -61,22 +61,17 @@ const TEXT_COLORS = [
 
 // ── Logo icons list ───────────────────────────────────────────────────────────
 const LEGACY_ICONS: { id: IconID; label: string }[] = [
-  { id: 'star',    label: 'Star'    },
-  { id: 'crown',   label: 'Crown'   },
-  { id: 'bolt',    label: 'Bolt'    },
-  { id: 'flame',   label: 'Flame'   },
-  { id: 'eye',     label: 'Eye'     },
-  { id: 'shield',  label: 'Shield'  },
-  { id: 'trophy',  label: 'Trophy'  },
-  { id: 'diamond', label: 'Diamond' },
-  { id: 'play',    label: 'Play'    },
-  { id: 'film',    label: 'Film'    },
+  { id: 'trophy', label: 'Trophy' },
+  { id: 'play',   label: 'Play'   },
+  { id: 'film',   label: 'Film'   },
 ];
 const EMBLEM_LABELS: Record<string, string> = {
   filmcamera:    'Camera',
   clapperboard:  'Clapper',
   antenna:       'Antenna',
   directorchair: 'Chair',
+  mountain:      'Mountain',
+  filmroll:      'Film Roll',
 };
 const ICONS: { id: IconID; label: string }[] = [
   ...EMBLEM_IDS.map(id => ({ id: id as IconID, label: EMBLEM_LABELS[id] })),

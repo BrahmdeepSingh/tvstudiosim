@@ -17,7 +17,7 @@
 //   SVGs must have NO background rectangle — the badge background color is
 //   applied by LogoBadge. Delete any <rect fill="white"/> or similar.
 
-export type EmblemID = 'filmcamera' | 'clapperboard' | 'antenna' | 'directorchair';
+export type EmblemID = 'filmcamera' | 'clapperboard' | 'antenna' | 'directorchair' | 'mountain' | 'filmroll';
 
 export const EMBLEMS: Record<EmblemID, string> = {
   filmcamera: `<svg width="649" height="574" viewBox="0 0 649 574" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -60,7 +60,18 @@ export const EMBLEMS: Record<EmblemID, string> = {
 <rect x="100" y="120" width="160" height="100" rx="12" fill="#FFFFFF"/>
 <rect x="340" y="120" width="160" height="100" rx="12" fill="#FFFFFF"/>
 </svg>`,
+
+  mountain: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none">
+<!-- PASTE your mountain.svg content here (delete this comment line) -->
+<polygon points="300,80 540,480 60,480" fill="white"/>
+</svg>`,
+
+  filmroll: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none">
+<!-- PASTE your filmroll.svg content here (delete this comment line) -->
+<circle cx="300" cy="300" r="200" stroke="white" stroke-width="40" fill="none"/>
+<circle cx="300" cy="300" r="60" fill="white"/>
+</svg>`,
 };
 
 // Convenience: all valid emblem IDs for the logo builder picker
-export const EMBLEM_IDS: EmblemID[] = ['filmcamera', 'clapperboard', 'antenna', 'directorchair'];
+export const EMBLEM_IDS: EmblemID[] = ['filmcamera', 'clapperboard', 'antenna', 'directorchair', 'mountain', 'filmroll'];

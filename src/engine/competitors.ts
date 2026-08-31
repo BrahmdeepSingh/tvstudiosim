@@ -167,9 +167,8 @@ const LOGO_BG_COLORS = [
 const LOGO_TEXT_COLORS = ['#0f1220', '#f0ede8', '#e6b254', '#f5e6c8'];
 const LOGO_ICON_IDS = [
   null,
-  'filmcamera', 'clapperboard', 'antenna', 'directorchair',
-  'star', 'crown', 'bolt', 'flame', 'eye',
-  'shield', 'trophy', 'diamond', 'play', 'film',
+  'filmcamera', 'clapperboard', 'antenna', 'directorchair', 'mountain', 'filmroll',
+  'trophy', 'play', 'film',
 ] as const;
 
 function randomLogoConfig(): LogoConfig {
