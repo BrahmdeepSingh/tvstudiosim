@@ -9,7 +9,8 @@ import { useState, useMemo } from 'react';
 import { useGameStore } from '../src/store/gameStore';
 import { LogoConfig } from '../src/types';
 import { hap } from '../src/utils/haptics';
-import { LogoBadge, LogoIcon, IconID } from './components/LogoBadge';
+import { LogoBadge, LogoIcon } from './components/LogoBadge';
+import { EMBLEM_IDS, EmblemID } from '../src/assets/emblems';
 
 const { width: W } = Dimensions.get('window');
 
@@ -59,18 +60,16 @@ const TEXT_COLORS = [
 ];
 
 // ── Logo icons list ───────────────────────────────────────────────────────────
-const ICONS: { id: IconID; label: string }[] = [
-  { id: 'star',    label: 'Star'    },
-  { id: 'crown',   label: 'Crown'   },
-  { id: 'bolt',    label: 'Bolt'    },
-  { id: 'flame',   label: 'Flame'   },
-  { id: 'eye',     label: 'Eye'     },
-  { id: 'shield',  label: 'Shield'  },
-  { id: 'trophy',  label: 'Trophy'  },
-  { id: 'diamond', label: 'Diamond' },
-  { id: 'play',    label: 'Play'    },
-  { id: 'film',    label: 'Film'    },
-];
+const ICON_LABELS: Record<EmblemID, string> = {
+  filmcamera:   'Camera',
+  clapperboard: 'Clapper',
+  antenna:      'Antenna',
+  directorchair:'Chair',
+};
+const ICONS: { id: EmblemID; label: string }[] = EMBLEM_IDS.map(id => ({
+  id,
+  label: ICON_LABELS[id],
+}));
 
 // ── Game mode data ────────────────────────────────────────────────────────────
 const MODES = [
@@ -118,7 +117,7 @@ export default function StudioSetup() {
 
   // Step 1 state
   const [logoBg, setLogoBg]     = useState(BG_COLORS[0].color);
-  const [logoIcon, setLogoIcon] = useState<IconID | null>(null);
+  const [logoIcon, setLogoIcon] = useState<EmblemID | null>(null);
   const [logoText, setLogoText] = useState(TEXT_COLORS[0].color);
 
   // Step 2 state
@@ -288,7 +287,7 @@ function Step0({ studioName, setStudioName, initialsOverride, setInitialsOverrid
 function Step1({ bgColors, textColors, logoBg, setLogoBg, logoIcon, setLogoIcon, logoText, setLogoText, displayInitials, logoConfig, onNext, onBack }: {
   bgColors: typeof BG_COLORS; textColors: typeof TEXT_COLORS;
   logoBg: string; setLogoBg: (v: string) => void;
-  logoIcon: IconID | null; setLogoIcon: (v: IconID | null) => void;
+  logoIcon: EmblemID | null; setLogoIcon: (v: EmblemID | null) => void;
   logoText: string; setLogoText: (v: string) => void;
   displayInitials: string; logoConfig: LogoConfig;
   onNext: () => void; onBack: () => void;
