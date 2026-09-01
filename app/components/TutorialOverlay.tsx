@@ -90,7 +90,7 @@ function Spotlight({ rect }: { rect: TargetRect }) {
 
 // ── Full dim (no spotlight target) ────────────────────────────────────────────
 function FullDim() {
-  return <View style={StyleSheet.absoluteFill} pointerEvents="none" />;
+  return <View style={[StyleSheet.absoluteFill, { backgroundColor: DIM }]} pointerEvents="none" />;
 }
 
 // ── Tooltip card ──────────────────────────────────────────────────────────────

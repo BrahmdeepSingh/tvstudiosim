@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
 import { LogoBadge } from '../components/LogoBadge';
+import { useTutorialStore } from '../../src/store/tutorialStore';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
@@ -68,6 +69,7 @@ function StatRow({ label, value, color }: { label: string; value: string; color?
 export default function StudioScreen() {
   const router = useRouter();
   const { network, shows, saveGame, resetGame, unlockedAchievementIDs, activeLoan, saveSlot } = useGameStore();
+  const resetTutorial = useTutorialStore(s => s.resetTutorial);
 
   const totalSeasons = shows.reduce((sum, sh) => sum + sh.seasons.length, 0);
   const activeShows = shows.filter(s =>
@@ -212,6 +214,14 @@ export default function StudioScreen() {
               <Text style={s.actionSub}>{`Slot ${saveSlot} · Week ${network.currentWeek}, Year ${network.currentYear}`}</Text>
             </View>
             <Text style={[s.actionChevron, { color: C.gold }]}>Save →</Text>
+          </TouchableOpacity>
+          <View style={s.divider} />
+          <TouchableOpacity style={s.actionRow} onPress={() => resetTutorial()}>
+            <View>
+              <Text style={s.actionLabel}>Replay Tutorial</Text>
+              <Text style={s.actionSub}>Restart the guided first-run from the beginning</Text>
+            </View>
+            <Text style={[s.actionChevron, { color: C.gold }]}>↺</Text>
           </TouchableOpacity>
           <View style={s.divider} />
           <TouchableOpacity style={s.actionRow} onPress={handleReset}>

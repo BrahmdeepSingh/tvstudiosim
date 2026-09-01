@@ -98,6 +98,7 @@ interface TutorialState {
   advance: () => void;
   jumpTo: (step: TutorialStep) => void;
   skip: () => void;
+  resetTutorial: () => Promise<void>;
   registerTarget: (rect: TargetRect) => void;
   clearTarget: () => void;
 }
@@ -141,6 +142,11 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   skip: () => {
     set({ active: false, step: 'done', targetRect: null });
     AsyncStorage.setItem(TUTORIAL_KEY, 'done').catch(() => {});
+  },
+
+  resetTutorial: async () => {
+    await AsyncStorage.removeItem(TUTORIAL_KEY);
+    set({ ready: true, active: true, step: 'dashboard', targetRect: null });
   },
 
   registerTarget: (rect: TargetRect) => {
