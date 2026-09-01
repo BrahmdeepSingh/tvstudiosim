@@ -469,7 +469,7 @@ export default function Dashboard() {
   // ── New-game redirect ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!initialized) {
-      router.replace('/studio-setup' as any);
+      router.replace('/home' as any);
     }
   }, [initialized]);
 

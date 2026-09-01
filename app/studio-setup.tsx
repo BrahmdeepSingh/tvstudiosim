@@ -4,7 +4,7 @@ import {
   } from 'react-native';
   import { SafeAreaView } from 'react-native-safe-area-context';
   import { LinearGradient } from 'expo-linear-gradient';
-  import { useRouter } from 'expo-router';
+  import { useRouter, useLocalSearchParams } from 'expo-router';
   import { useState, useMemo } from 'react';
   import { useGameStore } from '../src/store/gameStore';
   import { LogoConfig } from '../src/types';
@@ -120,6 +120,7 @@ import {
   // ── Main screen ───────────────────────────────────────────────────────────────
   export default function StudioSetup() {
     const router = useRouter();
+    const { slot: slotParam } = useLocalSearchParams<{ slot?: string }>();
     const { initializeGame } = useGameStore();
   
     const [step, setStep] = useState(0);
@@ -156,7 +157,8 @@ import {
     function handleFound() {
       hap.medium();
       const modeData = MODES.find(m => m.id === mode)!;
-      initializeGame(studioName.trim(), displayInitials, modeData.cash, logoConfig);
+      const slot = slotParam ? parseInt(slotParam, 10) : 1;
+      initializeGame(studioName.trim(), displayInitials, modeData.cash, logoConfig, slot);
       router.replace('/(tabs)');
     }
   

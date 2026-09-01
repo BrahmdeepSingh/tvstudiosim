@@ -67,7 +67,7 @@ function StatRow({ label, value, color }: { label: string; value: string; color?
 
 export default function StudioScreen() {
   const router = useRouter();
-  const { network, shows, saveGame, resetGame, unlockedAchievementIDs, activeLoan } = useGameStore();
+  const { network, shows, saveGame, resetGame, unlockedAchievementIDs, activeLoan, saveSlot } = useGameStore();
 
   const totalSeasons = shows.reduce((sum, sh) => sum + sh.seasons.length, 0);
   const activeShows = shows.filter(s =>
@@ -75,13 +75,13 @@ export default function StudioScreen() {
   ).length;
 
   function handleSave() {
-    saveGame().then(() => Alert.alert('Saved', 'Your game has been saved.'));
+    saveGame().then(() => Alert.alert('Saved', `Game saved to Slot ${saveSlot}.`));
   }
 
   function handleReset() {
     Alert.alert(
-      'Reset Game',
-      'This will permanently delete all progress and return you to the setup screen. Are you sure?',
+      'Reset Save Slot',
+      `This will permanently delete Slot ${saveSlot} and return you to the home screen. Are you sure?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -89,7 +89,7 @@ export default function StudioScreen() {
           style: 'destructive',
           onPress: async () => {
             await resetGame();
-            router.replace('/studio-setup' as any);
+            router.replace('/home' as any);
           },
         },
       ],
@@ -187,19 +187,15 @@ export default function StudioScreen() {
           <TouchableOpacity style={s.actionRow} onPress={handleSave}>
             <View>
               <Text style={s.actionLabel}>Save Game</Text>
-              {network.currentWeek > 0 && (
-                <Text style={s.actionSub}>
-                  {`Last save: Week ${network.currentWeek}, Year ${network.currentYear}`}
-                </Text>
-              )}
+              <Text style={s.actionSub}>{`Slot ${saveSlot} · Week ${network.currentWeek}, Year ${network.currentYear}`}</Text>
             </View>
             <Text style={[s.actionChevron, { color: C.gold }]}>Save →</Text>
           </TouchableOpacity>
           <View style={s.divider} />
           <TouchableOpacity style={s.actionRow} onPress={handleReset}>
             <View>
-              <Text style={[s.actionLabel, { color: C.red }]}>Reset Game</Text>
-              <Text style={s.actionSub}>Permanently deletes all progress</Text>
+              <Text style={[s.actionLabel, { color: C.red }]}>Reset Slot {saveSlot}</Text>
+              <Text style={s.actionSub}>Permanently deletes this save slot</Text>
             </View>
             <Text style={[s.actionChevron, { color: C.red }]}>⚠</Text>
           </TouchableOpacity>

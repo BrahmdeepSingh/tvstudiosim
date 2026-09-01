@@ -50,7 +50,7 @@ import { randomBetween, randomFloat, clamp } from '../utils/random';
 
 interface GameStore extends GameState {
   // Setup
-  initializeGame: (networkName: string, initials: string, startingCash?: number, logoConfig?: LogoConfig) => void;
+  initializeGame: (networkName: string, initials: string, startingCash?: number, logoConfig?: LogoConfig, slot?: number) => void;
 
   // Core loop
   advanceWeek: () => void;
@@ -154,12 +154,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Setup ────────────────────────────────────────────────────────────────
 
-  initializeGame: (networkName, initials, startingCash, logoConfig) => {
+  initializeGame: (networkName, initials, startingCash, logoConfig, slot) => {
     const initialTalent = generateInitialTalentPool();
     const { competitors, updatedTalent: talent } = generateInitialCompetitors(initialTalent);
 
     set({
       ...EMPTY_STATE,
+      saveSlot: slot ?? 1,
       network: {
         ...EMPTY_STATE.network,
         id: nanoid(),
