@@ -12,13 +12,14 @@ import {
   InboxItem,
   NewsItem,
   PosterConfig,
+  LogoConfig,
 } from '../types';
 import { advanceWeek as engineAdvanceWeek } from '../engine/advancement';
 import { checkAchievements } from '../engine/achievements';
 import { generateInitialTalentPool } from '../engine/talent';
 import { generateInitialCompetitors } from '../engine/competitors';
 import { generatePitch } from '../engine/pitches';
-import { saveGameToStorage, loadGameFromStorage } from './storage';
+import { saveGameToStorage, loadGameFromStorage, deleteSave } from './storage';
 import { makeStreamingDealNews, makeNewShowRumorNews } from '../engine/news';
 import {
   generatePremiereDateAnnouncedPosts,
@@ -49,7 +50,7 @@ import { randomBetween, randomFloat, clamp } from '../utils/random';
 
 interface GameStore extends GameState {
   // Setup
-  initializeGame: (networkName: string, initials: string) => void;
+  initializeGame: (networkName: string, initials: string, startingCash?: number, logoConfig?: LogoConfig) => void;
 
   // Core loop
   advanceWeek: () => void;
@@ -71,7 +72,7 @@ interface GameStore extends GameState {
   savePosterConfig: (showID: string, config: PosterConfig) => void;
 
   // Pitches
-  greenlightPitch: (pitchID: string) => boolean;
+  acquireShow: (pitchID: string, winningBid: number) => boolean;
   passPitch: (pitchID: string) => void;
 
   // Renewal / cancellation
@@ -101,6 +102,9 @@ interface GameStore extends GameState {
   // Persistence
   saveGame: () => Promise<void>;
   loadGame: (slot: number) => Promise<boolean>;
+
+  // Reset
+  resetGame: () => Promise<void>;
 }
 
 // ─── Initial State Shape ──────────────────────────────────────────────────────
@@ -110,6 +114,7 @@ const EMPTY_STATE: GameState = {
     id: '',
     name: '',
     initials: '',
+    logoConfig: { bgColor: '#e6b254', iconID: null, textColor: '#161008' },
     foundedYear: STARTING_YEAR,
     currentWeek: STARTING_WEEK,
     currentYear: STARTING_YEAR,
@@ -149,28 +154,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Setup ────────────────────────────────────────────────────────────────
 
-  initializeGame: (networkName, initials) => {
+  initializeGame: (networkName, initials, startingCash, logoConfig) => {
     const initialTalent = generateInitialTalentPool();
     const { competitors, updatedTalent: talent } = generateInitialCompetitors(initialTalent);
-
-    // Generate one starter pitch so inbox isn't empty
-    const showrunners = talent.filter(t => t.role === 'showrunner' && t.available);
-    const starterPitch = generatePitch(showrunners, STARTING_WEEK, STARTING_YEAR);
-
-    const starterInbox: InboxItem[] = starterPitch
-      ? [
-          {
-            id: nanoid(),
-            type: 'pitch',
-            week: STARTING_WEEK,
-            year: STARTING_YEAR,
-            read: false,
-            refID: starterPitch.id,
-            title: `New pitch: "${starterPitch.title}"`,
-            preview: `${starterPitch.genre} · Showrunner: ${talent.find(t => t.id === starterPitch.showrunnerID)?.name ?? 'Unknown'}`,
-          },
-        ]
-      : [];
 
     set({
       ...EMPTY_STATE,
@@ -179,11 +165,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         id: nanoid(),
         name: networkName,
         initials: initials.toUpperCase().slice(0, 2),
+        logoConfig: logoConfig ?? EMPTY_STATE.network.logoConfig,
+        cashOnHand: startingCash ?? STARTING_CASH,
       },
       talent,
       competitors,
-      pitches: starterPitch ? [starterPitch] : [],
-      inboxItems: starterInbox,
+      pitches: [],
+      inboxItems: [],
       initialized: true,
     });
   },
@@ -442,6 +430,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const season = show.seasons[show.currentSeasonIndex];
     if (!season) return false;
 
+    if (actorType === 'lead' && season.leadActorIDs.length >= season.leadActorSlots) return false;
+    if (actorType === 'supporting' && season.supportingActorIDs.length >= season.supportingActorSlots) return false;
+
     const deal: TalentDeal = {
       id: nanoid(),
       talentID,
@@ -565,17 +556,68 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ── Pitches ───────────────────────────────────────────────────────────────
 
-  greenlightPitch: (pitchID) => {
+  acquireShow: (pitchID, winningBid) => {
     const state = get();
     const pitch = state.pitches.find(p => p.id === pitchID);
     if (!pitch || pitch.greenlitByPlayer || pitch.passed) return false;
-
-    const showrunner = state.talent.find(t => t.id === pitch.showrunnerID);
-    if (!showrunner || !showrunner.available) return false;
-    if (state.network.cashOnHand < pitch.askingFlatFee) return false;
+    if (state.network.cashOnHand < winningBid) return false;
 
     const showID = nanoid();
     const seasonID = nanoid();
+
+    // Attach crew — the show is fully produced, fees are baked into the bid.
+    // Crew popularity is matched to the show's quality so the roster feels
+    // appropriate (high-quality shows arrive with more prominent talent).
+    const avail = state.talent.filter(t => t.available);
+
+    const q = pitch.hiddenQualityScore;
+    const popMin = q >= 67 ? 55 : q >= 34 ? 25 : 0;
+    const popMax = q >= 67 ? 100 : q >= 34 ? 70 : 45;
+
+    function pickTiered(pool: Talent[]): Talent | null {
+      const tiered = pool.filter(t => t.popularity >= popMin && t.popularity <= popMax);
+      const src = tiered.length > 0 ? tiered : pool;
+      return src.length > 0 ? src[Math.floor(Math.random() * src.length)] : null;
+    }
+
+    const showrunner =
+      avail.find(t => t.id === pitch.showrunnerID && t.role === 'showrunner') ??
+      pickTiered(avail.filter(t => t.role === 'showrunner')) ??
+      null;
+
+    const directorPool = avail.filter(t => t.role === 'director' && t.id !== showrunner?.id);
+    const director = pickTiered(directorPool);
+
+    const used = new Set([showrunner?.id, director?.id].filter(Boolean));
+    const actorPool = avail
+      .filter(t => t.role === 'actor' && !used.has(t.id))
+      .sort(() => Math.random() - 0.5);
+    // Within each slot type, prefer the quality tier; fallback handled inside pickTiered
+    const tieredActors = [
+      ...actorPool.filter(t => t.popularity >= popMin && t.popularity <= popMax),
+      ...actorPool.filter(t => t.popularity < popMin || t.popularity > popMax),
+    ];
+    const leadActors       = tieredActors.slice(0, 2);
+    const supportingActors = tieredActors.slice(2, 4);
+
+    const crewIDs = [
+      ...(showrunner ? [showrunner.id] : []),
+      ...(director   ? [director.id]   : []),
+      ...leadActors.map(a => a.id),
+      ...supportingActors.map(a => a.id),
+    ];
+
+    // Zero-fee deals — cost is already captured in the winning bid
+    const acquiredDeals: TalentDeal[] = crewIDs.map(talentID => ({
+      id: nanoid(),
+      talentID,
+      showID,
+      seasonID,
+      flatFee: 0,
+      revenueSharePercent: 0,
+      agreedWeek: state.network.currentWeek,
+      agreedYear: state.network.currentYear,
+    }));
 
     const episodes: Episode[] = Array.from({ length: pitch.proposedEpisodeCount }, (_, i) => ({
       id: nanoid(),
@@ -589,15 +631,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       socialReactions: [],
     }));
 
+    // Show is fully produced — writing and filming are already complete.
     const season: Season = {
       id: seasonID,
       showID,
       seasonNumber: 1,
       episodeCount: pitch.proposedEpisodeCount,
       writingWeeksTotal: WRITING_WEEKS,
-      writingWeeksCompleted: 0,
+      writingWeeksCompleted: WRITING_WEEKS,
       filmingWeeksTotal: pitch.proposedEpisodeCount,
-      filmingWeeksCompleted: 0,
+      filmingWeeksCompleted: pitch.proposedEpisodeCount,
       marketingWeeksTotal: 0,
       marketingWeeksCompleted: 0,
       airDateWeek: null,
@@ -606,20 +649,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
       episodes,
       totalViewers: 0,
       totalAdRevenue: 0,
-      productionCost: pitch.askingFlatFee,
+      productionCost: winningBid,
       marketingSpend: 0,
       marketingChannelIDs: [],
       streamingRevenue: 0,
       renewalDecisionMade: false,
       renewed: false,
-      leadActorSlots: 2,
-      supportingActorSlots: 2,
-      leadActorIDs: [],
-      supportingActorIDs: [],
-      directorID: null,
-      showrunnerSlots: 1,
-      showrunnerIDs: [pitch.showrunnerID],
-      scriptScore: 0,
+      showrunnerSlots: showrunner ? 1 : 0,
+      showrunnerIDs: showrunner ? [showrunner.id] : [],
+      leadActorSlots: leadActors.length,
+      leadActorIDs: leadActors.map(a => a.id),
+      supportingActorSlots: supportingActors.length,
+      supportingActorIDs: supportingActors.map(a => a.id),
+      directorID: director?.id ?? null,
+      scriptScore: Math.min(100, Math.round(pitch.hiddenQualityScore * 1.05)),
       qualityScore: pitch.hiddenQualityScore,
       suggestedShowrunnerIDs: [],
       suggestedDirectorID: null,
@@ -633,7 +676,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       genre: pitch.genre,
       theme: pitch.theme,
       inHouse: false,
-      status: 'writing',
+      status: 'marketing',
       seasons: [season],
       currentSeasonIndex: 0,
       streamingDeals: [],
@@ -645,37 +688,41 @@ export const useGameStore = create<GameStore>((set, get) => ({
       heatMultiplier: 1.0,
     };
 
-    const deal: TalentDeal = {
-      id: nanoid(),
-      talentID: pitch.showrunnerID,
-      showID,
-      seasonID,
-      flatFee: pitch.askingFlatFee,
-      revenueSharePercent: pitch.askingRevenueSharePercent,
-      agreedWeek: state.network.currentWeek,
-      agreedYear: state.network.currentYear,
-    };
-
     set(s => ({
       network: {
         ...s.network,
-        cashOnHand: s.network.cashOnHand - pitch.askingFlatFee,
+        cashOnHand: s.network.cashOnHand - winningBid,
       },
       shows: [...s.shows, show],
       pitches: s.pitches.map(p =>
         p.id === pitchID ? { ...p, greenlitByPlayer: true } : p,
       ),
       talent: s.talent.map(t =>
-        t.id === pitch.showrunnerID
-          ? { ...t, available: false, bookedForSeasonID: seasonID, careerShowIDs: t.careerShowIDs.includes(showID) ? t.careerShowIDs : [...t.careerShowIDs, showID] }
+        crewIDs.includes(t.id)
+          ? {
+              ...t,
+              available: false,
+              bookedForSeasonID: seasonID,
+              careerShowIDs: t.careerShowIDs.includes(showID) ? t.careerShowIDs : [...t.careerShowIDs, showID],
+            }
           : t,
       ),
-      talentDeals: [...s.talentDeals, deal],
+      talentDeals: [...s.talentDeals, ...acquiredDeals],
     }));
-    const greenlitRumorNews = makeNewShowRumorNews(pitch.title, pitch.genre, get().network.name, false, { week: state.network.currentWeek, year: state.network.currentYear });
-    set(s => ({ newsItems: [...s.newsItems, greenlitRumorNews] }));
-    const newIDsGl = checkAchievements(get());
-    if (newIDsGl.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDsGl], achievementQueue: [...s.achievementQueue, ...newIDsGl] }));
+
+    const acquisitionNews = makeNewShowRumorNews(
+      pitch.title, pitch.genre, get().network.name, false,
+      { week: state.network.currentWeek, year: state.network.currentYear },
+    );
+    set(s => ({ newsItems: [...s.newsItems, acquisitionNews] }));
+
+    const newIDsAcq = checkAchievements(get());
+    if (newIDsAcq.length > 0) {
+      set(s => ({
+        unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDsAcq],
+        achievementQueue: [...s.achievementQueue, ...newIDsAcq],
+      }));
+    }
 
     return true;
   },
@@ -1128,6 +1175,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       capital: 25_000_000,
       showsGreenlitThisYear: 0,
       preferredGenres: [],
+      logoConfig: EMPTY_STATE.network.logoConfig,
       ...c,
       activeShows: (c.activeShows ?? []).map((s: any) => ({
         marketingWeeksRemaining: 0,
@@ -1154,6 +1202,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({
       ...loaded,
+      network: {
+        ...loaded.network,
+        logoConfig: loaded.network.logoConfig ?? EMPTY_STATE.network.logoConfig,
+      },
       shows: migratedShows,
       competitors: migratedCompetitors,
       awards: migratedAwards,
@@ -1171,5 +1223,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       loansTaken: loaded.loansTaken ?? 0,
     });
     return true;
+  },
+
+  resetGame: async () => {
+    const { saveSlot } = get();
+    await deleteSave(saveSlot);
+    set({ ...EMPTY_STATE, initialized: false });
   },
 }));

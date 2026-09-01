@@ -368,7 +368,7 @@ export function advanceWeek(state: GameState): GameState {
 
   // ─── Maybe generate a new pitch ────────────────────────────────────────────
   const pitchesThisYear = pitches.filter(p => p.submittedYear === newYear).length;
-  if (pitchesThisYear < MAX_PITCHES_PER_YEAR && randomChance(PITCH_GENERATE_CHANCE)) {
+  if (pitchesThisYear < MAX_PITCHES_PER_YEAR && randomChance(PITCH_GENERATE_CHANCE) && network.prestige >= 61) {
     const showrunners = talent.filter(
       t => t.role === 'showrunner' && t.available,
     );
@@ -714,6 +714,8 @@ export function advanceWeek(state: GameState): GameState {
 // ─── Stage tick functions ──────────────────────────────────────────────────────
 
 function tickWriting(show: Show, season: Season, state: GameState): Show {
+  if (season.showrunnerIDs.length === 0) return show; // waiting on player
+
   const completed = season.writingWeeksCompleted + 1;
   let updatedSeason = { ...season, writingWeeksCompleted: completed };
 

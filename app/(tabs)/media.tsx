@@ -1,5 +1,6 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useMemo } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { NewsItem } from '../../src/types';
-import * as Clipboard from 'expo-clipboard';
+/* import * as Clipboard from 'expo-clipboard';
 
 function formatReactionsAsText(reactions: EnrichedReaction[]): string {
   const lines: string[] = [];
@@ -42,7 +43,7 @@ async function handleExportFeed(reactions: EnrichedReaction[]) {
     `${reactions.length} posts copied. Paste them wherever you need.`,
   );
 }
-
+*/
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a', cardBg2: '#1d2035',
   border: '#252840', borderGold: '#e6b25430',
@@ -324,14 +325,14 @@ export default function MediaScreen() {
         </View>
         <View style={s.headerRight}>
           <Text style={s.weekLabel}>WEEK {network.currentWeek} · YEAR {network.currentYear}</Text>
-          {unreadCount > 0 && (
-            <TouchableOpacity style={s.inboxBtn} onPress={() => router.push('/(tabs)/inbox')} activeOpacity={0.8}>
-              <Text style={s.inboxBtnText}>INBOX</Text>
+          <TouchableOpacity style={s.inboxBtn} onPress={() => router.push('/(tabs)/inbox')} activeOpacity={0.8}>
+            <Text style={s.inboxBtnText}>INBOX</Text>
+            {unreadCount > 0 && (
               <View style={s.inboxBadge}>
                 <Text style={s.inboxBadgeText}>{unreadCount}</Text>
               </View>
-            </TouchableOpacity>
-          )}
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -362,12 +363,14 @@ export default function MediaScreen() {
         </TouchableOpacity>
       </View>
 
+      {/*
       <TouchableOpacity
         onPress={() => handleExportFeed(filteredReactions)}
         style={s.exportButton}
       >
         <Text style={s.exportButtonText}>Copy Feed as Text</Text>
       </TouchableOpacity>
+      */}
 
       {tab === 'news' ? (
         <>
@@ -496,8 +499,8 @@ const s = StyleSheet.create({
   inboxBtnText:   { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 0.5 },
   inboxBadge:     { backgroundColor: C.gold, borderRadius: 999, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   inboxBadgeText: { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 10 },
-  exportButton:     { alignSelf: 'flex-start', marginHorizontal: 16, marginBottom: 12, backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.gold + '44', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
-  exportButtonText: { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 12, letterSpacing: 0.3 },
+  /*exportButton:     { alignSelf: 'flex-start', marginHorizontal: 16, marginBottom: 12, backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.gold + '44', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
+  exportButtonText: { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 12, letterSpacing: 0.3 },*/
 
   dotRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 5, marginBottom: 14, flexWrap: 'nowrap', overflow: 'hidden' },
   dot:    { width: 5, height: 5, borderRadius: 999, backgroundColor: C.gold, opacity: 0.3 },

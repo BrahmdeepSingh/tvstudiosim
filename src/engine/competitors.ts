@@ -1,4 +1,4 @@
-import { CompetitorStudio, CompetitorShow, NewsItem, Genre, Talent } from '../types';
+import { CompetitorStudio, CompetitorShow, NewsItem, Genre, Talent, LogoConfig } from '../types';
 import {
   COMPETITOR_STUDIO_CONFIGS,
   COMPETITOR_CANCEL_THRESHOLD,
@@ -159,6 +159,28 @@ function computePrestigeDelta(avgRating: number, cancelled: boolean): number {
 
 // ─── Initial generation ───────────────────────────────────────────────────────
 
+const LOGO_ALL_COLORS = [
+  '#0f1220', '#1a2a5e', '#3a4a6a', '#7a1f38',
+  '#c43820', '#d4753a', '#e6b254', '#f5e6c8',
+  '#f0ede8', '#2da85e', '#2aa89a', '#3b6fd4', '#8b4fbd',
+];
+const LOGO_BG_COLORS   = LOGO_ALL_COLORS;
+const LOGO_TEXT_COLORS = LOGO_ALL_COLORS;
+const LOGO_ICON_IDS = [
+  null,
+  'filmcamera', 'clapperboard', 'antenna', 'directorchair', 'mountain', 'filmroll',
+  'crown', 'lightbulb', 'star',
+  'trophy', 'play', 'film',
+] as const;
+
+function randomLogoConfig(): LogoConfig {
+  return {
+    bgColor:   LOGO_BG_COLORS[randomBetween(0, LOGO_BG_COLORS.length - 1)],
+    iconID:    LOGO_ICON_IDS[randomBetween(0, LOGO_ICON_IDS.length - 1)] ?? null,
+    textColor: LOGO_TEXT_COLORS[randomBetween(0, LOGO_TEXT_COLORS.length - 1)],
+  };
+}
+
 export function generateInitialCompetitors(
   talent: Talent[],
 ): { competitors: CompetitorStudio[]; updatedTalent: Talent[] } {
@@ -189,6 +211,7 @@ export function generateInitialCompetitors(
       activeShows: initialShows,
       emmysWon: cfg.tier === 'powerhouse' ? randomBetween(1, 4) : randomBetween(0, 2),
       totalShowsProduced: cfg.tier === 'powerhouse' ? randomBetween(4, 10) : randomBetween(1, 5),
+      logoConfig: randomLogoConfig(),
     });
   }
 

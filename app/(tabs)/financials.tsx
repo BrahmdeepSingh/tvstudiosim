@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
+import { LogoBadge } from '../components/LogoBadge';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
@@ -66,7 +67,7 @@ function StatRow({ label, value, color }: { label: string; value: string; color?
 
 export default function StudioScreen() {
   const router = useRouter();
-  const { network, shows, saveGame, initializeGame, unlockedAchievementIDs, activeLoan } = useGameStore();
+  const { network, shows, saveGame, resetGame, unlockedAchievementIDs, activeLoan } = useGameStore();
 
   const totalSeasons = shows.reduce((sum, sh) => sum + sh.seasons.length, 0);
   const activeShows = shows.filter(s =>
@@ -80,13 +81,16 @@ export default function StudioScreen() {
   function handleReset() {
     Alert.alert(
       'Reset Game',
-      'This will permanently delete all progress. Are you sure?',
+      'This will permanently delete all progress and return you to the setup screen. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Reset',
           style: 'destructive',
-          onPress: () => initializeGame(network.name, network.initials),
+          onPress: async () => {
+            await resetGame();
+            router.replace('/studio-setup' as any);
+          },
         },
       ],
     );
@@ -108,9 +112,7 @@ export default function StudioScreen() {
 
         {/* Network identity */}
         <View style={s.identityCard}>
-          <View style={s.networkBadge}>
-            <Text style={s.networkInitials}>{network.initials}</Text>
-          </View>
+          <LogoBadge size={52} initials={network.initials} config={network.logoConfig} />
           <View style={{ flex: 1 }}>
             <Text style={s.networkName}>{network.name}</Text>
             <Text style={s.networkSub}>Independent · Founded Year {network.foundedYear}</Text>

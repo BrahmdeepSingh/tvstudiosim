@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import { LogoBadge } from '../components/LogoBadge';
 import { Show, NewsItem, StudioEvent } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { THEME_WINDOWS } from '../../src/constants/schedule';
@@ -465,30 +466,14 @@ export default function Dashboard() {
     });
   }, [network.currentWeek, network.currentYear, initialized]);
 
-  // ── New-game splash ─────────────────────────────────────────────────────────
-  if (!initialized) {
-    return (
-      <LinearGradient colors={['#141726', '#0c0f1a', '#070a12']} style={{ flex: 1 }}>
-        <FilmRibbonAmbient />
-        <SafeAreaView edges={['top']} style={s.setupContainer}>
-          <Text style={s.setupTitle}>TV STUDIO SIM</Text>
-          <TouchableOpacity
-            style={s.advanceBtn}
-            onPress={() => initializeGame('Apex Television', 'AT')}
-          >
-            <LinearGradient
-              colors={['#f0c060', '#c49440']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={s.advanceBtnGradient}
-            >
-              <Text style={s.advanceBtnText}>START NEW GAME</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </SafeAreaView>
-      </LinearGradient>
-    );
-  }
+  // ── New-game redirect ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!initialized) {
+      router.replace('/studio-setup' as any);
+    }
+  }, [initialized]);
+
+  if (!initialized) return null;
 
   // ── Derived data ────────────────────────────────────────────────────────────
   const activeShows = shows
@@ -581,9 +566,7 @@ export default function Dashboard() {
             <DotRow />
             <View style={s.headerRow}>
               {/* Network badge */}
-              <View style={s.networkBadge}>
-                <Text style={s.networkInitials}>{network.initials}</Text>
-              </View>
+              <LogoBadge size={46} initials={network.initials} config={network.logoConfig} />
 
               {/* Network name + subtitle */}
               <View style={{ flex: 1, marginLeft: 12 }}>
@@ -754,12 +737,13 @@ export default function Dashboard() {
           <TouchableOpacity style={s.advanceBtn} onPress={() => {
             hap.medium();
             setTimeout(() => {
-              advanceWeek();
-              // Read week/year AFTER advance so they match weekAired on episodes
-              const { network: net } = useGameStore.getState();
-              setRecapWeek(net.currentWeek);
-              setRecapYear(net.currentYear);
+              // Set recap visible BEFORE advanceWeek so any event generated during
+              // the tick starts hidden — avoids the event flashing before the recap.
+              // nextWeek/nextYear are pre-computed above and match what advanceWeek sets.
+              setRecapWeek(nextWeek);
+              setRecapYear(nextYear);
               setRecapVisible(true);
+              advanceWeek();
             }, 16);
           }} activeOpacity={0.88}>
             <LinearGradient

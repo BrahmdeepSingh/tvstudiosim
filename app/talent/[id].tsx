@@ -332,7 +332,28 @@ export default function TalentDetailScreen() {
         setOfferStatus('accepted');
         setTimeout(() => {
           closeOfferSheet();
-          router.back();
+          // After a successful hire, check if all slots for this role are now
+          // filled. If so, dismiss both talent/[id] AND hire-talent in one shot
+          // so the user lands back on the show/dashboard. If actor slots still
+          // have room, stay on hire-talent to pick another.
+          const { shows: latestShows } = useGameStore.getState();
+          const latestShow = latestShows.find(s => s.id === hireShowID);
+          const latestSeason = latestShow?.seasons[latestShow.currentSeasonIndex];
+          let slotsFull = false;
+          if (hireRole === 'director') {
+            slotsFull = !!latestSeason?.directorID;
+          } else if (hireRole === 'showrunner') {
+            slotsFull = (latestSeason?.showrunnerIDs.length ?? 0) >= (latestSeason?.showrunnerSlots ?? 1);
+          } else {
+            slotsFull = hireActorType === 'lead'
+              ? (latestSeason?.leadActorIDs.length ?? 0) >= (latestSeason?.leadActorSlots ?? 0)
+              : (latestSeason?.supportingActorIDs.length ?? 0) >= (latestSeason?.supportingActorSlots ?? 0);
+          }
+          if (slotsFull) {
+            router.dismiss(2);
+          } else {
+            router.back();
+          }
         }, 1200);
       }
     } else {
