@@ -74,6 +74,10 @@ import {
     crown:         'Crown',
     lightbulb:     'Lightbulb',
     star:          'Star',
+    lion:          'Lion',
+    globe:         'Globe',
+    castle:        'Castle',
+    house:         'House',
   };
   const ICONS: { id: IconID; label: string }[] = [
     ...EMBLEM_IDS.map(id => ({ id: id as IconID, label: EMBLEM_LABELS[id] })),
