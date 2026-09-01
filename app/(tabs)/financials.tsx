@@ -1,5 +1,5 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LinearGradient } from 'expo-linear-gradient';
@@ -77,14 +77,29 @@ export default function StudioScreen() {
   async function handleSave() {
     try {
       await saveGame();
-      setTimeout(() => Alert.alert('Saved', `Game saved to Slot ${saveSlot}.`), 50);
+      if (Platform.OS === 'web') {
+        window.alert(`Game saved to Slot ${saveSlot}.`);
+      } else {
+        Alert.alert('Saved', `Game saved to Slot ${saveSlot}.`);
+      }
     } catch {
-      setTimeout(() => Alert.alert('Error', 'Save failed. Please try again.'), 50);
+      if (Platform.OS === 'web') {
+        window.alert('Save failed. Please try again.');
+      } else {
+        Alert.alert('Error', 'Save failed. Please try again.');
+      }
     }
   }
 
   function handleReset() {
-    setTimeout(() => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        `Reset Slot ${saveSlot}?\n\nThis will permanently delete all progress and return you to the home screen.`
+      );
+      if (confirmed) {
+        resetGame().then(() => router.replace('/home' as any));
+      }
+    } else {
       Alert.alert(
         'Reset Save Slot',
         `This will permanently delete Slot ${saveSlot} and return you to the home screen. Are you sure?`,
@@ -100,7 +115,7 @@ export default function StudioScreen() {
           },
         ],
       );
-    }, 50);
+    }
   }
 
   return (

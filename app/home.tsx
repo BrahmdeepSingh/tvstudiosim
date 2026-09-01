@@ -1,6 +1,6 @@
 import {
   View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
-  Alert, Animated,
+  Alert, Animated, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -172,21 +172,30 @@ export default function HomeScreen() {
   }
 
   function handleDelete(meta: SlotMeta) {
-    Alert.alert(
-      'Delete Save',
-      `Permanently delete Slot ${meta.slot} — ${meta.studioName}? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteSave(meta.slot);
-            fetchSlots();
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        `Delete Slot ${meta.slot} — ${meta.studioName}?\n\nThis cannot be undone.`
+      );
+      if (confirmed) {
+        deleteSave(meta.slot).then(fetchSlots);
+      }
+    } else {
+      Alert.alert(
+        'Delete Save',
+        `Permanently delete Slot ${meta.slot} — ${meta.studioName}? This cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              await deleteSave(meta.slot);
+              fetchSlots();
+            },
           },
-        },
-      ],
-    );
+        ],
+      );
+    }
   }
 
   return (
