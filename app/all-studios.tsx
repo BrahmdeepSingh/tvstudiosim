@@ -39,11 +39,6 @@ import {
       ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(s.status),
     ).length;
   
-    // Map competitors to a stable color index
-    const competitorColorMap = new Map(
-      competitors.map((c, i) => [c.id, STUDIO_COLORS[i % STUDIO_COLORS.length]]),
-    );
-  
     // Build one sorted list: player + all competitors
     type StudioRow = {
       id: string;
@@ -71,7 +66,7 @@ import {
         prestige: c.prestige,
         name: c.name,
         initials: initials(c.name),
-        logoConfig: c.logoConfig,
+        logoConfig: c.logoConfig ?? { bgColor: '#3a4a6a', iconID: null, textColor: '#f0ede8' },
         activeCount: c.activeShows.filter(s =>
           ['pre-production', 'filming', 'marketing', 'airing'].includes(s.status),
         ).length,
