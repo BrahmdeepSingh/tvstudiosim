@@ -51,12 +51,12 @@ export const COMPETITOR_STUDIO_CONFIGS: CompetitorStudioConfig[] = [
   {
     name: 'Magic Castle Studios', tier: 'powerhouse',
     startingCapital: 65_000_000, preferredGenres: ['drama', 'limited-series'], startingPrestige: 52,
-    logoConfig: { bgColor: '#1a2a5e', iconID: 'crown',         textColor: '#e6b254' },
+    logoConfig: { bgColor: '#1e3a8a', iconID: 'castle',        textColor: '#ffffff' },
   },
   {
     name: 'Globe Pictures', tier: 'powerhouse',
     startingCapital: 60_000_000, preferredGenres: ['drama', 'sci-fi'], startingPrestige: 48,
-    logoConfig: { bgColor: '#0f1220', iconID: 'filmcamera',    textColor: '#3b6fd4' },
+    logoConfig: { bgColor: '#0d1b3e', iconID: 'globe',          textColor: '#f5e6c8' },
   },
   {
     name: 'Shield Bros.', tier: 'established',
@@ -71,7 +71,7 @@ export const COMPETITOR_STUDIO_CONFIGS: CompetitorStudioConfig[] = [
   {
     name: 'LionClub Entertainment', tier: 'established',
     startingCapital: 25_000_000, preferredGenres: ['sci-fi', 'limited-series'], startingPrestige: 28,
-    logoConfig: { bgColor: '#8b4fbd', iconID: 'star',           textColor: '#f5e6c8' },
+    logoConfig: { bgColor: '#f5e6c8', iconID: 'lion',           textColor: '#1a1a2e' },
   },
   {
     name: 'Ironwood TV', tier: 'independent',
@@ -81,7 +81,7 @@ export const COMPETITOR_STUDIO_CONFIGS: CompetitorStudioConfig[] = [
   {
     name: 'Smooth House Pictures', tier: 'independent',
     startingCapital: 12_000_000, preferredGenres: ['reality', 'procedural'], startingPrestige: 16,
-    logoConfig: { bgColor: '#3a4a6a', iconID: 'clapperboard',   textColor: '#f0ede8' },
+    logoConfig: { bgColor: '#0d1b3e', iconID: 'house',           textColor: '#8b4fbd' },
   },
   {
     name: 'Green Grass Studios', tier: 'independent',
