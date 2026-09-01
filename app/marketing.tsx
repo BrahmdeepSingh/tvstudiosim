@@ -133,7 +133,9 @@ export default function MarketingScreen() {
         </View>
 
         {/* Air Date */}
-        <Text style={s.sectionLabel}>AIR DATE</Text>
+        <TutorialTarget stepID="marketing-premiere" style={{ position: 'relative' }}>
+          <Text style={s.sectionLabel}>AIR DATE</Text>
+        </TutorialTarget>
         {airDateSet && !isEditing ? (
           <View style={s.airDateSet}>
             <View style={{ flex: 1 }}>
@@ -233,7 +235,7 @@ export default function MarketingScreen() {
 
         {/* Marketing Channels */}
         <View style={{ position: 'relative' }}>
-          <TutorialTarget stepID="marketing" style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <TutorialTarget stepID="marketing-channels" style={StyleSheet.absoluteFill} pointerEvents="none" />
           <Text style={s.sectionLabel}>MARKETING CHANNELS</Text>
           <Text style={s.sectionDesc}>
             Channels boost episode 1 ratings. Effect decays over the run. Genre matches get a 20% bonus.

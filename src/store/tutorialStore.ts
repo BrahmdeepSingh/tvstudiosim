@@ -8,21 +8,26 @@ export type TutorialStep =
   | 'create-show'
   | 'casting'
   | 'show-writing'
-  | 'scheduling'
-  | 'boost-zone'
-  | 'marketing'
+  | 'post-writing-tasks'
+  | 'post-filming'
+  | 'marketing-premiere'
+  | 'marketing-channels'
   | 'episode-aired'
   | 'social-buzz'
   | 'done';
+
+// Steps where the user must perform an in-game action to advance (no Next button)
+export const ACTION_GATED_STEPS: TutorialStep[] = ['dashboard', 'create-show'];
 
 const STEP_ORDER: TutorialStep[] = [
   'dashboard',
   'create-show',
   'casting',
   'show-writing',
-  'scheduling',
-  'boost-zone',
-  'marketing',
+  'post-writing-tasks',
+  'post-filming',
+  'marketing-premiere',
+  'marketing-channels',
   'episode-aired',
   'social-buzz',
   'done',
@@ -37,47 +42,52 @@ export interface StepConfig {
 export const STEP_CONFIG: Record<Exclude<TutorialStep, 'done'>, StepConfig> = {
   'dashboard': {
     title: 'ADVANCE THE WEEK',
-    body: "This golden button is the engine of your studio. Tap it each week to progress your shows through writing, filming, and eventually air. Everything in the game moves forward here.",
+    body: "This golden button is the engine of your studio. Tap it to move time forward — your shows progress through writing, filming, and air. Go ahead and tap it now to get started.",
     route: '/(tabs)',
   },
   'create-show': {
     title: 'CREATE YOUR FIRST SHOW',
-    body: "Every great network starts with a hit show. Tap here to greenlight your first production. Pick a genre, a theme, and an episode count — each combination plays differently.",
+    body: "Every great network starts with a hit show. Tap CREATE SHOW below to greenlight your first production. Pick a genre, a theme, and an episode count — each combination plays differently.",
     route: '/(tabs)',
   },
   'casting': {
-    title: 'HIRE YOUR TEAM',
-    body: "A show is only as good as its talent. Start by hiring a showrunner to lead the writers' room — they set your creative ceiling. Then fill out your lead and supporting cast.",
+    title: 'HIRE YOUR SHOWRUNNER',
+    body: "First, hire a Showrunner. They run the writers' room and set your creative ceiling. A great showrunner means better scripts, which means better ratings. Tap any showrunner candidate to hire them.",
     route: '/hire-talent',
   },
   'show-writing': {
     title: 'WRITING IN PROGRESS',
-    body: "Your show is now in the writers' room. Each week you advance, writing ticks forward. Watch the progress bar — filming starts automatically when writing wraps.",
+    body: "Your show is in the writers' room. Each week you advance, writing ticks forward. Watch the progress bar on your show card — filming starts automatically when the scripts are done.",
     route: '/(tabs)',
   },
-  'scheduling': {
-    title: 'PICK AN AIR DATE',
-    body: "This is your full broadcast calendar. Scroll horizontally to browse weeks and pick when to premiere. Timing matters — some windows attract bigger audiences than others.",
-    route: '/schedule',
+  'post-writing-tasks': {
+    title: 'HIRE YOUR CREW',
+    body: "Writing is done — filming has begun! Check your TASKS section for three key roles: a Director to lead the shoot, Lead Actors for your starring cast, and Supporting Cast to fill out the ensemble. Each one affects your final quality score.",
+    route: '/(tabs)',
   },
-  'boost-zone': {
-    title: 'BOOST ZONES',
-    body: "The coloured highlighted windows are themed boost zones. Schedule your show's premiere inside one matching your show's theme and you'll get a ratings bonus. Plan around them!",
-    route: '/schedule',
+  'post-filming': {
+    title: 'TIME TO MARKET',
+    body: "Filming is wrapped! Now tap your show card to open the show detail screen, then go to Marketing to set your premiere date and buy advertising. Timing your premiere right — and spending on ads — can make or break your ratings.",
+    route: '/(tabs)',
   },
-  'marketing': {
-    title: 'SPEND ON MARKETING',
-    body: "These channels build awareness before your premiere. Each one costs money but brings more viewers to episode one. Genre-matched channels give an extra 20% bonus.",
+  'marketing-premiere': {
+    title: 'SET YOUR PREMIERE DATE',
+    body: "Pick how many weeks from now to air. Scheduling during a themed boost window that matches your show's genre gives you a big ratings bonus — look for the coloured window indicator below the date picker.",
+    route: '/marketing',
+  },
+  'marketing-channels': {
+    title: 'BUY MARKETING CHANNELS',
+    body: "These channels build awareness before your premiere. Each one costs money but drives more viewers to episode one. Genre-matched channels give an extra 20% bonus on top — check the tag on each card.",
     route: '/marketing',
   },
   'episode-aired': {
     title: 'YOUR FIRST RATING',
-    body: "Your show just aired! The number here is its rating — higher is better. Ratings drive ad revenue every week. Build momentum across episodes to grow your audience.",
+    body: "Your show just aired! The number here is its rating — higher is better. Ratings drive ad revenue every week. Build momentum across episodes to grow your audience and attract renewal offers.",
     route: '/(tabs)',
   },
   'social-buzz': {
     title: 'SOCIAL BUZZ',
-    body: "After advancing each week, the Weekly Recap shows what viewers are tweeting about your show. Strong ratings generate viral moments — watch the social section to gauge the mood.",
+    body: "After advancing each week, the Weekly Recap shows what viewers are tweeting about your show. Strong ratings generate viral moments — watch the social section to gauge the mood and plan your next move.",
     route: '/(tabs)',
   },
 };

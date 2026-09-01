@@ -4,7 +4,7 @@ import {
   Animated, Dimensions, Platform,
 } from 'react-native';
 import { usePathname } from 'expo-router';
-import { useTutorialStore, STEP_CONFIG, TutorialStep, TargetRect } from '../../src/store/tutorialStore';
+import { useTutorialStore, STEP_CONFIG, ACTION_GATED_STEPS, TutorialStep, TargetRect } from '../../src/store/tutorialStore';
 
 const { width: W, height: H } = Dimensions.get('window');
 const DIM = '#0a0c18e8';
@@ -28,7 +28,8 @@ const F = {
 
 const STEP_ORDER: Exclude<TutorialStep, 'done'>[] = [
   'dashboard', 'create-show', 'casting', 'show-writing',
-  'scheduling', 'boost-zone', 'marketing', 'episode-aired', 'social-buzz',
+  'post-writing-tasks', 'post-filming', 'marketing-premiere', 'marketing-channels',
+  'episode-aired', 'social-buzz',
 ];
 
 // ── Pulsing gold border on the spotlight target ───────────────────────────────
@@ -156,11 +157,18 @@ function Tooltip({
           <Text style={styles.skipBtn}>Skip tutorial</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.nextBtn} onPress={onNext} activeOpacity={0.82}>
-          <Text style={styles.nextBtnText}>
-            {stepIdx + 1 < total ? 'NEXT  →' : 'GOT IT  ✓'}
+        {!ACTION_GATED_STEPS.includes(step) && (
+          <TouchableOpacity style={styles.nextBtn} onPress={onNext} activeOpacity={0.82}>
+            <Text style={styles.nextBtnText}>
+              {stepIdx + 1 < total ? 'NEXT  →' : 'GOT IT  ✓'}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {ACTION_GATED_STEPS.includes(step) && (
+          <Text style={styles.actionHint}>
+            {step === 'dashboard' ? 'Tap the button above ↑' : 'Tap CREATE SHOW ↑'}
           </Text>
-        </TouchableOpacity>
+        )}
       </View>
     </Animated.View>
   );
@@ -314,5 +322,11 @@ const styles = StyleSheet.create({
     fontFamily: F.bodyBd,
     fontSize: 14,
     letterSpacing: 0.8,
+  },
+  actionHint: {
+    color: C.gold,
+    fontFamily: F.bodyMd,
+    fontSize: 13,
+    fontStyle: 'italic',
   },
 });
