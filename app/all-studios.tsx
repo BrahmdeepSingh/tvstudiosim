@@ -4,6 +4,7 @@ import {
   import { LinearGradient } from 'expo-linear-gradient';
   import { useRouter } from 'expo-router';
   import { useGameStore } from '../src/store/gameStore';
+  import { LogoBadge } from './components/LogoBadge';
   
   const C = {
     pageBg:      '#0f1220',
@@ -15,7 +16,6 @@ import {
     gold:        '#e6b254',
     goldDim:     '#e6b25418',
     goldBorder:  '#e6b25440',
-    goldBtnText: '#161008',
   };
   
   const F = {
@@ -24,17 +24,6 @@ import {
     bodyMd:  'Manrope_600SemiBold',
     bodyBd:  'Manrope_700Bold',
   };
-  
-  const STUDIO_COLORS = [
-    '#5b8cff',
-    '#ff6b6b',
-    '#4ec46e',
-    '#d4753a',
-    '#a855f7',
-    '#3db8a8',
-    '#f59e0b',
-    '#ec4899',
-  ];
   
   function initials(name: string): string {
     const words = name.trim().split(/\s+/);
@@ -61,31 +50,31 @@ import {
       isPlayer: boolean;
       prestige: number;
       name: string;
-      inits: string;
+      initials: string;
+      logoConfig: import('../src/types').LogoConfig;
       activeCount: number;
-      color: string;
     };
-  
+
     const allRows: StudioRow[] = [
       {
         id: 'player',
         isPlayer: true,
         prestige: network.prestige,
         name: network.name,
-        inits: network.initials,
+        initials: network.initials,
+        logoConfig: network.logoConfig,
         activeCount: playerActiveCount,
-        color: C.gold,
       },
-      ...competitors.map((c, i) => ({
+      ...competitors.map(c => ({
         id: c.id,
         isPlayer: false,
         prestige: c.prestige,
         name: c.name,
-        inits: initials(c.name),
+        initials: initials(c.name),
+        logoConfig: c.logoConfig,
         activeCount: c.activeShows.filter(s =>
           ['pre-production', 'filming', 'marketing', 'airing'].includes(s.status),
         ).length,
-        color: STUDIO_COLORS[i % STUDIO_COLORS.length],
       })),
     ].sort((a, b) => b.prestige - a.prestige);
   
@@ -135,9 +124,7 @@ import {
                   />
                   <View style={[StyleSheet.absoluteFill, s.playerBorder]} />
                   <Text style={[s.rankNum, { color: C.gold }]}>{rank + 1}</Text>
-                  <View style={[s.badge, { backgroundColor: C.gold }]}>
-                    <Text style={[s.badgeText, { color: C.goldBtnText }]}>{row.inits}</Text>
-                  </View>
+                  <LogoBadge size={40} initials={row.initials} config={row.logoConfig} />
                   <View style={s.rowInfo}>
                     <Text style={[s.rowName, { color: C.gold }]}>{row.name}</Text>
                     <Text style={s.rowSub}>You · {row.activeCount} show{row.activeCount !== 1 ? 's' : ''} on air</Text>
@@ -147,7 +134,6 @@ import {
               );
             }
   
-            const color = row.color;
             return (
               <TouchableOpacity
                 key={row.id}
@@ -156,9 +142,7 @@ import {
                 onPress={() => router.push({ pathname: '/studio-profile', params: { id: row.id } })}
               >
                 <Text style={s.rankNum}>{rank + 1}</Text>
-                <View style={[s.badge, { backgroundColor: `${color}20`, borderColor: `${color}50`, borderWidth: 1 }]}>
-                  <Text style={[s.badgeText, { color }]}>{row.inits}</Text>
-                </View>
+                <LogoBadge size={40} initials={row.initials} config={row.logoConfig} />
                 <View style={s.rowInfo}>
                   <Text style={s.rowName}>{row.name}</Text>
                   <Text style={s.rowSub}>{row.activeCount} show{row.activeCount !== 1 ? 's' : ''} on air</Text>
@@ -201,10 +185,7 @@ import {
     row:          { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg, paddingVertical: 12, paddingHorizontal: 10, marginBottom: 6 },
   
     rankNum:      { color: C.muted, fontFamily: F.bodyBd, fontSize: 13, width: 26, textAlign: 'center' },
-  
-    badge:        { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginLeft: 4 },
-    badgeText:    { fontFamily: F.display, fontSize: 18, letterSpacing: 0.5 },
-  
+
     rowInfo:      { flex: 1, marginLeft: 12 },
     rowName:      { color: C.text, fontFamily: F.bodyBd, fontSize: 14, marginBottom: 2 },
     rowSub:       { color: C.muted, fontFamily: F.body, fontSize: 12 },

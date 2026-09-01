@@ -330,6 +330,7 @@ export interface CompetitorStudio {
   capital: number;
   showsGreenlitThisYear: number;
   preferredGenres: Genre[];
+  logoConfig: LogoConfig;
 }
 
 // ─── Streaming ───────────────────────────────────────────────────────────────
