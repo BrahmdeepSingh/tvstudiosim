@@ -19,7 +19,7 @@ import { checkAchievements } from '../engine/achievements';
 import { generateInitialTalentPool } from '../engine/talent';
 import { generateInitialCompetitors } from '../engine/competitors';
 import { generatePitch } from '../engine/pitches';
-import { saveGameToStorage, loadGameFromStorage } from './storage';
+import { saveGameToStorage, loadGameFromStorage, deleteSave } from './storage';
 import { makeStreamingDealNews, makeNewShowRumorNews } from '../engine/news';
 import {
   generatePremiereDateAnnouncedPosts,
@@ -102,6 +102,9 @@ interface GameStore extends GameState {
   // Persistence
   saveGame: () => Promise<void>;
   loadGame: (slot: number) => Promise<boolean>;
+
+  // Reset
+  resetGame: () => Promise<void>;
 }
 
 // ─── Initial State Shape ──────────────────────────────────────────────────────
@@ -1220,5 +1223,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       loansTaken: loaded.loansTaken ?? 0,
     });
     return true;
+  },
+
+  resetGame: async () => {
+    const { saveSlot } = get();
+    await deleteSave(saveSlot);
+    set({ ...EMPTY_STATE, initialized: false });
   },
 }));

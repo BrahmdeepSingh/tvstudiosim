@@ -67,7 +67,7 @@ function StatRow({ label, value, color }: { label: string; value: string; color?
 
 export default function StudioScreen() {
   const router = useRouter();
-  const { network, shows, saveGame, initializeGame, unlockedAchievementIDs, activeLoan } = useGameStore();
+  const { network, shows, saveGame, resetGame, unlockedAchievementIDs, activeLoan } = useGameStore();
 
   const totalSeasons = shows.reduce((sum, sh) => sum + sh.seasons.length, 0);
   const activeShows = shows.filter(s =>
@@ -81,13 +81,13 @@ export default function StudioScreen() {
   function handleReset() {
     Alert.alert(
       'Reset Game',
-      'This will permanently delete all progress. Are you sure?',
+      'This will permanently delete all progress and return you to the setup screen. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Reset',
           style: 'destructive',
-          onPress: () => initializeGame(network.name, network.initials),
+          onPress: () => resetGame(),
         },
       ],
     );
