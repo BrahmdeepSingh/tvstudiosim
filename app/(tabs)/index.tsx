@@ -7,6 +7,8 @@ import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { LogoBadge } from '../components/LogoBadge';
+import { TutorialTarget } from '../components/TutorialTarget';
+import { useTutorialStore } from '../../src/store/tutorialStore';
 import { Show, NewsItem, StudioEvent } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { THEME_WINDOWS } from '../../src/constants/schedule';
@@ -433,6 +435,8 @@ export default function Dashboard() {
   const [recapWeek,    setRecapWeek]      = useState(1);
   const [recapYear,    setRecapYear]      = useState(1);
 
+  const tutorialStep = useTutorialStore(s => s.step);
+
   // Derive the current pending event directly — when it's resolved in the store
   // this becomes null and the modal disappears automatically with no stale-closure issues.
   const pendingEvent = (studioEvents ?? []).find(e => !e.resolved) ?? null;
@@ -644,6 +648,9 @@ export default function Dashboard() {
 
           {activeShows.length === 0 ? (
             <TouchableOpacity style={s.emptyCard} onPress={() => router.push('/create-show')}>
+              {tutorialStep === 'create-show' && (
+                <TutorialTarget stepID="create-show" style={StyleSheet.absoluteFill} pointerEvents="none" />
+              )}
               <Text style={s.emptyTitle}>NO ACTIVE SHOWS</Text>
               <Text style={s.emptyBody}>Greenlight a pitch or create your first show to get started.</Text>
               <View style={s.emptyAction}>
@@ -651,9 +658,19 @@ export default function Dashboard() {
               </View>
             </TouchableOpacity>
           ) : (
-            activeShows.map(show => (
-              <ShowCard key={show.id} show={show} onPress={() => router.push(`/show/${show.id}`)} />
-            ))
+            activeShows.map((show, idx) => {
+              const isWriting = show.status === 'writing' && idx === 0 && tutorialStep === 'show-writing';
+              const isAired   = (show.status === 'airing' || show.status === 'renewal-pending') && idx === 0 && tutorialStep === 'episode-aired';
+              const targetStep = isWriting ? 'show-writing' : isAired ? 'episode-aired' : null;
+              return (
+                <View key={show.id} style={{ position: 'relative' }}>
+                  {targetStep && (
+                    <TutorialTarget stepID={targetStep} style={StyleSheet.absoluteFill} pointerEvents="none" />
+                  )}
+                  <ShowCard show={show} onPress={() => router.push(`/show/${show.id}`)} />
+                </View>
+              );
+            })
           )}
 
           {/* ── Tasks ── */}
@@ -722,7 +739,7 @@ export default function Dashboard() {
         </ScrollView>
 
         {/* ── Advance Week button ── */}
-        <View style={s.advanceWrap}>
+        <TutorialTarget stepID="dashboard" style={s.advanceWrap}>
           <Animated.View
             style={[
               s.advanceGlowRing,
@@ -757,7 +774,7 @@ export default function Dashboard() {
               </Text>
             </LinearGradient>
           </TouchableOpacity>
-        </View>
+        </TutorialTarget>
       </SafeAreaView>
 
       <WeeklyRecapModal

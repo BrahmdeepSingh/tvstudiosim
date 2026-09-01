@@ -3,6 +3,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { TutorialTarget } from './components/TutorialTarget';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { MARKETING_CHANNELS, WEEKS_PER_YEAR } from '../src/constants/game';
@@ -231,10 +232,13 @@ export default function MarketingScreen() {
         )}
 
         {/* Marketing Channels */}
-        <Text style={s.sectionLabel}>MARKETING CHANNELS</Text>
-        <Text style={s.sectionDesc}>
-          Channels boost episode 1 ratings. Effect decays over the run. Genre matches get a 20% bonus.
-        </Text>
+        <View style={{ position: 'relative' }}>
+          <TutorialTarget stepID="marketing" style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <Text style={s.sectionLabel}>MARKETING CHANNELS</Text>
+          <Text style={s.sectionDesc}>
+            Channels boost episode 1 ratings. Effect decays over the run. Genre matches get a 20% bonus.
+          </Text>
+        </View>
 
         {MARKETING_CHANNELS.map(channel => {
           const purchased = season.marketingChannelIDs.includes(channel.id);
