@@ -11,7 +11,16 @@ import {
 } from '@expo-google-fonts/manrope';
 import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useEffect } from 'react';
 import { AchievementToast } from '../src/components/AchievementToast';
+import { TutorialOverlay } from './components/TutorialOverlay';
+import { useTutorialStore } from '../src/store/tutorialStore';
+
+function TutorialInit() {
+  const init = useTutorialStore(s => s.init);
+  useEffect(() => { init(); }, []);
+  return null;
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -34,8 +43,10 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
+      <TutorialInit />
       <Stack screenOptions={{ headerShown: false }} />
       <AchievementToast />
+      <TutorialOverlay />
     </SafeAreaProvider>
   );
 }
