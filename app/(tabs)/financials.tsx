@@ -87,7 +87,10 @@ export default function StudioScreen() {
         {
           text: 'Reset',
           style: 'destructive',
-          onPress: () => resetGame(),
+          onPress: async () => {
+            await resetGame();
+            router.replace('/studio-setup' as any);
+          },
         },
       ],
     );

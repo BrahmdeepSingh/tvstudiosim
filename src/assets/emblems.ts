@@ -71,7 +71,6 @@ export const EMBLEMS: Record<EmblemID, string> = {
 <circle cx="300" cy="300" r="200" stroke="white" stroke-width="40" fill="none"/>
 <circle cx="300" cy="300" r="60" fill="white"/>
 </svg>`,
-};
 
   crown: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" fill="none">
 <!-- PASTE your crown.svg content here (delete this comment line) -->
