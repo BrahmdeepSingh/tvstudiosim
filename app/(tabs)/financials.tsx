@@ -74,26 +74,33 @@ export default function StudioScreen() {
     ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(s.status)
   ).length;
 
-  function handleSave() {
-    saveGame().then(() => Alert.alert('Saved', `Game saved to Slot ${saveSlot}.`));
+  async function handleSave() {
+    try {
+      await saveGame();
+      setTimeout(() => Alert.alert('Saved', `Game saved to Slot ${saveSlot}.`), 50);
+    } catch {
+      setTimeout(() => Alert.alert('Error', 'Save failed. Please try again.'), 50);
+    }
   }
 
   function handleReset() {
-    Alert.alert(
-      'Reset Save Slot',
-      `This will permanently delete Slot ${saveSlot} and return you to the home screen. Are you sure?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: async () => {
-            await resetGame();
-            router.replace('/home' as any);
+    setTimeout(() => {
+      Alert.alert(
+        'Reset Save Slot',
+        `This will permanently delete Slot ${saveSlot} and return you to the home screen. Are you sure?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Reset',
+            style: 'destructive',
+            onPress: async () => {
+              await resetGame();
+              router.replace('/home' as any);
+            },
           },
-        },
-      ],
-    );
+        ],
+      );
+    }, 50);
   }
 
   return (
