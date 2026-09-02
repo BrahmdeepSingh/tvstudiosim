@@ -3,6 +3,44 @@ import { GameState } from '../types';
 
 const SLOT_KEY = (slot: number) => `tvstudiosim_save_${slot}`;
 
+export interface SlotMeta {
+  slot: number;
+  occupied: boolean;
+  studioName?: string;
+  initials?: string;
+  week?: number;
+  year?: number;
+  lastSaved?: string;
+  prestige?: number;
+}
+
+export async function getAllSlotsMeta(slotCount = 3): Promise<SlotMeta[]> {
+  const results: SlotMeta[] = [];
+  for (let i = 1; i <= slotCount; i++) {
+    try {
+      const json = await AsyncStorage.getItem(SLOT_KEY(i));
+      if (!json) {
+        results.push({ slot: i, occupied: false });
+        continue;
+      }
+      const parsed = JSON.parse(json) as Partial<GameState>;
+      results.push({
+        slot: i,
+        occupied: true,
+        studioName: parsed.network?.name,
+        initials: parsed.network?.initials,
+        week: parsed.network?.currentWeek,
+        year: parsed.network?.currentYear,
+        lastSaved: parsed.lastSaved,
+        prestige: parsed.network?.prestige,
+      });
+    } catch {
+      results.push({ slot: i, occupied: false });
+    }
+  }
+  return results;
+}
+
 export async function saveGameToStorage(state: GameState): Promise<void> {
   try {
     const json = JSON.stringify({ ...state, lastSaved: new Date().toISOString() });

@@ -7,6 +7,8 @@ import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { LogoBadge } from '../components/LogoBadge';
+import { TutorialTarget } from '../components/TutorialTarget';
+import { useTutorialStore } from '../../src/store/tutorialStore';
 import { Show, NewsItem, StudioEvent } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { THEME_WINDOWS } from '../../src/constants/schedule';
@@ -428,10 +430,17 @@ export default function Dashboard() {
   const fadeAnims   = useRef<Record<string, Animated.Value>>({});
   const expiringRef = useRef<Set<string>>(new Set());
   const glowAnim    = useRef(new Animated.Value(0)).current;
+  const scrollRef   = useRef<ScrollView>(null);
+  const tasksYRef   = useRef<number>(0);
 
   const [recapVisible, setRecapVisible]   = useState(false);
   const [recapWeek,    setRecapWeek]      = useState(1);
   const [recapYear,    setRecapYear]      = useState(1);
+
+  const tutorialStep   = useTutorialStore(s => s.step);
+  const tutorialActive = useTutorialStore(s => s.active);
+  const tutorialAdvance = useTutorialStore(s => s.advance);
+  const tutorialJumpTo  = useTutorialStore(s => s.jumpTo);
 
   // Derive the current pending event directly — when it's resolved in the store
   // this becomes null and the modal disappears automatically with no stale-closure issues.
@@ -469,9 +478,34 @@ export default function Dashboard() {
   // ── New-game redirect ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!initialized) {
-      router.replace('/studio-setup' as any);
+      router.replace('/home' as any);
     }
   }, [initialized]);
+
+  // ── Tutorial game-state reactions ────────────────────────────────────────────
+  useEffect(() => {
+    if (!tutorialActive) return;
+    const hasFilming   = shows.some(s => s.status === 'filming');
+    const hasMarketing = shows.some(s => ['marketing', 'airing', 'renewal-pending', 'completed', 'cancelled'].includes(s.status));
+    const hasAiring    = shows.some(s => s.status === 'airing' || s.status === 'renewal-pending');
+
+    if (tutorialStep === 'show-writing' && hasFilming) {
+      tutorialJumpTo('post-writing-tasks');
+    } else if (tutorialStep === 'waiting-for-marketing' && hasMarketing) {
+      tutorialJumpTo('post-filming');
+    } else if (tutorialStep === 'marketing-channels' && hasAiring) {
+      tutorialJumpTo('episode-aired');
+    }
+  }, [shows, tutorialStep, tutorialActive]);
+
+  // ── Tutorial scroll-to-tasks when post-writing-tasks activates ───────────────
+  useEffect(() => {
+    if (tutorialStep === 'post-writing-tasks' && tasksYRef.current > 0) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: tasksYRef.current - 16, animated: true });
+      }, 350);
+    }
+  }, [tutorialStep]);
 
   if (!initialized) return null;
 
@@ -559,7 +593,7 @@ export default function Dashboard() {
     >
       <FilmRibbonAmbient />
       <SafeAreaView edges={['top']} style={s.container}>
-        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
           {/* ── Header ── */}
           <View style={s.header}>
@@ -636,14 +670,23 @@ export default function Dashboard() {
               {activeShows.length > 0 && (
                 <Text style={s.sectionMeta}>{activeShows.length} in production</Text>
               )}
-              <TouchableOpacity onPress={() => router.push('/create-show')}>
+              <TouchableOpacity onPress={() => {
+                if (tutorialStep === 'create-show') tutorialAdvance();
+                router.push('/create-show');
+              }}>
                 <Text style={s.sectionAction}>+ NEW SHOW</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {activeShows.length === 0 ? (
-            <TouchableOpacity style={s.emptyCard} onPress={() => router.push('/create-show')}>
+            <TouchableOpacity style={s.emptyCard} onPress={() => {
+              if (tutorialStep === 'create-show') tutorialAdvance();
+              router.push('/create-show');
+            }}>
+              {tutorialStep === 'create-show' && (
+                <TutorialTarget stepID="create-show" style={StyleSheet.absoluteFill} pointerEvents="none" />
+              )}
               <Text style={s.emptyTitle}>NO ACTIVE SHOWS</Text>
               <Text style={s.emptyBody}>Greenlight a pitch or create your first show to get started.</Text>
               <View style={s.emptyAction}>
@@ -651,20 +694,40 @@ export default function Dashboard() {
               </View>
             </TouchableOpacity>
           ) : (
-            activeShows.map(show => (
-              <ShowCard key={show.id} show={show} onPress={() => router.push(`/show/${show.id}`)} />
-            ))
+            activeShows.map((show, idx) => {
+              const isWriting   = show.status === 'writing' && idx === 0 && tutorialStep === 'show-writing';
+              const isFilming   = show.status === 'filming' && idx === 0 && tutorialStep === 'post-writing-tasks';
+              const isMarketing = show.status === 'marketing' && idx === 0 && tutorialStep === 'post-filming';
+              const isAired     = (show.status === 'airing' || show.status === 'renewal-pending') && idx === 0 && tutorialStep === 'episode-aired';
+              const targetStep  = isWriting ? 'show-writing'
+                                : isFilming ? 'post-writing-tasks'
+                                : isMarketing ? 'post-filming'
+                                : isAired ? 'episode-aired'
+                                : null;
+              return (
+                <View key={show.id} style={{ position: 'relative' }}>
+                  {targetStep && (
+                    <TutorialTarget stepID={targetStep} style={StyleSheet.absoluteFill} pointerEvents="none" />
+                  )}
+                  <ShowCard show={show} onPress={() => router.push(`/show/${show.id}`)} />
+                </View>
+              );
+            })
           )}
 
           {/* ── Tasks ── */}
           {tasks.length > 0 && (
             <>
-              <View style={s.sectionHeader}>
+              <TutorialTarget
+                stepID="post-writing-tasks"
+                style={s.sectionHeader}
+                onLayout={e => { tasksYRef.current = e.nativeEvent.layout.y; }}
+              >
                 <Text style={s.sectionTitle}>TASKS</Text>
                 <View style={s.taskCountPill}>
                   <Text style={s.taskCountText}>{tasks.length}</Text>
                 </View>
-              </View>
+              </TutorialTarget>
               {tasks.map(task => {
                 const dotColor = task.urgency === 'red' ? C.red : C.gold;
                 return (
@@ -722,7 +785,7 @@ export default function Dashboard() {
         </ScrollView>
 
         {/* ── Advance Week button ── */}
-        <View style={s.advanceWrap}>
+        <TutorialTarget stepID="dashboard" style={s.advanceWrap}>
           <Animated.View
             style={[
               s.advanceGlowRing,
@@ -736,10 +799,8 @@ export default function Dashboard() {
           />
           <TouchableOpacity style={s.advanceBtn} onPress={() => {
             hap.medium();
+            if (tutorialStep === 'dashboard') tutorialAdvance();
             setTimeout(() => {
-              // Set recap visible BEFORE advanceWeek so any event generated during
-              // the tick starts hidden — avoids the event flashing before the recap.
-              // nextWeek/nextYear are pre-computed above and match what advanceWeek sets.
               setRecapWeek(nextWeek);
               setRecapYear(nextYear);
               setRecapVisible(true);
@@ -757,7 +818,7 @@ export default function Dashboard() {
               </Text>
             </LinearGradient>
           </TouchableOpacity>
-        </View>
+        </TutorialTarget>
       </SafeAreaView>
 
       <WeeklyRecapModal

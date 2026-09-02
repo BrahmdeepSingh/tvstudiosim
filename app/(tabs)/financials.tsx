@@ -1,5 +1,5 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LinearGradient } from 'expo-linear-gradient';
@@ -67,33 +67,55 @@ function StatRow({ label, value, color }: { label: string; value: string; color?
 
 export default function StudioScreen() {
   const router = useRouter();
-  const { network, shows, saveGame, resetGame, unlockedAchievementIDs, activeLoan } = useGameStore();
+  const { network, shows, saveGame, resetGame, unlockedAchievementIDs, activeLoan, saveSlot } = useGameStore();
 
   const totalSeasons = shows.reduce((sum, sh) => sum + sh.seasons.length, 0);
   const activeShows = shows.filter(s =>
     ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(s.status)
   ).length;
 
-  function handleSave() {
-    saveGame().then(() => Alert.alert('Saved', 'Your game has been saved.'));
+  async function handleSave() {
+    try {
+      await saveGame();
+      if (Platform.OS === 'web') {
+        window.alert(`Game saved to Slot ${saveSlot}.`);
+      } else {
+        Alert.alert('Saved', `Game saved to Slot ${saveSlot}.`);
+      }
+    } catch {
+      if (Platform.OS === 'web') {
+        window.alert('Save failed. Please try again.');
+      } else {
+        Alert.alert('Error', 'Save failed. Please try again.');
+      }
+    }
   }
 
   function handleReset() {
-    Alert.alert(
-      'Reset Game',
-      'This will permanently delete all progress and return you to the setup screen. Are you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: async () => {
-            await resetGame();
-            router.replace('/studio-setup' as any);
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        `Reset Slot ${saveSlot}?\n\nThis will permanently delete all progress and return you to the home screen.`
+      );
+      if (confirmed) {
+        resetGame().then(() => router.replace('/home' as any));
+      }
+    } else {
+      Alert.alert(
+        'Reset Save Slot',
+        `This will permanently delete Slot ${saveSlot} and return you to the home screen. Are you sure?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Reset',
+            style: 'destructive',
+            onPress: async () => {
+              await resetGame();
+              router.replace('/home' as any);
+            },
           },
-        },
-      ],
-    );
+        ],
+      );
+    }
   }
 
   return (
@@ -187,19 +209,15 @@ export default function StudioScreen() {
           <TouchableOpacity style={s.actionRow} onPress={handleSave}>
             <View>
               <Text style={s.actionLabel}>Save Game</Text>
-              {network.currentWeek > 0 && (
-                <Text style={s.actionSub}>
-                  {`Last save: Week ${network.currentWeek}, Year ${network.currentYear}`}
-                </Text>
-              )}
+              <Text style={s.actionSub}>{`Slot ${saveSlot} · Week ${network.currentWeek}, Year ${network.currentYear}`}</Text>
             </View>
             <Text style={[s.actionChevron, { color: C.gold }]}>Save →</Text>
           </TouchableOpacity>
           <View style={s.divider} />
           <TouchableOpacity style={s.actionRow} onPress={handleReset}>
             <View>
-              <Text style={[s.actionLabel, { color: C.red }]}>Reset Game</Text>
-              <Text style={s.actionSub}>Permanently deletes all progress</Text>
+              <Text style={[s.actionLabel, { color: C.red }]}>Reset Slot {saveSlot}</Text>
+              <Text style={s.actionSub}>Permanently deletes this save slot</Text>
             </View>
             <Text style={[s.actionChevron, { color: C.red }]}>⚠</Text>
           </TouchableOpacity>

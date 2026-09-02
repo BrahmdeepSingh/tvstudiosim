@@ -1,4 +1,4 @@
-import { Genre, TalentRole } from '../types';
+import { Genre, TalentRole, LogoConfig } from '../types';
 
 type StudioTier = 'powerhouse' | 'established' | 'independent';
 
@@ -44,17 +44,50 @@ export interface CompetitorStudioConfig {
   startingCapital: number;
   preferredGenres: Genre[];
   startingPrestige: number;
+  logoConfig: LogoConfig;
 }
 
 export const COMPETITOR_STUDIO_CONFIGS: CompetitorStudioConfig[] = [
-  { name: 'Magic Castle Studios',   tier: 'powerhouse',    startingCapital: 65_000_000, preferredGenres: ['drama', 'limited-series'],  startingPrestige: 52 },
-  { name: 'Globe Pictures',         tier: 'powerhouse',    startingCapital: 60_000_000, preferredGenres: ['drama', 'sci-fi'],           startingPrestige: 48 },
-  { name: 'Shield Bros.',           tier: 'established',   startingCapital: 32_000_000, preferredGenres: ['comedy', 'drama'],           startingPrestige: 35 },
-  { name: 'Eyeconic Network',       tier: 'established',   startingCapital: 28_000_000, preferredGenres: ['procedural', 'reality'],     startingPrestige: 30 },
-  { name: 'LionClub Entertainment', tier: 'established',   startingCapital: 25_000_000, preferredGenres: ['sci-fi', 'limited-series'],  startingPrestige: 28 },
-  { name: 'Ironwood TV',            tier: 'independent',   startingCapital: 14_000_000, preferredGenres: ['comedy', 'drama'],           startingPrestige: 18 },
-  { name: 'Smooth House Pictures',  tier: 'independent',   startingCapital: 12_000_000, preferredGenres: ['reality', 'procedural'],     startingPrestige: 16 },
-  { name: 'Green Grass Studios',    tier: 'independent',   startingCapital: 10_000_000, preferredGenres: ['drama', 'comedy'],           startingPrestige: 14 },
+  {
+    name: 'Magic Castle Studios', tier: 'powerhouse',
+    startingCapital: 65_000_000, preferredGenres: ['drama', 'limited-series'], startingPrestige: 52,
+    logoConfig: { bgColor: '#1e3a8a', iconID: 'castle',        textColor: '#ffffff' },
+  },
+  {
+    name: 'Globe Pictures', tier: 'powerhouse',
+    startingCapital: 60_000_000, preferredGenres: ['drama', 'sci-fi'], startingPrestige: 48,
+    logoConfig: { bgColor: '#0d1b3e', iconID: 'globe',          textColor: '#f5e6c8' },
+  },
+  {
+    name: 'Shield Bros.', tier: 'established',
+    startingCapital: 32_000_000, preferredGenres: ['comedy', 'drama'], startingPrestige: 35,
+    logoConfig: { bgColor: '#d4753a', iconID: 'directorchair', textColor: '#f0ede8' },
+  },
+  {
+    name: 'Eyeconic Network', tier: 'established',
+    startingCapital: 28_000_000, preferredGenres: ['procedural', 'reality'], startingPrestige: 30,
+    logoConfig: { bgColor: '#c43820', iconID: 'antenna',        textColor: '#f0ede8' },
+  },
+  {
+    name: 'LionClub Entertainment', tier: 'established',
+    startingCapital: 25_000_000, preferredGenres: ['sci-fi', 'limited-series'], startingPrestige: 28,
+    logoConfig: { bgColor: '#f5e6c8', iconID: 'lion',           textColor: '#1a1a2e' },
+  },
+  {
+    name: 'Ironwood TV', tier: 'independent',
+    startingCapital: 14_000_000, preferredGenres: ['comedy', 'drama'], startingPrestige: 18,
+    logoConfig: { bgColor: '#2aa89a', iconID: 'filmroll',       textColor: '#0f1220' },
+  },
+  {
+    name: 'Smooth House Pictures', tier: 'independent',
+    startingCapital: 12_000_000, preferredGenres: ['reality', 'procedural'], startingPrestige: 16,
+    logoConfig: { bgColor: '#0d1b3e', iconID: 'house',           textColor: '#8b4fbd' },
+  },
+  {
+    name: 'Green Grass Studios', tier: 'independent',
+    startingCapital: 10_000_000, preferredGenres: ['drama', 'comedy'], startingPrestige: 14,
+    logoConfig: { bgColor: '#2da85e', iconID: 'mountain',       textColor: '#0f1220' },
+  },
 ];
 
 // ─── Streaming ────────────────────────────────────────────────────────────────

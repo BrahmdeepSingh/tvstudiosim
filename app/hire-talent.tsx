@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { Talent, TalentRole } from '../src/types';
 import { AVATAR_MAP } from '../src/utils/avatars';
+import { TutorialTarget } from './components/TutorialTarget';
 
 const C = {
   pageBg: '#0f1220', cardBg: '#191c2a',
@@ -199,6 +200,7 @@ export default function HireTalentScreen() {
       )}
 
       <View style={s.descRow}>
+        <TutorialTarget stepID="casting" style={StyleSheet.absoluteFill} pointerEvents="none" />
         <Text style={s.descText}>{roleDesc}</Text>
       </View>
 
