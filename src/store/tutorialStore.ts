@@ -9,6 +9,7 @@ export type TutorialStep =
   | 'casting'
   | 'show-writing'
   | 'post-writing-tasks'
+  | 'waiting-for-marketing'
   | 'post-filming'
   | 'marketing-premiere'
   | 'marketing-channels'
@@ -19,12 +20,16 @@ export type TutorialStep =
 // Steps where the user must perform an in-game action to advance (no Next button)
 export const ACTION_GATED_STEPS: TutorialStep[] = ['dashboard', 'create-show'];
 
+// Steps that hold silently with no overlay shown — used as waiting states
+export const HIDDEN_STEPS: TutorialStep[] = ['waiting-for-marketing'];
+
 const STEP_ORDER: TutorialStep[] = [
   'dashboard',
   'create-show',
   'casting',
   'show-writing',
   'post-writing-tasks',
+  'waiting-for-marketing',
   'post-filming',
   'marketing-premiere',
   'marketing-channels',
@@ -39,7 +44,7 @@ export interface StepConfig {
   route: string;
 }
 
-export const STEP_CONFIG: Record<Exclude<TutorialStep, 'done'>, StepConfig> = {
+export const STEP_CONFIG: Record<Exclude<TutorialStep, 'done' | 'waiting-for-marketing'>, StepConfig> = {
   'dashboard': {
     title: 'ADVANCE THE WEEK',
     body: "This golden button is the engine of your studio. Tap it to move time forward — your shows progress through writing, filming, and air. Go ahead and tap it now to get started.",
@@ -62,12 +67,12 @@ export const STEP_CONFIG: Record<Exclude<TutorialStep, 'done'>, StepConfig> = {
   },
   'post-writing-tasks': {
     title: 'HIRE YOUR CREW',
-    body: "Writing is done — filming has begun! Check your TASKS section for three key roles: a Director to lead the shoot, Lead Actors for your starring cast, and Supporting Cast to fill out the ensemble. Each one affects your final quality score.",
+    body: "Writing is done — filming has begun! Check your TASKS section below for three key roles: a Director to lead the shoot, Lead Actors for your starring cast, and Supporting Cast to round out the ensemble. Each one affects your final quality score.",
     route: '/(tabs)',
   },
   'post-filming': {
     title: 'TIME TO MARKET',
-    body: "Filming is wrapped! Now tap your show card to open the show detail screen, then go to Marketing to set your premiere date and buy advertising. Timing your premiere right — and spending on ads — can make or break your ratings.",
+    body: "Filming is wrapped! Now tap your show card to open the show detail screen, then go to Marketing to set your premiere date and buy advertising. Timing your premiere and spending on ads can make or break your ratings.",
     route: '/(tabs)',
   },
   'marketing-premiere': {

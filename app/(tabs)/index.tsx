@@ -430,6 +430,8 @@ export default function Dashboard() {
   const fadeAnims   = useRef<Record<string, Animated.Value>>({});
   const expiringRef = useRef<Set<string>>(new Set());
   const glowAnim    = useRef(new Animated.Value(0)).current;
+  const scrollRef   = useRef<ScrollView>(null);
+  const tasksYRef   = useRef<number>(0);
 
   const [recapVisible, setRecapVisible]   = useState(false);
   const [recapWeek,    setRecapWeek]      = useState(1);
@@ -483,20 +485,27 @@ export default function Dashboard() {
   // ── Tutorial game-state reactions ────────────────────────────────────────────
   useEffect(() => {
     if (!tutorialActive) return;
-    const hasFilming  = shows.some(s => s.status === 'filming');
+    const hasFilming   = shows.some(s => s.status === 'filming');
     const hasMarketing = shows.some(s => ['marketing', 'airing', 'renewal-pending', 'completed', 'cancelled'].includes(s.status));
-    const hasAiring   = shows.some(s => s.status === 'airing' || s.status === 'renewal-pending');
+    const hasAiring    = shows.some(s => s.status === 'airing' || s.status === 'renewal-pending');
 
     if (tutorialStep === 'show-writing' && hasFilming) {
       tutorialJumpTo('post-writing-tasks');
-    } else if (tutorialStep === 'post-writing-tasks' && hasMarketing) {
+    } else if (tutorialStep === 'waiting-for-marketing' && hasMarketing) {
       tutorialJumpTo('post-filming');
     } else if (tutorialStep === 'marketing-channels' && hasAiring) {
       tutorialJumpTo('episode-aired');
-    } else if (tutorialStep === 'post-filming' && hasAiring) {
-      tutorialJumpTo('episode-aired');
     }
   }, [shows, tutorialStep, tutorialActive]);
+
+  // ── Tutorial scroll-to-tasks when post-writing-tasks activates ───────────────
+  useEffect(() => {
+    if (tutorialStep === 'post-writing-tasks' && tasksYRef.current > 0) {
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: tasksYRef.current - 16, animated: true });
+      }, 350);
+    }
+  }, [tutorialStep]);
 
   if (!initialized) return null;
 
@@ -584,7 +593,7 @@ export default function Dashboard() {
     >
       <FilmRibbonAmbient />
       <SafeAreaView edges={['top']} style={s.container}>
-        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
           {/* ── Header ── */}
           <View style={s.header}>
@@ -709,7 +718,11 @@ export default function Dashboard() {
           {/* ── Tasks ── */}
           {tasks.length > 0 && (
             <>
-              <TutorialTarget stepID="post-writing-tasks" style={s.sectionHeader}>
+              <TutorialTarget
+                stepID="post-writing-tasks"
+                style={s.sectionHeader}
+                onLayout={e => { tasksYRef.current = e.nativeEvent.layout.y; }}
+              >
                 <Text style={s.sectionTitle}>TASKS</Text>
                 <View style={s.taskCountPill}>
                   <Text style={s.taskCountText}>{tasks.length}</Text>

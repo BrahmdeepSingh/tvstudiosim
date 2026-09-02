@@ -4,7 +4,7 @@ import {
   Animated, Dimensions, Platform,
 } from 'react-native';
 import { usePathname } from 'expo-router';
-import { useTutorialStore, STEP_CONFIG, ACTION_GATED_STEPS, TutorialStep, TargetRect } from '../../src/store/tutorialStore';
+import { useTutorialStore, STEP_CONFIG, ACTION_GATED_STEPS, HIDDEN_STEPS, TutorialStep, TargetRect } from '../../src/store/tutorialStore';
 
 const { width: W, height: H } = Dimensions.get('window');
 const DIM = '#0a0c18e8';
@@ -26,7 +26,8 @@ const F = {
   bodyBd:  'Manrope_700Bold',
 };
 
-const STEP_ORDER: Exclude<TutorialStep, 'done'>[] = [
+// Visible steps only — hidden/waiting steps are excluded from the progress counter
+const STEP_ORDER: Exclude<TutorialStep, 'done' | 'waiting-for-marketing'>[] = [
   'dashboard', 'create-show', 'casting', 'show-writing',
   'post-writing-tasks', 'post-filming', 'marketing-premiere', 'marketing-channels',
   'episode-aired', 'social-buzz',
@@ -182,12 +183,12 @@ export function TutorialOverlay() {
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  const config = step !== 'done'
-    ? STEP_CONFIG[step as Exclude<TutorialStep, 'done'>]
+  const config = (step !== 'done' && step !== 'waiting-for-marketing')
+    ? STEP_CONFIG[step as Exclude<TutorialStep, 'done' | 'waiting-for-marketing'>]
     : null;
 
   const routeMatch = config ? matchesRoute(pathname, config.route) : false;
-  const visible = active && routeMatch;
+  const visible = active && routeMatch && !HIDDEN_STEPS.includes(step as TutorialStep);
 
   useEffect(() => {
     if (visible) {
