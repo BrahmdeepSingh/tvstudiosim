@@ -526,7 +526,7 @@ export default function ShowDetailScreen() {
                 onPress={() => router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=lead`)}
                 activeOpacity={0.8}
               >
-                <Text style={sd.hireBtnText}>+ HIRE LEAD ACTOR  ({leadsNeeded} slot{leadsNeeded > 1 ? 's' : ''} open)</Text>
+                <Text style={sd.hireBtnText} numberOfLines={1} adjustsFontSizeToFit>+ HIRE LEAD ACTOR ({leadsNeeded} slot{leadsNeeded > 1 ? 's' : ''} open)</Text>
               </TouchableOpacity>
             )}
           </Section>
@@ -540,7 +540,7 @@ export default function ShowDetailScreen() {
                 onPress={() => router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=supporting`)}
                 activeOpacity={0.8}
               >
-                <Text style={sd.hireBtnText}>+ HIRE SUPPORTING  ({supportingNeeded} slot{supportingNeeded > 1 ? 's' : ''} open)</Text>
+                <Text style={sd.hireBtnText} numberOfLines={1} adjustsFontSizeToFit>+ HIRE SUPPORTING ({supportingNeeded} slot{supportingNeeded > 1 ? 's' : ''} open)</Text>
               </TouchableOpacity>
             )}
           </Section>
@@ -639,7 +639,7 @@ const sd = StyleSheet.create({
   alertCard:    { backgroundColor: '#2a1f12', borderWidth: 1, borderColor: '#d4753a55', borderRadius: 14, padding: 14, marginBottom: 14, gap: 10 },
   alertTitle:   { fontFamily: 'Manrope_800ExtraBold', color: C.amber, fontSize: 10, letterSpacing: 2 },
   alertBtn:     { backgroundColor: C.amber + '22', borderRadius: 10, borderWidth: 1, borderColor: C.amber + '55', padding: 11, alignItems: 'center' },
-  alertBtnText: { fontFamily: 'Manrope_700Bold', color: C.amber, fontSize: 12, letterSpacing: 1 },
+  alertBtnText: { fontFamily: 'Manrope_700Bold', color: C.amber, fontSize: 12, letterSpacing: 0.5, textAlign: 'center' },
 
   // ── Sections ─────────────────────────────────────────────────────────────────
   section:     { marginBottom: 16 },
@@ -732,8 +732,8 @@ const sd = StyleSheet.create({
   crewChemPip:    { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
   crewName:       { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 14 },
   crewRole:    { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11, marginTop: 2 },
-  hireBtn:     { marginTop: 10, borderWidth: 1, borderColor: C.borderGold55, borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: C.goldDim },
-  hireBtnText: { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 11, letterSpacing: 1 },
+  hireBtn:     { marginTop: 10, borderWidth: 1, borderColor: C.borderGold55, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 10, alignItems: 'center', backgroundColor: C.goldDim },
+  hireBtnText: { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 11, letterSpacing: 0.5, textAlign: 'center' },
 
   // ── Episodes ─────────────────────────────────────────────────────────────────
   epRow:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.border, gap: 10 },
