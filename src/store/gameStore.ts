@@ -978,6 +978,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           : sh,
       ),
       newsItems: [...s.newsItems, dealNews].slice(-150),
+      inboxItems: s.inboxItems.map(item =>
+        item.type === 'streaming-offer' && item.refID === showID ? { ...item, read: true } : item,
+      ),
     }));
     const newIDsSt = checkAchievements(get());
     if (newIDsSt.length > 0) set(s => ({ unlockedAchievementIDs: [...s.unlockedAchievementIDs, ...newIDsSt], achievementQueue: [...s.achievementQueue, ...newIDsSt] }));
@@ -1001,6 +1004,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
               streamingOfferCheckYear: checkYear,
             }
           : sh,
+      ),
+      inboxItems: s.inboxItems.map(item =>
+        item.type === 'streaming-offer' && item.refID === showID ? { ...item, read: true } : item,
       ),
     }));
   },

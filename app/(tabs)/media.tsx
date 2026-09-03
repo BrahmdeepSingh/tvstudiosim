@@ -1,8 +1,8 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Animated, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
@@ -218,9 +218,20 @@ function ReactionCard({ r, curWeek, curYear }: {
 export default function MediaScreen() {
   const { newsItems, shows, network, inboxItems, ambientSocialPosts } = useGameStore();
   const router = useRouter();
+  const { width: SW } = useWindowDimensions();
   const [tab, setTab] = useState<'news' | 'social'>('news');
   const [newsFilter, setNewsFilter] = useState<NewsFilter>('all');
   const [socialFilter, setSocialFilter] = useState<string>('all');
+
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  function switchTab(next: 'news' | 'social') {
+    if (next === tab) return;
+    const toRight = next === 'social';
+    slideAnim.setValue(toRight ? SW : -SW);
+    setTab(next);
+    Animated.spring(slideAnim, { toValue: 0, tension: 70, friction: 12, useNativeDriver: true }).start();
+  }
 
   const unreadCount = inboxItems.filter(i => !i.read).length;
 
@@ -339,7 +350,7 @@ export default function MediaScreen() {
       <DotRow />
 
       <View style={s.tabRow}>
-        <TouchableOpacity style={s.tabBtn} onPress={() => setTab('news')} activeOpacity={0.9}>
+        <TouchableOpacity style={s.tabBtn} onPress={() => switchTab('news')} activeOpacity={0.9}>
           {tab === 'news' ? (
             <LinearGradient colors={[C.goldMid, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.tabInner}>
               <Text style={[s.tabText, s.tabTextActive]}>NEWS</Text>
@@ -350,7 +361,7 @@ export default function MediaScreen() {
             </View>
           )}
         </TouchableOpacity>
-        <TouchableOpacity style={s.tabBtn} onPress={() => setTab('social')} activeOpacity={0.9}>
+        <TouchableOpacity style={s.tabBtn} onPress={() => switchTab('social')} activeOpacity={0.9}>
           {tab === 'social' ? (
             <LinearGradient colors={[C.goldMid, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.tabInner}>
               <Text style={[s.tabText, s.tabTextActive]}>SOCIAL BUZZ</Text>
@@ -372,6 +383,7 @@ export default function MediaScreen() {
       </TouchableOpacity>
       */}
 
+      <Animated.View style={{ flex: 1, transform: [{ translateX: slideAnim }] }}>
       {tab === 'news' ? (
         <>
           <ScrollView
@@ -481,6 +493,7 @@ export default function MediaScreen() {
           </ScrollView>
         </>
       )}
+      </Animated.View>
     </SafeAreaView>
   );
 }
