@@ -1,6 +1,6 @@
 import {
     View, Text, TextInput, TouchableOpacity, ScrollView,
-    StyleSheet, Dimensions, KeyboardAvoidingView, Platform,
+    StyleSheet, useWindowDimensions, KeyboardAvoidingView, Platform,
   } from 'react-native';
   import { SafeAreaView } from 'react-native-safe-area-context';
   import { LinearGradient } from 'expo-linear-gradient';
@@ -11,8 +11,6 @@ import {
   import { hap } from '../src/utils/haptics';
   import { LogoBadge, LogoIcon, IconID } from './components/LogoBadge';
   import { EMBLEM_IDS } from '../src/assets/emblems';
-  
-  const { width: W } = Dimensions.get('window');
   
   // ── Design tokens ─────────────────────────────────────────────────────────────
   const C = {
@@ -119,6 +117,7 @@ import {
   
   // ── Main screen ───────────────────────────────────────────────────────────────
   export default function StudioSetup() {
+    const { width: W } = useWindowDimensions();
     const router = useRouter();
     const { slot: slotParam } = useLocalSearchParams<{ slot?: string }>();
     const { initializeGame } = useGameStore();
@@ -339,7 +338,7 @@ import {
             {/* "None" option = initials only */}
             <TouchableOpacity
               onPress={() => { hap.light(); setLogoIcon(null); }}
-              style={[ss.iconCell, logoIcon === null && ss.iconCellSelected]}
+              style={[ss.iconCell, { width: (W - 40 - 10 * 4) / 5 }, logoIcon === null && ss.iconCellSelected]}
             >
               <Text style={[ss.iconNoneText, { color: logoIcon === null ? C.gold : C.mutedMid }]}>
                 AB
@@ -353,7 +352,7 @@ import {
               <TouchableOpacity
                 key={icon.id}
                 onPress={() => { hap.light(); setLogoIcon(icon.id); }}
-                style={[ss.iconCell, logoIcon === icon.id && ss.iconCellSelected]}
+                style={[ss.iconCell, { width: (W - 40 - 10 * 4) / 5 }, logoIcon === icon.id && ss.iconCellSelected]}
               >
                 <LogoIcon id={icon.id} size={32} color={logoIcon === icon.id ? C.gold : C.muted} />
                 <Text style={[ss.iconCellLabel, { color: logoIcon === icon.id ? C.gold : C.mutedMid }]}>
@@ -502,7 +501,7 @@ import {
     swatchSelected: { borderWidth: 3, borderColor: C.text },
   
     iconGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    iconCell:     { width: (W - 40 - 10 * 4) / 5, aspectRatio: 1, backgroundColor: C.cardBg,
+    iconCell:     { aspectRatio: 1, backgroundColor: C.cardBg,
                     borderRadius: 12, borderWidth: 1, borderColor: C.border,
                     alignItems: 'center', justifyContent: 'center', gap: 4 },
     iconCellSelected: { borderColor: C.gold, backgroundColor: C.goldDim },

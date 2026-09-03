@@ -260,7 +260,7 @@ export default function ShowDetailScreen() {
                   onPress={() => router.push(`/hire-talent?showID=${show.id}&role=director`)}
                   activeOpacity={0.8}
                 >
-                  <Text style={sd.alertBtnText}>+ HIRE DIRECTOR</Text>
+                  <Text style={sd.alertBtnText} numberOfLines={1} adjustsFontSizeToFit>+ HIRE DIRECTOR</Text>
                 </TouchableOpacity>
               )}
               {leadsNeeded > 0 && (
@@ -269,7 +269,7 @@ export default function ShowDetailScreen() {
                   onPress={() => router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=lead`)}
                   activeOpacity={0.8}
                 >
-                  <Text style={sd.alertBtnText}>
+                  <Text style={sd.alertBtnText} numberOfLines={1} adjustsFontSizeToFit>
                     + HIRE LEAD ACTOR ({season.leadActorIDs.length}/{season.leadActorSlots})
                   </Text>
                 </TouchableOpacity>
@@ -280,7 +280,7 @@ export default function ShowDetailScreen() {
                   onPress={() => router.push(`/hire-talent?showID=${show.id}&role=actor&actorType=supporting`)}
                   activeOpacity={0.8}
                 >
-                  <Text style={sd.alertBtnText}>
+                  <Text style={sd.alertBtnText} numberOfLines={1} adjustsFontSizeToFit>
                     + HIRE SUPPORTING ({season.supportingActorIDs.length}/{season.supportingActorSlots})
                   </Text>
                 </TouchableOpacity>
