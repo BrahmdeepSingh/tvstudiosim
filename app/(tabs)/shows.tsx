@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   headerTitle:         { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 1 },
   newShow:             { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
 
-  filterRow:           { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
+  filterRow:           { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
   filterTab:           { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
   filterTabActive:     { borderColor: C.gold, backgroundColor: C.goldDim },
   filterTabText:       { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },

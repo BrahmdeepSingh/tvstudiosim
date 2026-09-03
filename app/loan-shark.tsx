@@ -152,7 +152,7 @@ export default function LoanSharkScreen() {
                   onPress={handleRepayPress}
                   activeOpacity={canPay ? 0.8 : 1}
                 >
-                  <Text style={[s.repayBtnText, !canPay && { color: C.muted }]}>
+                  <Text style={[s.repayBtnText, !canPay && { color: C.muted }]} numberOfLines={1} adjustsFontSizeToFit>
                     {canPay ? `PAY OFF — ${fmt(activeLoan.amountOwed)}` : `NEED ${fmt(activeLoan.amountOwed - cashOnHand)} MORE`}
                   </Text>
                 </TouchableOpacity>
@@ -232,7 +232,7 @@ const s = StyleSheet.create({
   header:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
   backBtn:          { width: 70 },
   backText:         { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
-  headerTitle:      { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 1 },
+  headerTitle:      { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 1, flex: 1, textAlign: 'center' },
   scroll:           { flex: 1 },
   scrollContent:    { padding: 16 },
 

@@ -861,7 +861,7 @@ const s = StyleSheet.create({
   networkSub:      { fontFamily: 'Manrope_600SemiBold', color: C.mutedMid, fontSize: 9, letterSpacing: 1.5, marginTop: 2 },
 
   // Week widget — column card
-  weekCard:       { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minWidth: 54, height: 48, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#e6b25459' },
+  weekCard:       { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minWidth: 54, minHeight: 48, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#e6b25459' },
   weekCardLabel:  { fontFamily: 'Manrope_600SemiBold', fontSize: 8.5, letterSpacing: 1.5, color: C.muted },
   weekCardNumber: { fontFamily: 'BebasNeue_400Regular', fontSize: 22, color: '#ffffff', lineHeight: 24 },
 

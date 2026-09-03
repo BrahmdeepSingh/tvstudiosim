@@ -216,13 +216,13 @@ const s = StyleSheet.create({
   searchRow:        { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4 },
   searchInput:      { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9, color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 15 },
 
-  filterRow:        { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
+  filterRow:        { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
   filterTab:        { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
   filterTabActive:  { borderColor: C.gold, backgroundColor: C.goldDim },
   filterText:       { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
   filterTextActive: { color: C.gold },
 
-  availRow:         { flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 8, gap: 6 },
+  availRow:         { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingBottom: 8, gap: 6 },
   availTab:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
   availTabActive:   { borderColor: C.gold, backgroundColor: C.goldDim },
   availText:        { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 12 },

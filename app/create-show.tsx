@@ -368,7 +368,7 @@ const s = StyleSheet.create({
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
   backBtn:     { width: 70 },
   backText:    { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 11, letterSpacing: 1 },
-  headerTitle: { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 26, letterSpacing: 2 },
+  headerTitle: { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 26, letterSpacing: 2, flex: 1, textAlign: 'center' },
 
   // ── Section label ────────────────────────────────────────────────────────────
   label: { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 9, letterSpacing: 2, marginTop: 22, marginBottom: 10 },

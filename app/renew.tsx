@@ -496,13 +496,13 @@ export default function RenewScreen() {
               end={{ x: 1, y: 0 }}
               style={s.proceedBtnGrad}
             >
-              <Text style={s.proceedBtnText}>
+              <Text style={s.proceedBtnText} numberOfLines={1} adjustsFontSizeToFit>
                 {isFinalSeason ? `Start Final Season ${newSeasonNumber} →` : `Start Season ${newSeasonNumber} Pre-Production →`}
               </Text>
             </LinearGradient>
           ) : (
             <View style={s.proceedBtnGrad}>
-              <Text style={s.proceedBtnTextDisabled}>
+              <Text style={s.proceedBtnTextDisabled} numberOfLines={1} adjustsFontSizeToFit>
                 Start Season {newSeasonNumber} Pre-Production →
               </Text>
             </View>
@@ -518,7 +518,7 @@ const s = StyleSheet.create({
   header:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
   backBtn:             { width: 60 },
   backText:            { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  headerTitle:         { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 22, letterSpacing: 0.5 },
+  headerTitle:         { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 22, letterSpacing: 0.5, flex: 1, textAlign: 'center' },
   scroll:              { flex: 1 },
   scrollContent:       { padding: 16 },
 

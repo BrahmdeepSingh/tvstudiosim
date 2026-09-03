@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Modal, TouchableOpacity, StyleSheet,
-  Animated, ScrollView, Dimensions,
+  Animated, ScrollView, useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
@@ -31,8 +31,7 @@ const F = {
   bodyXBd: 'Manrope_800ExtraBold',
 };
 
-const { width: SW } = Dimensions.get('window');
-const CARD_W = Math.min(SW - 32, 380);
+// CARD_W is computed inside the component via useWindowDimensions
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtViewers(n: number): string {
@@ -82,6 +81,8 @@ interface Props {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function WeeklyRecapModal({ visible, onClose, week, year }: Props) {
+  const { width: SW } = useWindowDimensions();
+  const CARD_W = Math.min(SW - 32, 380);
   const { shows, network, ambientSocialPosts } = useGameStore();
 
   const slideAnim = useRef(new Animated.Value(60)).current;
@@ -182,7 +183,7 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
       <Animated.View style={[s.overlay, { opacity: fadeAnim }]}>
-        <Animated.View style={[s.sheet, { transform: [{ translateY: slideAnim }] }]}>
+        <Animated.View style={[s.sheet, { width: CARD_W, transform: [{ translateY: slideAnim }] }]}>
 
           {/* Paper background */}
           <LinearGradient
@@ -469,7 +470,6 @@ const s = StyleSheet.create({
   },
 
   sheet: {
-    width: CARD_W,
     maxHeight: '88%',
     borderRadius: 20,
     overflow: 'hidden',

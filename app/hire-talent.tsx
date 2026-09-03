@@ -261,7 +261,7 @@ const s = StyleSheet.create({
   header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
   backBtn:        { width: 60 },
   backText:       { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  headerTitle:    { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 22, letterSpacing: 0.5 },
+  headerTitle:    { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 22, letterSpacing: 0.5, flex: 1, textAlign: 'center' },
 
   showBanner:     { backgroundColor: C.cardBg, borderBottomWidth: 1, borderBottomColor: C.border, paddingHorizontal: 16, paddingVertical: 10 },
   showBannerText: { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14 },
