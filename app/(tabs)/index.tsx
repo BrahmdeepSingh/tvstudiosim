@@ -1,11 +1,13 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Modal } from 'react-native';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Modal,
+  Easing, useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { LogoBadge } from '../components/LogoBadge';
 import { TutorialTarget } from '../components/TutorialTarget';
 import { useTutorialStore } from '../../src/store/tutorialStore';
@@ -140,6 +142,66 @@ function StatCard({ label, value, valueColor }: {
     <View style={s.statCard}>
       <Text style={s.statCardLabel}>{label}</Text>
       <Text style={[s.statCardValue, valueColor ? { color: valueColor } : undefined]}>{value}</Text>
+    </View>
+  );
+}
+
+// ── News ticker (chyron) ──────────────────────────────────────────────────────
+const TICKER_TYPE_TAG: Record<string, string> = {
+  player: 'YOUR NETWORK', emmy: 'EMMYS', competitor: 'COMPETITOR', industry: 'INDUSTRY',
+};
+
+function NewsTicker({ items }: { items: NewsItem[] }) {
+  const { width: SW } = useWindowDimensions();
+  const translateX = useRef(new Animated.Value(0)).current;
+  const textWidthRef = useRef(0);
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const tickerText = items.length === 0
+    ? '  NO NEWS THIS WEEK  '
+    : items.map(item => `  ●  ${TICKER_TYPE_TAG[item.type] ?? 'INDUSTRY'}: ${item.headline}  `).join('') + '  ●  ';
+
+  function runTicker(textWidth: number) {
+    if (textWidth === 0) return;
+    animRef.current?.stop();
+    translateX.setValue(SW);
+    animRef.current = Animated.loop(
+      Animated.timing(translateX, {
+        toValue: -textWidth,
+        duration: ((textWidth + SW) / 65) * 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    animRef.current.start();
+  }
+
+  useEffect(() => {
+    if (textWidthRef.current > 0) runTicker(textWidthRef.current);
+    return () => animRef.current?.stop();
+  }, [tickerText, SW]);
+
+  return (
+    <View style={tk.strip}>
+      <View style={tk.pill}>
+        <Text style={tk.pillText}>NEWS</Text>
+      </View>
+      <View style={tk.textArea}>
+        <Animated.View style={{ transform: [{ translateX }] }}>
+          <Text
+            style={tk.text}
+            onLayout={e => {
+              const w = e.nativeEvent.layout.width;
+              if (w !== textWidthRef.current) {
+                textWidthRef.current = w;
+                runTicker(w);
+              }
+            }}
+          >
+            {tickerText}
+          </Text>
+        </Animated.View>
+      </View>
     </View>
   );
 }
@@ -525,6 +587,15 @@ export default function Dashboard() {
     .filter(i => !i.read && !fadedIds.has(i.id) && (itemAgeWeeks(i) < 2 || expiringRef.current.has(i.id)))
     .slice(0, 3);
 
+  const TYPE_PRIORITY_TICKER: Record<string, number> = { player: 0, emmy: 1, competitor: 2, industry: 3 };
+  const tickerItems = useMemo(() => {
+    if (newsItems.length === 0) return [];
+    const thisWeek = newsItems
+      .filter(n => n.week === network.currentWeek && n.year === network.currentYear)
+      .sort((a, b) => (TYPE_PRIORITY_TICKER[a.type] ?? 4) - (TYPE_PRIORITY_TICKER[b.type] ?? 4));
+    return thisWeek.length > 0 ? thisWeek : [newsItems[newsItems.length - 1]];
+  }, [newsItems, network.currentWeek, network.currentYear]);
+
   // ── Tasks ───────────────────────────────────────────────────────────────────
   type TaskItem = {
     id: string; label: string; sub: string;
@@ -617,6 +688,9 @@ export default function Dashboard() {
             <DotRow />
           </View>
 
+          {/* ── News ticker chyron ── */}
+          <NewsTicker items={tickerItems} />
+
           {/* ── Stats 2×2 grid ── */}
           <View style={s.statsGrid}>
             <StatCard
@@ -638,23 +712,6 @@ export default function Dashboard() {
               value={String(network.emmysWon)}
             />
           </View>
-
-          {/* ── DEADLINE news card — top story this week (priority: player > emmy > competitor > industry) ── */}
-          <NewsCard
-            item={(() => {
-              if (newsItems.length === 0) return null;
-              const TYPE_PRIORITY: Record<string, number> = { player: 0, emmy: 1, competitor: 2, industry: 3 };
-              const thisWeekItems = newsItems.filter(
-                n => n.week === network.currentWeek && n.year === network.currentYear
-              );
-              const pool = thisWeekItems.length > 0 ? thisWeekItems : [newsItems[newsItems.length - 1]];
-              return pool.reduce((best, n) =>
-                (TYPE_PRIORITY[n.type] ?? 99) < (TYPE_PRIORITY[best.type] ?? 99) ? n : best
-              );
-            })()}
-            week={network.currentWeek}
-            year={network.currentYear}
-          />
 
           {/* ── Schedule strip (hidden — week card taps to schedule instead) ── */}
           {/*
@@ -947,6 +1004,15 @@ const s = StyleSheet.create({
   advanceBtn:         { borderRadius: 999 },
   advanceBtnGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
   advanceBtnText:     { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
+});
+
+// ── News ticker styles ────────────────────────────────────────────────────────
+const tk = StyleSheet.create({
+  strip:    { flexDirection: 'row', alignItems: 'center', height: 36, backgroundColor: '#12142a', borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.borderGold, marginBottom: 14, overflow: 'hidden' },
+  pill:     { paddingHorizontal: 12, borderRightWidth: 1, borderRightColor: C.borderGold, alignSelf: 'stretch', justifyContent: 'center', backgroundColor: C.goldDim },
+  pillText: { fontFamily: F.bodyXBd, color: C.gold, fontSize: 8, letterSpacing: 2 },
+  textArea: { flex: 1, overflow: 'hidden', alignSelf: 'stretch', justifyContent: 'center' },
+  text:     { fontFamily: F.bodyMd, color: C.text, fontSize: 12, letterSpacing: 0.2 },
 });
 
 // ── Schedule strip styles ─────────────────────────────────────────────────────
