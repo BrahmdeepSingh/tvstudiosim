@@ -147,10 +147,6 @@ function StatCard({ label, value, valueColor }: {
 }
 
 // ── News ticker (chyron) ──────────────────────────────────────────────────────
-const TICKER_TYPE_TAG: Record<string, string> = {
-  player: 'YOUR NETWORK', emmy: 'EMMYS', competitor: 'COMPETITOR', industry: 'INDUSTRY',
-};
-
 function NewsTicker({ items }: { items: NewsItem[] }) {
   const { width: SW } = useWindowDimensions();
   const translateX = useRef(new Animated.Value(0)).current;
@@ -159,7 +155,7 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
 
   const tickerText = items.length === 0
     ? '  NO NEWS THIS WEEK  '
-    : items.map(item => `  ●  ${TICKER_TYPE_TAG[item.type] ?? 'INDUSTRY'}: ${item.headline}  `).join('') + '  ●  ';
+    : items.map(item => `  ●  ${item.headline}  `).join('') + '  ●  ';
 
   function runTicker(textWidth: number) {
     if (textWidth === 0) return;
@@ -187,7 +183,7 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
         <Text style={tk.pillText}>NEWS</Text>
       </View>
       <View style={tk.textArea}>
-        <Animated.View style={{ transform: [{ translateX }] }}>
+        <Animated.View style={{ position: 'absolute', top: 0, bottom: 0, justifyContent: 'center', transform: [{ translateX }] }}>
           <Text
             style={tk.text}
             onLayout={e => {
