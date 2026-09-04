@@ -183,21 +183,19 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
         <Text style={tk.pillText}>NEWS</Text>
       </View>
       <View style={tk.textArea}>
-        <Animated.View style={{ position: 'absolute', top: 0, bottom: 0, justifyContent: 'center', transform: [{ translateX }] }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text
-              style={tk.text}
-              onLayout={e => {
-                const w = e.nativeEvent.layout.width;
-                if (w !== textWidthRef.current) {
-                  textWidthRef.current = w;
-                  runTicker(w);
-                }
-              }}
-            >
-              {tickerText}
-            </Text>
-          </View>
+        <Animated.View style={{ position: 'absolute', top: 0, bottom: 0, width: 4000, justifyContent: 'center', transform: [{ translateX }] }}>
+          <Text
+            style={tk.text}
+            onTextLayout={e => {
+              const line = e.nativeEvent.lines[0];
+              if (line && line.width > 0 && line.width !== textWidthRef.current) {
+                textWidthRef.current = line.width;
+                runTicker(line.width);
+              }
+            }}
+          >
+            {tickerText}
+          </Text>
         </Animated.View>
       </View>
     </View>
