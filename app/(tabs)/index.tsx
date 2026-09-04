@@ -732,7 +732,7 @@ export default function Dashboard() {
           )}
 
           {/* ── Your Slate ── */}
-          <View style={s.sectionHeader}>
+          <View style={[s.sectionHeader, { marginTop: 10 }]}>
             <Text style={s.sectionTitle}>YOUR SLATE</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               {activeShows.length > 0 && (
