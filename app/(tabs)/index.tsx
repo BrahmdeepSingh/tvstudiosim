@@ -608,11 +608,11 @@ export default function Dashboard() {
                 <Text style={s.networkSub}>Independent · Year {network.currentYear}</Text>
               </View>
 
-              {/* Week widget — column card */}
-              <View style={s.weekCard}>
+              {/* Week widget — tappable, leads to schedule */}
+              <TouchableOpacity style={s.weekCard} onPress={() => router.push('/schedule')} activeOpacity={0.8}>
                 <Text style={s.weekCardLabel}>WEEK</Text>
                 <Text style={s.weekCardNumber}>{network.currentWeek}</Text>
-              </View>
+              </TouchableOpacity>
             </View>
             <DotRow />
           </View>
@@ -656,64 +656,14 @@ export default function Dashboard() {
             year={network.currentYear}
           />
 
-          {/* ── Schedule strip ── */}
+          {/* ── Schedule strip (hidden — week card taps to schedule instead) ── */}
+          {/*
           <ScheduleStrip
             currentWeek={network.currentWeek}
             currentYear={network.currentYear}
             onPress={() => router.push('/schedule')}
           />
-
-          {/* ── Your Slate ── */}
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>YOUR SLATE</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              {activeShows.length > 0 && (
-                <Text style={s.sectionMeta}>{activeShows.length} in production</Text>
-              )}
-              <TouchableOpacity onPress={() => {
-                if (tutorialStep === 'create-show') tutorialAdvance();
-                router.push('/create-show');
-              }}>
-                <Text style={s.sectionAction}>+ NEW SHOW</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {activeShows.length === 0 ? (
-            <TouchableOpacity style={s.emptyCard} onPress={() => {
-              if (tutorialStep === 'create-show') tutorialAdvance();
-              router.push('/create-show');
-            }}>
-              {tutorialStep === 'create-show' && (
-                <TutorialTarget stepID="create-show" style={StyleSheet.absoluteFill} pointerEvents="none" />
-              )}
-              <Text style={s.emptyTitle}>NO ACTIVE SHOWS</Text>
-              <Text style={s.emptyBody}>Greenlight a pitch or create your first show to get started.</Text>
-              <View style={s.emptyAction}>
-                <Text style={s.emptyActionText}>+ CREATE SHOW</Text>
-              </View>
-            </TouchableOpacity>
-          ) : (
-            activeShows.map((show, idx) => {
-              const isWriting   = show.status === 'writing' && idx === 0 && tutorialStep === 'show-writing';
-              const isFilming   = show.status === 'filming' && idx === 0 && tutorialStep === 'post-writing-tasks';
-              const isMarketing = show.status === 'marketing' && idx === 0 && tutorialStep === 'post-filming';
-              const isAired     = (show.status === 'airing' || show.status === 'renewal-pending') && idx === 0 && tutorialStep === 'episode-aired';
-              const targetStep  = isWriting ? 'show-writing'
-                                : isFilming ? 'post-writing-tasks'
-                                : isMarketing ? 'post-filming'
-                                : isAired ? 'episode-aired'
-                                : null;
-              return (
-                <View key={show.id} style={{ position: 'relative' }}>
-                  {targetStep && (
-                    <TutorialTarget stepID={targetStep} style={StyleSheet.absoluteFill} pointerEvents="none" />
-                  )}
-                  <ShowCard show={show} onPress={() => router.push(`/show/${show.id}`)} />
-                </View>
-              );
-            })
-          )}
+          */}
 
           {/* ── Tasks ── */}
           {tasks.length > 0 && (
@@ -779,6 +729,58 @@ export default function Dashboard() {
                   : <View key={item.id}>{inner}</View>;
               })}
             </>
+          )}
+
+          {/* ── Your Slate ── */}
+          <View style={s.sectionHeader}>
+            <Text style={s.sectionTitle}>YOUR SLATE</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              {activeShows.length > 0 && (
+                <Text style={s.sectionMeta}>{activeShows.length} in production</Text>
+              )}
+              <TouchableOpacity onPress={() => {
+                if (tutorialStep === 'create-show') tutorialAdvance();
+                router.push('/create-show');
+              }}>
+                <Text style={s.sectionAction}>+ NEW SHOW</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {activeShows.length === 0 ? (
+            <TouchableOpacity style={s.emptyCard} onPress={() => {
+              if (tutorialStep === 'create-show') tutorialAdvance();
+              router.push('/create-show');
+            }}>
+              {tutorialStep === 'create-show' && (
+                <TutorialTarget stepID="create-show" style={StyleSheet.absoluteFill} pointerEvents="none" />
+              )}
+              <Text style={s.emptyTitle}>NO ACTIVE SHOWS</Text>
+              <Text style={s.emptyBody}>Greenlight a pitch or create your first show to get started.</Text>
+              <View style={s.emptyAction}>
+                <Text style={s.emptyActionText}>+ CREATE SHOW</Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            activeShows.map((show, idx) => {
+              const isWriting   = show.status === 'writing' && idx === 0 && tutorialStep === 'show-writing';
+              const isFilming   = show.status === 'filming' && idx === 0 && tutorialStep === 'post-writing-tasks';
+              const isMarketing = show.status === 'marketing' && idx === 0 && tutorialStep === 'post-filming';
+              const isAired     = (show.status === 'airing' || show.status === 'renewal-pending') && idx === 0 && tutorialStep === 'episode-aired';
+              const targetStep  = isWriting ? 'show-writing'
+                                : isFilming ? 'post-writing-tasks'
+                                : isMarketing ? 'post-filming'
+                                : isAired ? 'episode-aired'
+                                : null;
+              return (
+                <View key={show.id} style={{ position: 'relative' }}>
+                  {targetStep && (
+                    <TutorialTarget stepID={targetStep} style={StyleSheet.absoluteFill} pointerEvents="none" />
+                  )}
+                  <ShowCard show={show} onPress={() => router.push(`/show/${show.id}`)} />
+                </View>
+              );
+            })
           )}
 
           <View style={{ height: 24 }} />
