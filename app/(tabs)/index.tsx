@@ -154,8 +154,8 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const tickerText = items.length === 0
-    ? '  NO NEWS THIS WEEK  '
-    : items.map(item => `  ●  ${item.headline}  `).join('') + '  ●  ';
+    ? '     NO NEWS THIS WEEK     '
+    : items.map(item => `     ${item.headline}     `).join('');
 
   function runTicker(textWidth: number) {
     if (textWidth === 0) return;
@@ -183,7 +183,7 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
         <Text style={tk.pillText}>NEWS</Text>
       </View>
       <View style={tk.textArea}>
-        <Animated.View style={{ position: 'absolute', top: 0, bottom: 0, justifyContent: 'center', transform: [{ translateX }] }}>
+        <Animated.View style={{ position: 'absolute', top: 0, bottom: 0, width: 4000, justifyContent: 'center', transform: [{ translateX }] }}>
           <Text
             style={tk.text}
             onLayout={e => {
