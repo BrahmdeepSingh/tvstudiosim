@@ -664,7 +664,6 @@ export default function Dashboard() {
 
           {/* ── Header ── */}
           <View style={s.header}>
-            <DotRow />
             <View style={s.headerRow}>
               {/* Network badge */}
               <LogoBadge size={46} initials={network.initials} config={network.logoConfig} />
@@ -681,7 +680,6 @@ export default function Dashboard() {
                 <Text style={s.weekCardNumber}>{network.currentWeek}</Text>
               </TouchableOpacity>
             </View>
-            <DotRow />
           </View>
 
           {/* ── News ticker chyron ── */}
