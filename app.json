@@ -6,7 +6,8 @@
     "scheme": "tvstudiosim",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0f1220",
     "ios": {
       "supportsTablet": true
     },

@@ -44,7 +44,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <StatusBar style="light" />
       <TutorialInit />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0f1220' } }} />
       <AchievementToast />
       <TutorialOverlay />
     </SafeAreaProvider>
