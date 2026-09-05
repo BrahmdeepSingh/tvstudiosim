@@ -2,7 +2,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Modal,
   Easing, useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
@@ -478,6 +478,7 @@ function StudioEventModal({ event: ev, visible }: { event: StudioEvent; visible:
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     network, shows, inboxItems, newsItems, pitches, studioEvents,
     emmyCeremonyPendingYear,
@@ -659,11 +660,11 @@ export default function Dashboard() {
       style={{ flex: 1 }}
     >
       <FilmRibbonAmbient />
-      <SafeAreaView edges={['top']} style={s.container}>
+      <SafeAreaView edges={[]} style={s.container}>
         <ScrollView ref={scrollRef} style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
           {/* ── Header ── */}
-          <View style={s.header}>
+          <View style={[s.header, { paddingTop: insets.top }]}>
             <View style={s.headerRow}>
               {/* Network badge */}
               <LogoBadge size={46} initials={network.initials} config={network.logoConfig} />
