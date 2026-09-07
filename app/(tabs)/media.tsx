@@ -223,14 +223,15 @@ export default function MediaScreen() {
   const [newsFilter, setNewsFilter] = useState<NewsFilter>('all');
   const [socialFilter, setSocialFilter] = useState<string>('all');
 
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const tabOffset = useRef(new Animated.Value(0)).current;
 
   function switchTab(next: 'news' | 'social') {
     if (next === tab) return;
-    const toRight = next === 'social';
-    slideAnim.setValue(toRight ? SW : -SW);
     setTab(next);
-    Animated.spring(slideAnim, { toValue: 0, tension: 70, friction: 12, useNativeDriver: true }).start();
+    Animated.spring(tabOffset, {
+      toValue: next === 'social' ? -SW : 0,
+      tension: 70, friction: 12, useNativeDriver: true,
+    }).start();
   }
 
   const unreadCount = inboxItems.filter(i => !i.read).length;
@@ -383,117 +384,118 @@ export default function MediaScreen() {
       </TouchableOpacity>
       */}
 
-      <Animated.View style={{ flex: 1, transform: [{ translateX: slideAnim }] }}>
-      {tab === 'news' ? (
-        <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ flexGrow: 0 }}
-            contentContainerStyle={s.filterRow}
-          >
-            {NEWS_FILTERS.map(f => (
-              <TouchableOpacity
-                key={f.value}
-                style={[s.chip, newsFilter === f.value && s.chipActive]}
-                onPress={() => setNewsFilter(f.value)}
-                activeOpacity={0.8}
-              >
-                <Text style={[s.chipText, newsFilter === f.value && s.chipTextActive]}>
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+      <View style={{ flex: 1, overflow: 'hidden' }}>
+        <Animated.View style={{ flex: 1, flexDirection: 'row', width: SW * 2, transform: [{ translateX: tabOffset }] }}>
 
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
-            {filteredNews.length === 0 ? (
-              <View style={s.emptyState}>
-                <Text style={s.emptyText}>No stories yet. Advance the week to generate news.</Text>
-              </View>
-            ) : (
-              filteredNews.map((item, idx) => (
-                <NewsCard
-                  key={item.id}
-                  item={item}
-                  isTop={idx === 0 && newsFilter === 'all'}
-                  curWeek={network.currentWeek}
-                  curYear={network.currentYear}
-                />
-              ))
-            )}
-          </ScrollView>
-        </>
-      ) : (
-        <>
-          {trendingReaction && (
-            <View style={s.trendingBanner}>
-              <Text style={s.trendingArrow}>↑</Text>
-              <Text style={s.trendingText} numberOfLines={1}>
-                Trending: "{trendingLabel}" — {fmtLikes(trendingReaction.likes)} engagements this week
-              </Text>
-            </View>
-          )}
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ flexGrow: 0 }}
-            contentContainerStyle={s.filterRow}
-          >
-            <TouchableOpacity
-              style={[s.chip, socialFilter === 'all' && s.chipActive]}
-              onPress={() => setSocialFilter('all')}
-              activeOpacity={0.8}
+          {/* ── News panel ──────────────────────────────────── */}
+          <View style={{ width: SW, flex: 1 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ flexGrow: 0 }}
+              contentContainerStyle={s.filterRow}
             >
-              <Text style={[s.chipText, socialFilter === 'all' && s.chipTextActive]}>All shows</Text>
-            </TouchableOpacity>
-            {hasAmbientBuzz && (
-              <TouchableOpacity
-                style={[s.chip, socialFilter === 'ambient' && s.chipActive]}
-                onPress={() => setSocialFilter('ambient')}
-                activeOpacity={0.8}
-              >
-                <Text style={[s.chipText, socialFilter === 'ambient' && s.chipTextActive]}>
-                  Industry buzz
-                </Text>
-              </TouchableOpacity>
-            )}
-            {showsWithReactions.map(show => (
-              <TouchableOpacity
-                key={show.id}
-                style={[s.chip, socialFilter === show.id && s.chipActive]}
-                onPress={() => setSocialFilter(show.id)}
-                activeOpacity={0.8}
-              >
-                <Text style={[s.chipText, socialFilter === show.id && s.chipTextActive]}>
-                  {show.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+              {NEWS_FILTERS.map(f => (
+                <TouchableOpacity
+                  key={f.value}
+                  style={[s.chip, newsFilter === f.value && s.chipActive]}
+                  onPress={() => setNewsFilter(f.value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.chipText, newsFilter === f.value && s.chipTextActive]}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
+              {filteredNews.length === 0 ? (
+                <View style={s.emptyState}>
+                  <Text style={s.emptyText}>No stories yet. Advance the week to generate news.</Text>
+                </View>
+              ) : (
+                filteredNews.map((item, idx) => (
+                  <NewsCard
+                    key={item.id}
+                    item={item}
+                    isTop={idx === 0 && newsFilter === 'all'}
+                    curWeek={network.currentWeek}
+                    curYear={network.currentYear}
+                  />
+                ))
+              )}
+            </ScrollView>
+          </View>
 
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
-            {filteredReactions.length === 0 ? (
-              <View style={s.emptyState}>
-                <Text style={s.emptyText}>
-                  No social buzz yet. Air some episodes to see what people are saying.
+          {/* ── Social panel ─────────────────────────────────── */}
+          <View style={{ width: SW, flex: 1 }}>
+            {trendingReaction && (
+              <View style={s.trendingBanner}>
+                <Text style={s.trendingArrow}>↑</Text>
+                <Text style={s.trendingText} numberOfLines={1}>
+                  Trending: "{trendingLabel}" — {fmtLikes(trendingReaction.likes)} engagements this week
                 </Text>
               </View>
-            ) : (
-              filteredReactions.map((r, idx) => (
-                <ReactionCard
-                  key={reactionKey(r, idx)}
-                  r={r}
-                  curWeek={network.currentWeek}
-                  curYear={network.currentYear}
-                />
-              ))
             )}
-          </ScrollView>
-        </>
-      )}
-      </Animated.View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ flexGrow: 0 }}
+              contentContainerStyle={s.filterRow}
+            >
+              <TouchableOpacity
+                style={[s.chip, socialFilter === 'all' && s.chipActive]}
+                onPress={() => setSocialFilter('all')}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.chipText, socialFilter === 'all' && s.chipTextActive]}>All shows</Text>
+              </TouchableOpacity>
+              {hasAmbientBuzz && (
+                <TouchableOpacity
+                  style={[s.chip, socialFilter === 'ambient' && s.chipActive]}
+                  onPress={() => setSocialFilter('ambient')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.chipText, socialFilter === 'ambient' && s.chipTextActive]}>
+                    Industry buzz
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {showsWithReactions.map(show => (
+                <TouchableOpacity
+                  key={show.id}
+                  style={[s.chip, socialFilter === show.id && s.chipActive]}
+                  onPress={() => setSocialFilter(show.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.chipText, socialFilter === show.id && s.chipTextActive]}>
+                    {show.title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
+              {filteredReactions.length === 0 ? (
+                <View style={s.emptyState}>
+                  <Text style={s.emptyText}>
+                    No social buzz yet. Air some episodes to see what people are saying.
+                  </Text>
+                </View>
+              ) : (
+                filteredReactions.map((r, idx) => (
+                  <ReactionCard
+                    key={reactionKey(r, idx)}
+                    r={r}
+                    curWeek={network.currentWeek}
+                    curYear={network.currentYear}
+                  />
+                ))
+              )}
+            </ScrollView>
+          </View>
+
+        </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
