@@ -224,6 +224,9 @@ export default function MediaScreen() {
   const [socialFilter, setSocialFilter] = useState<string>('all');
 
   const tabOffset = useRef(new Animated.Value(0)).current;
+  // Each tab button width: screen - (16*2 margins) - (1*2 borders) - (4*2 padding)
+  const tabBtnW = (SW - 42) / 2;
+  const indicatorX = tabOffset.interpolate({ inputRange: [-SW, 0], outputRange: [tabBtnW, 0] });
 
   function switchTab(next: 'news' | 'social') {
     if (next === tab) return;
@@ -351,27 +354,23 @@ export default function MediaScreen() {
       <DotRow />
 
       <View style={s.tabRow}>
+        {/* Sliding gold pill — synced to the same spring as the panels */}
+        <Animated.View
+          pointerEvents="none"
+          style={[s.tabIndicator, { width: tabBtnW, transform: [{ translateX: indicatorX }] }]}
+        >
+          <LinearGradient colors={[C.goldMid, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        </Animated.View>
+
         <TouchableOpacity style={s.tabBtn} onPress={() => switchTab('news')} activeOpacity={0.9}>
-          {tab === 'news' ? (
-            <LinearGradient colors={[C.goldMid, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.tabInner}>
-              <Text style={[s.tabText, s.tabTextActive]}>NEWS</Text>
-            </LinearGradient>
-          ) : (
-            <View style={s.tabInner}>
-              <Text style={s.tabText}>NEWS</Text>
-            </View>
-          )}
+          <View style={s.tabInner}>
+            <Text style={[s.tabText, tab === 'news' && s.tabTextActive]}>NEWS</Text>
+          </View>
         </TouchableOpacity>
         <TouchableOpacity style={s.tabBtn} onPress={() => switchTab('social')} activeOpacity={0.9}>
-          {tab === 'social' ? (
-            <LinearGradient colors={[C.goldMid, C.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.tabInner}>
-              <Text style={[s.tabText, s.tabTextActive]}>SOCIAL BUZZ</Text>
-            </LinearGradient>
-          ) : (
-            <View style={s.tabInner}>
-              <Text style={s.tabText}>SOCIAL BUZZ</Text>
-            </View>
-          )}
+          <View style={s.tabInner}>
+            <Text style={[s.tabText, tab === 'social' && s.tabTextActive]}>SOCIAL BUZZ</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -521,6 +520,7 @@ const s = StyleSheet.create({
   dot:    { width: 5, height: 5, borderRadius: 999, backgroundColor: C.gold, opacity: 0.3 },
 
   tabRow:       { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, backgroundColor: '#0a0c18', borderRadius: 12, borderWidth: 1, borderColor: C.gold + '33', padding: 4 },
+  tabIndicator: { position: 'absolute', top: 4, left: 4, bottom: 4, borderRadius: 9, overflow: 'hidden' },
   tabBtn:       { flex: 1 },
   tabInner:     { paddingVertical: 11, alignItems: 'center', borderRadius: 9 },
   tabText:      { fontFamily: 'BebasNeue_400Regular', fontSize: 17, letterSpacing: 1.5, color: C.muted },
