@@ -222,9 +222,6 @@ export default function GlobalViewershipModal({
             <ViewerCounter target={viewers} delay={700} />
             <Text style={gs.viewerLabel}> VIEWERS</Text>
           </View>
-          {hasInternational && (
-            <Text style={gs.intlBadge}>🌐 INTERNATIONAL DISTRIBUTION</Text>
-          )}
         </Animated.View>
 
         {/* ── Dismiss button ────────────────────────────────────────────────── */}
@@ -300,14 +297,6 @@ const gs = StyleSheet.create({
     color: 'rgba(255,255,255,0.45)',
     letterSpacing: 1.5,
     marginBottom: 4,
-  },
-
-  intlBadge: {
-    marginTop: 12,
-    fontFamily: 'Manrope_600SemiBold',
-    fontSize: 11,
-    letterSpacing: 1.5,
-    color: '#ff4040',
   },
 
   closeBtn: {
