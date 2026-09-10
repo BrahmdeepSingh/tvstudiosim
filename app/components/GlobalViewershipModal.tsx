@@ -28,23 +28,34 @@ const US_DOTS_SVG: [number, number][] = [
 ];
 
 const INTL_DOTS_SVG: [number, number][] = [
-  [316, 231], // London
-  [326, 236], // Paris
-  [337, 228], // Berlin
-  [337, 249], // Rome
-  [307, 243], // Madrid
-  [452, 238], // Tokyo
-  [446, 258], // Shanghai
-  [441, 270], // Hong Kong
-  [388, 265], // Mumbai
-  [387, 254], // Dubai
-  [458, 231], // Seoul
-  [207, 382], // São Paulo
-  [191, 350], // Bogotá
-  [457, 373], // Sydney
-  [312, 310], // Lagos
-  [124, 205], // Toronto
-  [ 47, 209], // Vancouver
+  // Europe
+  [376, 176], // London
+  [386, 181], // Paris
+  [397, 168], // Berlin
+  [397, 194], // Rome
+  [367, 188], // Madrid
+  // East Asia
+  [514, 187], // Tokyo
+  [511, 203], // Shanghai
+  [506, 215], // Hong Kong
+  [515, 180], // Seoul
+  // Middle East / South Asia
+  [452, 224], // Dubai
+  [458, 238], // Mumbai
+  // Oceania
+  [527, 358], // Sydney
+  // Africa
+  [352, 302], // Lagos
+  // South America
+  [151, 378], // Bogotá
+  [122, 382], // Lima
+  [163, 354], // Caracas
+  [167, 412], // São Paulo
+  [147, 432], // Santiago
+  [155, 442], // Buenos Aires
+  // Canada
+  [124, 170], // Toronto
+  [ 47, 174], // Vancouver
 ];
 
 function fmtViewers(n: number): string {
