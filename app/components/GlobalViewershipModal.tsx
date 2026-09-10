@@ -10,21 +10,21 @@ import { EMBLEMS } from '../../src/assets/emblems';
 // Globe center = (287, 287), radius = 287
 // Americas on the left (~x:60-250), Europe/Africa/Asia on right (~x:310-560)
 const US_DOTS_SVG: [number, number][] = [
-  [113, 270], // Los Angeles
-  [ 98, 255], // San Francisco
-  [ 97, 237], // Seattle
-  [136, 260], // Denver
-  [158, 244], // Chicago
-  [178, 239], // New York
-  [181, 229], // Boston
-  [173, 246], // Washington DC
-  [167, 258], // Atlanta
-  [164, 252], // Nashville
-  [166, 240], // Detroit
-  [151, 268], // Dallas
-  [148, 274], // Houston
-  [124, 266], // Phoenix
-  [172, 278], // Miami
+  [ 95, 270], // Los Angeles
+  [ 80, 255], // San Francisco
+  [ 80, 238], // Seattle
+  [118, 260], // Denver
+  [136, 245], // Chicago
+  [156, 231], // New York
+  [156, 220], // Boston
+  [151, 248], // Washington DC
+  [145, 262], // Atlanta
+  [142, 254], // Nashville
+  [144, 241], // Detroit
+  [131, 268], // Dallas
+  [128, 276], // Houston
+  [106, 266], // Phoenix
+  [152, 285], // Miami
 ];
 
 const INTL_DOTS_SVG: [number, number][] = [
@@ -43,8 +43,8 @@ const INTL_DOTS_SVG: [number, number][] = [
   [191, 350], // Bogotá
   [457, 373], // Sydney
   [312, 310], // Lagos
-  [193, 243], // Toronto
-  [113, 243], // Vancouver
+  [157, 233], // Toronto
+  [ 80, 237], // Vancouver
 ];
 
 function fmtViewers(n: number): string {
