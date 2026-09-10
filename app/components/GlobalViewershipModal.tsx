@@ -3,19 +3,18 @@ import {
   View, Text, Modal, TouchableOpacity, StyleSheet,
   Animated, useWindowDimensions,
 } from 'react-native';
-import Svg, { Circle, Ellipse, Line, G } from 'react-native-svg';
+import Svg, { Circle, Ellipse } from 'react-native-svg';
 
-// ── US city dot positions (as fractions of globe radius, centered at 0,0) ────
-// Projected onto a simplified orthographic-ish flat map within the circle
+// ── Dot positions as fractions of globe radius (origin = globe center) ────────
 const US_DOTS: [number, number][] = [
   [-0.38, -0.10], // Los Angeles
   [-0.30, -0.08], // San Francisco
   [-0.15, -0.14], // Chicago
   [-0.08, -0.07], // New York
   [-0.12, -0.02], // Washington DC
-  [-0.22, 0.00],  // Dallas
-  [-0.28, 0.04],  // Houston
-  [-0.05, 0.05],  // Miami
+  [-0.22,  0.00], // Dallas
+  [-0.28,  0.04], // Houston
+  [-0.05,  0.05], // Miami
   [-0.18, -0.08], // Atlanta
   [-0.32, -0.16], // Seattle
   [-0.24, -0.12], // Denver
@@ -26,101 +25,85 @@ const US_DOTS: [number, number][] = [
 ];
 
 const INTL_DOTS: [number, number][] = [
-  // Europe
-  [0.05, -0.22],  // London
-  [0.10, -0.20],  // Paris
-  [0.18, -0.20],  // Berlin
-  [0.15, -0.15],  // Rome
-  [0.22, -0.22],  // Warsaw
-  [0.00, -0.18],  // Madrid
-  // Asia
-  [0.48, -0.18],  // Tokyo
-  [0.42, -0.10],  // Shanghai
-  [0.38, -0.05],  // Hong Kong
-  [0.32, -0.08],  // Mumbai
-  [0.28, -0.14],  // Dubai
-  [0.45, -0.22],  // Seoul
-  [0.35, -0.14],  // Bangkok
-  // Latin America
-  [-0.20, 0.20],  // São Paulo
-  [-0.25, 0.10],  // Bogotá
-  [-0.30, 0.15],  // Lima
-  [-0.15, 0.12],  // Buenos Aires
-  // Australia/Pacific
-  [0.40, 0.18],   // Sydney
-  [0.35, 0.22],   // Melbourne
-  // Africa
-  [0.10, 0.08],   // Lagos
-  [0.18, 0.05],   // Nairobi
-  [0.08, -0.02],  // Casablanca
-  // Canada
+  [ 0.05, -0.22], // London
+  [ 0.10, -0.20], // Paris
+  [ 0.18, -0.20], // Berlin
+  [ 0.15, -0.15], // Rome
+  [ 0.00, -0.18], // Madrid
+  [ 0.48, -0.18], // Tokyo
+  [ 0.42, -0.10], // Shanghai
+  [ 0.38, -0.05], // Hong Kong
+  [ 0.32, -0.08], // Mumbai
+  [ 0.28, -0.14], // Dubai
+  [ 0.45, -0.22], // Seoul
+  [-0.20,  0.20], // São Paulo
+  [-0.25,  0.10], // Bogotá
+  [ 0.40,  0.18], // Sydney
+  [ 0.10,  0.08], // Lagos
   [-0.25, -0.20], // Toronto
   [-0.35, -0.22], // Vancouver
-  [-0.10, -0.22], // Montreal
 ];
 
 function fmtViewers(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(0)}K`;
   return String(n);
 }
 
-// ── Dot component — fades in then pulses ──────────────────────────────────────
+// ── Single dot: fades in then pulses ─────────────────────────────────────────
 function GlobeDot({ x, y, delay, color }: { x: number; y: number; delay: number; color: string }) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const scale   = useRef(new Animated.Value(0.3)).current;
+  const scale   = useRef(new Animated.Value(0.2)).current;
 
   useEffect(() => {
-    const anim = Animated.sequence([
+    const seq = Animated.sequence([
       Animated.delay(delay),
       Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.spring(scale,   { toValue: 1, tension: 120, friction: 6, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1,   duration: 280, useNativeDriver: true }),
+        Animated.spring (scale,  { toValue: 1,   tension: 140, friction: 6, useNativeDriver: true }),
       ]),
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(opacity, { toValue: 0.5, duration: 700, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 1,   duration: 700, useNativeDriver: true }),
-        ]),
-      ),
+      Animated.loop(Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1,   duration: 800, useNativeDriver: true }),
+      ])),
     ]);
-    anim.start();
-    return () => anim.stop();
+    seq.start();
+    return () => seq.stop();
   }, []);
 
   return (
     <Animated.View
+      pointerEvents="none"
       style={{
         position: 'absolute',
-        width: 6, height: 6,
-        borderRadius: 3,
+        width: 7, height: 7, borderRadius: 3.5,
         backgroundColor: color,
-        left: x - 3, top: y - 3,
+        left: x - 3.5, top: y - 3.5,
         opacity,
         transform: [{ scale }],
         shadowColor: color,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.9,
-        shadowRadius: 4,
-        elevation: 4,
+        shadowOpacity: 1,
+        shadowRadius: 5,
+        elevation: 6,
       }}
     />
   );
 }
 
-// ── Counter animation ─────────────────────────────────────────────────────────
+// ── Animated viewer count ─────────────────────────────────────────────────────
 function ViewerCounter({ target, delay }: { target: number; delay: number }) {
   const anim = useRef(new Animated.Value(0)).current;
   const [display, setDisplay] = useState('0');
 
   useEffect(() => {
-    const listener = anim.addListener(({ value }) => setDisplay(fmtViewers(Math.round(value))));
+    const id = anim.addListener(({ value }) => setDisplay(fmtViewers(Math.round(value))));
     Animated.sequence([
       Animated.delay(delay),
-      Animated.timing(anim, { toValue: target, duration: 2000, useNativeDriver: false }),
+      Animated.timing(anim, { toValue: target, duration: 2200, useNativeDriver: false }),
     ]).start();
-    return () => anim.removeListener(listener);
-  }, [target, delay]);
+    return () => anim.removeListener(id);
+  }, [target]);
 
   return <Text style={gs.viewerCount}>{display}</Text>;
 }
@@ -139,154 +122,139 @@ interface Props {
 export default function GlobalViewershipModal({
   visible, onClose, showTitle, seasonNumber, viewers, hasInternational,
 }: Props) {
-  const { width: SW, height: SH } = useWindowDimensions();
-  const GLOBE_R = Math.min(SW, SH) * 0.36;
+  const { width: SW } = useWindowDimensions();
+
+  // Globe is a fixed-size square container, centered by flexbox — no screen math needed
+  const GLOBE_D = Math.min(SW - 48, 300); // diameter
+  const GLOBE_R = GLOBE_D / 2;
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
-  const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scaleAnim = useRef(new Animated.Value(0.88)).current;
 
   useEffect(() => {
     if (visible) {
       fadeAnim.setValue(0);
-      scaleAnim.setValue(0.85);
+      scaleAnim.setValue(0.88);
       Animated.parallel([
-        Animated.timing(fadeAnim,  { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(scaleAnim, { toValue: 1, tension: 60, friction: 10, useNativeDriver: true }),
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.spring (scaleAnim, { toValue: 1, tension: 60, friction: 10, useNativeDriver: true }),
       ]).start();
-
-      // Auto-dismiss after 6 seconds
-      timerRef.current = setTimeout(() => handleClose(), 6000);
     }
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [visible]);
 
   function handleClose() {
-    if (timerRef.current) clearTimeout(timerRef.current);
     Animated.parallel([
-      Animated.timing(fadeAnim,  { toValue: 0, duration: 300, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 0.9, duration: 300, useNativeDriver: true }),
+      Animated.timing(fadeAnim,  { toValue: 0, duration: 260, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 0.92, duration: 260, useNativeDriver: true }),
     ]).start(() => onClose());
   }
 
   const dots = hasInternational ? [...US_DOTS, ...INTL_DOTS] : US_DOTS;
-  const CX = SW / 2;
-  const CY = SH * 0.42;
 
-  // Number of lat/lon lines on the globe wireframe
   const LAT_LINES = 6;
   const LON_LINES = 8;
 
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
-      <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={handleClose}>
-        <Animated.View style={[gs.overlay, { opacity: fadeAnim }]}>
+      <Animated.View style={[gs.overlay, { opacity: fadeAnim }]}>
 
-          {/* Globe wireframe — SVG */}
-          <Animated.View style={[gs.globeWrap, { transform: [{ scale: scaleAnim }] }]}>
-            <Svg width={SW} height={SH} style={StyleSheet.absoluteFill}>
-              <G>
-                {/* Glow backdrop */}
-                <Circle cx={CX} cy={CY} r={GLOBE_R + 24} fill="rgba(100,160,255,0.04)" />
-                <Circle cx={CX} cy={CY} r={GLOBE_R + 10} fill="rgba(100,160,255,0.06)" />
+        {/* ── Globe ─────────────────────────────────────────────────────────── */}
+        <Animated.View style={{ transform: [{ scale: scaleAnim }], alignItems: 'center' }}>
+          {/* Self-contained square: SVG + dots share the same GLOBE_D × GLOBE_D box */}
+          <View style={{ width: GLOBE_D, height: GLOBE_D }}>
 
-                {/* Globe fill */}
-                <Circle cx={CX} cy={CY} r={GLOBE_R} fill="#0a0e22" />
+            {/* Wireframe SVG — everything drawn relative to cx=GLOBE_R, cy=GLOBE_R */}
+            <Svg width={GLOBE_D} height={GLOBE_D} style={StyleSheet.absoluteFill}>
+              {/* Glow rings */}
+              <Circle cx={GLOBE_R} cy={GLOBE_R} r={GLOBE_R + 18} fill="rgba(80,130,255,0.05)" />
+              <Circle cx={GLOBE_R} cy={GLOBE_R} r={GLOBE_R + 8}  fill="rgba(80,130,255,0.08)" />
+              {/* Fill */}
+              <Circle cx={GLOBE_R} cy={GLOBE_R} r={GLOBE_R} fill="#080c1e" />
 
-                {/* Latitude lines */}
-                {Array.from({ length: LAT_LINES }).map((_, i) => {
-                  const frac = (i + 1) / (LAT_LINES + 1); // 0..1 exclusive
-                  const dy = (frac * 2 - 1) * GLOBE_R;
-                  const rx = Math.sqrt(Math.max(0, GLOBE_R * GLOBE_R - dy * dy));
-                  return (
-                    <Ellipse
-                      key={`lat-${i}`}
-                      cx={CX} cy={CY + dy}
-                      rx={rx} ry={rx * 0.22}
-                      fill="none"
-                      stroke="rgba(100,140,255,0.18)"
-                      strokeWidth={0.8}
-                    />
-                  );
-                })}
-
-                {/* Longitude lines (vertical ellipses) */}
-                {Array.from({ length: LON_LINES }).map((_, i) => {
-                  const angle = (i * Math.PI) / LON_LINES; // 0..π
-                  const rx = Math.abs(Math.cos(angle)) * GLOBE_R;
-                  return (
-                    <Ellipse
-                      key={`lon-${i}`}
-                      cx={CX} cy={CY}
-                      rx={rx} ry={GLOBE_R}
-                      fill="none"
-                      stroke="rgba(100,140,255,0.18)"
-                      strokeWidth={0.8}
-                    />
-                  );
-                })}
-
-                {/* Equator — slightly brighter */}
-                <Ellipse
-                  cx={CX} cy={CY}
-                  rx={GLOBE_R} ry={GLOBE_R * 0.22}
-                  fill="none"
-                  stroke="rgba(100,140,255,0.30)"
-                  strokeWidth={1}
-                />
-
-                {/* Globe outline */}
-                <Circle
-                  cx={CX} cy={CY} r={GLOBE_R}
-                  fill="none"
-                  stroke="rgba(100,160,255,0.45)"
-                  strokeWidth={1.5}
-                />
-              </G>
-            </Svg>
-
-            {/* Dots rendered as React Native views (so they can animate) */}
-            <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}>
-              {dots.map(([fx, fy], idx) => {
-                // Clip dots to inside the globe circle
-                const dist = Math.sqrt(fx * fx + fy * fy);
-                if (dist > 0.88) return null;
-                const isUS = idx < US_DOTS.length;
+              {/* Latitude lines */}
+              {Array.from({ length: LAT_LINES }).map((_, i) => {
+                const frac = (i + 1) / (LAT_LINES + 1);
+                const dy   = (frac * 2 - 1) * GLOBE_R;
+                const rx   = Math.sqrt(Math.max(0, GLOBE_R * GLOBE_R - dy * dy));
                 return (
-                  <GlobeDot
-                    key={idx}
-                    x={CX + fx * GLOBE_R}
-                    y={CY + fy * GLOBE_R}
-                    delay={600 + idx * 80}
-                    color={isUS ? '#e6b254' : '#5b9fea'}
+                  <Ellipse
+                    key={`lat-${i}`}
+                    cx={GLOBE_R} cy={GLOBE_R + dy}
+                    rx={rx} ry={rx * 0.25}
+                    fill="none" stroke="rgba(100,140,255,0.20)" strokeWidth={0.8}
                   />
                 );
               })}
-            </View>
-          </Animated.View>
 
-          {/* Text overlay */}
-          <Animated.View style={[gs.textBlock, { opacity: fadeAnim }]}>
-            <Text style={gs.eyebrow}>SEASON {seasonNumber} FINALE</Text>
-            <Text style={gs.showTitle} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>
-              {showTitle.toUpperCase()}
-            </Text>
-            <Text style={gs.watchedLabel}>WATCHED AROUND THE WORLD</Text>
-            <View style={gs.viewerRow}>
-              <ViewerCounter target={viewers} delay={800} />
-              <Text style={gs.viewerLabel}> VIEWERS</Text>
-            </View>
-            {hasInternational && (
-              <Text style={gs.intlBadge}>🌐 INTERNATIONAL DISTRIBUTION</Text>
-            )}
-          </Animated.View>
+              {/* Longitude lines */}
+              {Array.from({ length: LON_LINES }).map((_, i) => {
+                const angle = (i * Math.PI) / LON_LINES;
+                const rx    = Math.abs(Math.cos(angle)) * GLOBE_R;
+                return (
+                  <Ellipse
+                    key={`lon-${i}`}
+                    cx={GLOBE_R} cy={GLOBE_R}
+                    rx={rx} ry={GLOBE_R}
+                    fill="none" stroke="rgba(100,140,255,0.20)" strokeWidth={0.8}
+                  />
+                );
+              })}
 
-          <Animated.Text style={[gs.tapToDismiss, { opacity: fadeAnim }]}>
-            TAP TO CONTINUE
-          </Animated.Text>
+              {/* Equator — slightly brighter */}
+              <Ellipse
+                cx={GLOBE_R} cy={GLOBE_R}
+                rx={GLOBE_R} ry={GLOBE_R * 0.25}
+                fill="none" stroke="rgba(100,150,255,0.35)" strokeWidth={1}
+              />
 
+              {/* Outline */}
+              <Circle
+                cx={GLOBE_R} cy={GLOBE_R} r={GLOBE_R - 0.5}
+                fill="none" stroke="rgba(120,170,255,0.5)" strokeWidth={1.5}
+              />
+            </Svg>
+
+            {/* Dots — positioned relative to the globe container */}
+            {dots.map(([fx, fy], idx) => {
+              if (Math.sqrt(fx * fx + fy * fy) > 0.87) return null;
+              const isUS = idx < US_DOTS.length;
+              return (
+                <GlobeDot
+                  key={idx}
+                  x={GLOBE_R + fx * GLOBE_R}
+                  y={GLOBE_R + fy * GLOBE_R}
+                  delay={500 + idx * 70}
+                  color={isUS ? '#e6b254' : '#5b9fea'}
+                />
+              );
+            })}
+          </View>
         </Animated.View>
-      </TouchableOpacity>
+
+        {/* ── Text block ────────────────────────────────────────────────────── */}
+        <Animated.View style={[gs.textBlock, { opacity: fadeAnim }]}>
+          <Text style={gs.eyebrow}>SEASON {seasonNumber} FINALE</Text>
+          <Text style={gs.showTitle} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>
+            {showTitle.toUpperCase()}
+          </Text>
+          <Text style={gs.watchedLabel}>WATCHED AROUND THE WORLD</Text>
+          <View style={gs.viewerRow}>
+            <ViewerCounter target={viewers} delay={700} />
+            <Text style={gs.viewerLabel}> VIEWERS</Text>
+          </View>
+          {hasInternational && (
+            <Text style={gs.intlBadge}>🌐 INTERNATIONAL DISTRIBUTION</Text>
+          )}
+        </Animated.View>
+
+        {/* ── Dismiss button ────────────────────────────────────────────────── */}
+        <Animated.View style={{ opacity: fadeAnim, marginTop: 28 }}>
+          <TouchableOpacity style={gs.closeBtn} onPress={handleClose} activeOpacity={0.8}>
+            <Text style={gs.closeBtnText}>CONTINUE  →</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+      </Animated.View>
     </Modal>
   );
 }
@@ -295,45 +263,41 @@ export default function GlobalViewershipModal({
 const gs = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(4, 6, 18, 0.96)',
+    backgroundColor: 'rgba(4, 6, 18, 0.97)',
     alignItems: 'center',
-  },
-
-  globeWrap: {
-    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
   },
 
   textBlock: {
-    position: 'absolute',
-    bottom: '20%',
-    left: 24,
-    right: 24,
     alignItems: 'center',
+    marginTop: 28,
   },
 
   eyebrow: {
     fontFamily: 'Manrope_600SemiBold',
     fontSize: 11,
     letterSpacing: 3,
-    color: 'rgba(200,210,255,0.6)',
+    color: 'rgba(200,210,255,0.55)',
     marginBottom: 8,
   },
 
   showTitle: {
     fontFamily: 'BebasNeue_400Regular',
-    fontSize: 38,
+    fontSize: 36,
     letterSpacing: 2,
     color: '#e6b254',
     textAlign: 'center',
-    lineHeight: 42,
-    marginBottom: 10,
+    lineHeight: 40,
+    marginBottom: 12,
   },
 
   watchedLabel: {
     fontFamily: 'Manrope_400Regular',
-    fontSize: 12,
+    fontSize: 11,
     letterSpacing: 2.5,
-    color: 'rgba(200,210,255,0.55)',
+    color: 'rgba(200,210,255,0.45)',
     marginBottom: 6,
   },
 
@@ -344,34 +308,41 @@ const gs = StyleSheet.create({
 
   viewerCount: {
     fontFamily: 'BebasNeue_400Regular',
-    fontSize: 52,
+    fontSize: 56,
     color: '#ffffff',
     letterSpacing: 1,
-    lineHeight: 56,
+    lineHeight: 62,
   },
 
   viewerLabel: {
     fontFamily: 'Manrope_700Bold',
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
     letterSpacing: 1.5,
     marginBottom: 4,
   },
 
   intlBadge: {
-    marginTop: 10,
+    marginTop: 12,
     fontFamily: 'Manrope_600SemiBold',
     fontSize: 11,
     letterSpacing: 1.5,
     color: '#5b9fea',
   },
 
-  tapToDismiss: {
-    position: 'absolute',
-    bottom: '10%',
-    fontFamily: 'Manrope_400Regular',
-    fontSize: 10,
-    letterSpacing: 2.5,
-    color: 'rgba(200,210,255,0.3)',
+  closeBtn: {
+    borderWidth: 1,
+    borderColor: 'rgba(230,178,84,0.4)',
+    borderRadius: 12,
+    paddingHorizontal: 36,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(230,178,84,0.08)',
+  },
+
+  closeBtnText: {
+    fontFamily: 'BebasNeue_400Regular',
+    fontSize: 17,
+    letterSpacing: 3,
+    color: '#e6b254',
   },
 });

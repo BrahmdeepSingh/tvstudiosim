@@ -905,6 +905,21 @@ export default function Dashboard() {
             </LinearGradient>
           </TouchableOpacity>
         </TutorialTarget>
+
+        {/* ── DEV: Globe test button — remove before ship ── */}
+        <TouchableOpacity
+          style={{ alignSelf: 'center', marginTop: 8, paddingHorizontal: 16, paddingVertical: 6, borderWidth: 1, borderColor: '#5b9fea44', borderRadius: 8, backgroundColor: '#5b9fea18' }}
+          onPress={() => {
+            setGlobeShowTitle('Test Show');
+            setGlobeSeasonNumber(2);
+            setGlobeViewers(8_400_000);
+            setGlobeHasIntl(false);
+            setGlobeVisible(true);
+          }}
+        >
+          <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 10, color: '#5b9fea', letterSpacing: 1.5 }}>DEV · TEST GLOBE</Text>
+        </TouchableOpacity>
+
       </SafeAreaView>
 
       <WeeklyRecapModal
