@@ -3,45 +3,48 @@ import {
   View, Text, Modal, TouchableOpacity, StyleSheet,
   Animated, useWindowDimensions,
 } from 'react-native';
-import Svg, { Circle, Ellipse } from 'react-native-svg';
+import { SvgXml } from 'react-native-svg';
+import { EMBLEMS } from '../../src/assets/emblems';
 
-// ── Dot positions as fractions of globe radius (origin = globe center) ────────
-const US_DOTS: [number, number][] = [
-  [-0.38, -0.10], // Los Angeles
-  [-0.30, -0.08], // San Francisco
-  [-0.15, -0.14], // Chicago
-  [-0.08, -0.07], // New York
-  [-0.12, -0.02], // Washington DC
-  [-0.22,  0.00], // Dallas
-  [-0.28,  0.04], // Houston
-  [-0.05,  0.05], // Miami
-  [-0.18, -0.08], // Atlanta
-  [-0.32, -0.16], // Seattle
-  [-0.24, -0.12], // Denver
-  [-0.14, -0.10], // Detroit
-  [-0.10, -0.12], // Boston
-  [-0.20, -0.04], // Nashville
-  [-0.26, -0.06], // Phoenix
+// ── City positions in the 574×574 globe SVG coordinate space ─────────────────
+// Globe center = (287, 287), radius = 287
+// Americas on the left (~x:60-250), Europe/Africa/Asia on right (~x:310-560)
+const US_DOTS_SVG: [number, number][] = [
+  [130, 277], // Los Angeles
+  [115, 262], // San Francisco
+  [113, 243], // Seattle
+  [152, 267], // Denver
+  [177, 252], // Chicago
+  [198, 248], // New York
+  [203, 237], // Boston
+  [193, 254], // Washington DC
+  [186, 267], // Atlanta
+  [183, 261], // Nashville
+  [185, 248], // Detroit
+  [169, 274], // Dallas
+  [166, 280], // Houston
+  [141, 273], // Phoenix
+  [193, 286], // Miami
 ];
 
-const INTL_DOTS: [number, number][] = [
-  [ 0.05, -0.22], // London
-  [ 0.10, -0.20], // Paris
-  [ 0.18, -0.20], // Berlin
-  [ 0.15, -0.15], // Rome
-  [ 0.00, -0.18], // Madrid
-  [ 0.48, -0.18], // Tokyo
-  [ 0.42, -0.10], // Shanghai
-  [ 0.38, -0.05], // Hong Kong
-  [ 0.32, -0.08], // Mumbai
-  [ 0.28, -0.14], // Dubai
-  [ 0.45, -0.22], // Seoul
-  [-0.20,  0.20], // São Paulo
-  [-0.25,  0.10], // Bogotá
-  [ 0.40,  0.18], // Sydney
-  [ 0.10,  0.08], // Lagos
-  [-0.25, -0.20], // Toronto
-  [-0.35, -0.22], // Vancouver
+const INTL_DOTS_SVG: [number, number][] = [
+  [316, 231], // London
+  [326, 236], // Paris
+  [337, 228], // Berlin
+  [337, 249], // Rome
+  [307, 243], // Madrid
+  [452, 238], // Tokyo
+  [446, 258], // Shanghai
+  [441, 270], // Hong Kong
+  [388, 265], // Mumbai
+  [387, 254], // Dubai
+  [458, 231], // Seoul
+  [207, 382], // São Paulo
+  [191, 350], // Bogotá
+  [457, 373], // Sydney
+  [312, 310], // Lagos
+  [193, 243], // Toronto
+  [113, 243], // Vancouver
 ];
 
 function fmtViewers(n: number): string {
@@ -63,8 +66,8 @@ function GlobeDot({ x, y, delay, color }: { x: number; y: number; delay: number;
         Animated.spring (scale,  { toValue: 1,   tension: 140, friction: 6, useNativeDriver: true }),
       ]),
       Animated.loop(Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1,   duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.35, duration: 900, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1,    duration: 900, useNativeDriver: true }),
       ])),
     ]);
     seq.start();
@@ -84,7 +87,7 @@ function GlobeDot({ x, y, delay, color }: { x: number; y: number; delay: number;
         shadowColor: color,
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 1,
-        shadowRadius: 5,
+        shadowRadius: 6,
         elevation: 6,
       }}
     />
@@ -124,9 +127,8 @@ export default function GlobalViewershipModal({
 }: Props) {
   const { width: SW } = useWindowDimensions();
 
-  // Globe is a fixed-size square container, centered by flexbox — no screen math needed
-  const GLOBE_D = Math.min(SW - 48, 300); // diameter
-  const GLOBE_R = GLOBE_D / 2;
+  const GLOBE_D = Math.min(SW - 32, 320);
+  const SCALE   = GLOBE_D / 574; // scale factor from SVG coords → display coords
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.88)).current;
@@ -149,10 +151,13 @@ export default function GlobalViewershipModal({
     ]).start(() => onClose());
   }
 
-  const dots = hasInternational ? [...US_DOTS, ...INTL_DOTS] : US_DOTS;
+  const usDots   = US_DOTS_SVG;
+  const intlDots = hasInternational ? INTL_DOTS_SVG : [];
+  const allDots  = [...usDots, ...intlDots];
 
-  const LAT_LINES = 6;
-  const LON_LINES = 8;
+  // Globe center in SVG space is (287, 287); radius 287.
+  // Filter dots that fall within the visible circle.
+  const CX = 287, CY = 287, R = 287;
 
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
@@ -160,71 +165,23 @@ export default function GlobalViewershipModal({
 
         {/* ── Globe ─────────────────────────────────────────────────────────── */}
         <Animated.View style={{ transform: [{ scale: scaleAnim }], alignItems: 'center' }}>
-          {/* Self-contained square: SVG + dots share the same GLOBE_D × GLOBE_D box */}
           <View style={{ width: GLOBE_D, height: GLOBE_D }}>
 
-            {/* Wireframe SVG — everything drawn relative to cx=GLOBE_R, cy=GLOBE_R */}
-            <Svg width={GLOBE_D} height={GLOBE_D} style={StyleSheet.absoluteFill}>
-              {/* Glow rings */}
-              <Circle cx={GLOBE_R} cy={GLOBE_R} r={GLOBE_R + 18} fill="rgba(80,130,255,0.05)" />
-              <Circle cx={GLOBE_R} cy={GLOBE_R} r={GLOBE_R + 8}  fill="rgba(80,130,255,0.08)" />
-              {/* Fill */}
-              <Circle cx={GLOBE_R} cy={GLOBE_R} r={GLOBE_R} fill="#080c1e" />
+            {/* Actual globe SVG */}
+            <SvgXml xml={EMBLEMS.globe} width={GLOBE_D} height={GLOBE_D} />
 
-              {/* Latitude lines */}
-              {Array.from({ length: LAT_LINES }).map((_, i) => {
-                const frac = (i + 1) / (LAT_LINES + 1);
-                const dy   = (frac * 2 - 1) * GLOBE_R;
-                const rx   = Math.sqrt(Math.max(0, GLOBE_R * GLOBE_R - dy * dy));
-                return (
-                  <Ellipse
-                    key={`lat-${i}`}
-                    cx={GLOBE_R} cy={GLOBE_R + dy}
-                    rx={rx} ry={rx * 0.25}
-                    fill="none" stroke="rgba(100,140,255,0.20)" strokeWidth={0.8}
-                  />
-                );
-              })}
-
-              {/* Longitude lines */}
-              {Array.from({ length: LON_LINES }).map((_, i) => {
-                const angle = (i * Math.PI) / LON_LINES;
-                const rx    = Math.abs(Math.cos(angle)) * GLOBE_R;
-                return (
-                  <Ellipse
-                    key={`lon-${i}`}
-                    cx={GLOBE_R} cy={GLOBE_R}
-                    rx={rx} ry={GLOBE_R}
-                    fill="none" stroke="rgba(100,140,255,0.20)" strokeWidth={0.8}
-                  />
-                );
-              })}
-
-              {/* Equator — slightly brighter */}
-              <Ellipse
-                cx={GLOBE_R} cy={GLOBE_R}
-                rx={GLOBE_R} ry={GLOBE_R * 0.25}
-                fill="none" stroke="rgba(100,150,255,0.35)" strokeWidth={1}
-              />
-
-              {/* Outline */}
-              <Circle
-                cx={GLOBE_R} cy={GLOBE_R} r={GLOBE_R - 0.5}
-                fill="none" stroke="rgba(120,170,255,0.5)" strokeWidth={1.5}
-              />
-            </Svg>
-
-            {/* Dots — positioned relative to the globe container */}
-            {dots.map(([fx, fy], idx) => {
-              if (Math.sqrt(fx * fx + fy * fy) > 0.87) return null;
-              const isUS = idx < US_DOTS.length;
+            {/* City dots overlaid on top, scaled to displayed size */}
+            {allDots.map(([svgX, svgY], idx) => {
+              const dx = svgX - CX, dy = svgY - CY;
+              if (Math.sqrt(dx * dx + dy * dy) > R * 0.92) return null;
+              const isUS = idx < usDots.length;
               return (
                 <GlobeDot
                   key={idx}
-                  x={GLOBE_R + fx * GLOBE_R}
-                  y={GLOBE_R + fy * GLOBE_R}
-                  delay={500 + idx * 70}
-                  color={isUS ? '#e6b254' : '#5b9fea'}
+                  x={svgX * SCALE}
+                  y={svgY * SCALE}
+                  delay={400 + idx * 65}
+                  color={isUS ? '#ffcc55' : '#60b4ff'}
                 />
               );
             })}
@@ -266,13 +223,13 @@ const gs = StyleSheet.create({
     backgroundColor: 'rgba(4, 6, 18, 0.97)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingVertical: 40,
   },
 
   textBlock: {
     alignItems: 'center',
-    marginTop: 28,
+    marginTop: 24,
   },
 
   eyebrow: {
@@ -327,7 +284,7 @@ const gs = StyleSheet.create({
     fontFamily: 'Manrope_600SemiBold',
     fontSize: 11,
     letterSpacing: 1.5,
-    color: '#5b9fea',
+    color: '#60b4ff',
   },
 
   closeBtn: {
