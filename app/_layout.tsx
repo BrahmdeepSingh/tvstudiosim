@@ -15,11 +15,25 @@ import { useEffect } from 'react';
 import { AchievementToast } from '../src/components/AchievementToast';
 import { TutorialOverlay } from './components/TutorialOverlay';
 import { useTutorialStore } from '../src/store/tutorialStore';
+import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 
 function TutorialInit() {
   const init = useTutorialStore(s => s.init);
   useEffect(() => { init(); }, []);
   return null;
+}
+
+function AppShell() {
+  const { C, isDark } = useTheme();
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <TutorialInit />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.pageBg } }} />
+      <AchievementToast />
+      <TutorialOverlay />
+    </>
+  );
 }
 
 export default function RootLayout() {
@@ -42,11 +56,9 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
-      <TutorialInit />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0f1220' } }} />
-      <AchievementToast />
-      <TutorialOverlay />
+      <ThemeProvider>
+        <AppShell />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
