@@ -10,21 +10,21 @@ import { EMBLEMS } from '../../src/assets/emblems';
 // Globe center = (287, 287), radius = 287
 // Americas on the left (~x:60-250), Europe/Africa/Asia on right (~x:310-560)
 const US_DOTS_SVG: [number, number][] = [
-  [130, 277], // Los Angeles
-  [115, 262], // San Francisco
-  [113, 243], // Seattle
-  [152, 267], // Denver
-  [177, 252], // Chicago
-  [198, 248], // New York
-  [203, 237], // Boston
-  [193, 254], // Washington DC
-  [186, 267], // Atlanta
-  [183, 261], // Nashville
-  [185, 248], // Detroit
-  [169, 274], // Dallas
-  [166, 280], // Houston
-  [141, 273], // Phoenix
-  [193, 286], // Miami
+  [113, 270], // Los Angeles
+  [ 98, 255], // San Francisco
+  [ 97, 237], // Seattle
+  [136, 260], // Denver
+  [158, 244], // Chicago
+  [178, 239], // New York
+  [181, 229], // Boston
+  [173, 246], // Washington DC
+  [167, 258], // Atlanta
+  [164, 252], // Nashville
+  [166, 240], // Detroit
+  [151, 268], // Dallas
+  [148, 274], // Houston
+  [124, 266], // Phoenix
+  [172, 278], // Miami
 ];
 
 const INTL_DOTS_SVG: [number, number][] = [
@@ -174,14 +174,13 @@ export default function GlobalViewershipModal({
             {allDots.map(([svgX, svgY], idx) => {
               const dx = svgX - CX, dy = svgY - CY;
               if (Math.sqrt(dx * dx + dy * dy) > R * 0.92) return null;
-              const isUS = idx < usDots.length;
               return (
                 <GlobeDot
                   key={idx}
                   x={svgX * SCALE}
                   y={svgY * SCALE}
                   delay={400 + idx * 65}
-                  color={isUS ? '#ffcc55' : '#60b4ff'}
+                  color="#ff4040"
                 />
               );
             })}
@@ -284,7 +283,7 @@ const gs = StyleSheet.create({
     fontFamily: 'Manrope_600SemiBold',
     fontSize: 11,
     letterSpacing: 1.5,
-    color: '#60b4ff',
+    color: '#ff4040',
   },
 
   closeBtn: {
