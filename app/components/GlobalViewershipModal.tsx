@@ -10,52 +10,65 @@ import { EMBLEMS } from '../../src/assets/emblems';
 // Globe center = (287, 287), radius = 287
 // Americas on the left (~x:60-250), Europe/Africa/Asia on right (~x:310-560)
 const US_DOTS_SVG: [number, number][] = [
-  [ 62, 242], // Los Angeles
-  [ 47, 227], // San Francisco
-  [ 47, 210], // Seattle
+  [ 39, 222], // Los Angeles
+  [ 41, 204], // San Francisco
+  [ 48, 182], // Seattle
   [ 85, 232], // Denver
-  [103, 217], // Chicago
-  [123, 203], // New York
-  [123, 192], // Boston
+  [109, 189], // Chicago
+  [137, 204], // New York
+  [158, 189], // Boston
   [118, 220], // Washington DC
-  [112, 234], // Atlanta
-  [109, 226], // Nashville
-  [111, 213], // Detroit
-  [ 98, 240], // Dallas
-  [ 95, 248], // Houston
-  [ 73, 238], // Phoenix
-  [119, 257], // Miami
+  [ 99, 234], // Atlanta
+  [115, 205], // Nashville
+  [ 90, 185], // Detroit
+  [ 70, 239], // Dallas
+  [ 72, 214], // Houston
+  [ 49, 232], // Phoenix
+  [102, 250], // Miami
+  [ 88,  85], // Alaska
 ];
 
 const INTL_DOTS_SVG: [number, number][] = [
   // Europe
-  [376, 176], // London
-  [386, 181], // Paris
-  [397, 168], // Berlin
-  [397, 194], // Rome
-  [367, 188], // Madrid
+  [371, 137], // London
+  [389, 158], // Paris
+  [414, 122], // Berlin
+  [405, 168], // Rome
+  [349, 170], // Madrid
+  [254,  91], // Iceland
+  [196,  63], // Greenland
+  [457,  79], // Moscow
+  [397,  87], // Amsterdam
+  [390,  63], // Holland
   // East Asia
-  [514, 187], // Tokyo
-  [511, 203], // Shanghai
-  [506, 215], // Hong Kong
-  [515, 180], // Seoul
+  [567, 267], // Tokyo
+  [494, 205], // Shanghai
+  [513, 238], // Hong Kong
+  [553, 213], // Seoul
   // Middle East / South Asia
-  [452, 224], // Dubai
-  [458, 238], // Mumbai
-  // Oceania
-  [527, 358], // Sydney
+  [477, 177], // Dubai
+  [437, 173], // Mumbai
   // Africa
-  [352, 302], // Lagos
+  [338, 286], // Lagos
+  [442, 229], // Egypt
+  [358, 222], // Algeria
+  [439, 421], // South Africa
+  [470, 271], // Addis Ababa
+  // Oceania
+  [472, 351], // Sydney
   // South America
-  [151, 378], // Bogotá
+  [170, 377], // Bogotá
   [122, 382], // Lima
-  [163, 354], // Caracas
-  [167, 412], // São Paulo
-  [147, 432], // Santiago
-  [155, 442], // Buenos Aires
-  // Canada
-  [124, 170], // Toronto
-  [ 47, 174], // Vancouver
+  [ 93, 301], // Caracas
+  [215, 459], // São Paulo
+  [234, 403], // Rio
+  [156, 433], // Santiago
+  [196, 506], // Buenos Aires
+  // North America
+  [102, 159], // Toronto
+  [ 60, 145], // Vancouver
+  [133, 280], // Cuba
+  [ 60, 273], // Mexico
 ];
 
 function fmtViewers(n: number): string {
@@ -73,12 +86,12 @@ function GlobeDot({ x, y, delay, color }: { x: number; y: number; delay: number;
     const seq = Animated.sequence([
       Animated.delay(delay),
       Animated.parallel([
-        Animated.timing(opacity, { toValue: 1,   duration: 280, useNativeDriver: true }),
-        Animated.spring (scale,  { toValue: 1,   tension: 140, friction: 6, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+        Animated.spring(scale,   { toValue: 1, tension: 140, friction: 6, useNativeDriver: true }),
       ]),
       Animated.loop(Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.35, duration: 900, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1,    duration: 900, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 1.45, duration: 750, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 1.0,  duration: 750, useNativeDriver: true }),
       ])),
     ]);
     seq.start();
