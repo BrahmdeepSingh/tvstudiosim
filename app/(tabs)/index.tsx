@@ -16,6 +16,7 @@ import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { THEME_WINDOWS } from '../../src/constants/schedule';
 import { EmmyCeremonyModal } from '../components/EmmyCeremonyModal';
 import WeeklyRecapModal from '../components/WeeklyRecapModal';
+import GlobalViewershipModal from '../components/GlobalViewershipModal';
 import { hap } from '../../src/utils/haptics';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -496,6 +497,13 @@ export default function Dashboard() {
   const [recapWeek,    setRecapWeek]      = useState(1);
   const [recapYear,    setRecapYear]      = useState(1);
 
+  const [globeVisible,       setGlobeVisible]       = useState(false);
+  const [globeShowTitle,     setGlobeShowTitle]      = useState('');
+  const [globeSeasonNumber,  setGlobeSeasonNumber]   = useState(1);
+  const [globeViewers,       setGlobeViewers]        = useState(0);
+  const [globeHasIntl,       setGlobeHasIntl]        = useState(false);
+  const pendingGlobeRef = useRef(false);
+
   const tutorialStep   = useTutorialStore(s => s.step);
   const tutorialActive = useTutorialStore(s => s.active);
   const tutorialAdvance = useTutorialStore(s => s.advance);
@@ -854,11 +862,35 @@ export default function Dashboard() {
           <TouchableOpacity style={s.advanceBtn} onPress={() => {
             hap.medium();
             if (tutorialStep === 'dashboard') tutorialAdvance();
+
+            // Detect season finale before advancing so we can show globe after recap
+            let finaleShow: { title: string; seasonNumber: number; hasIntl: boolean } | null = null;
+            for (const show of shows) {
+              if (show.status !== 'airing') continue;
+              const season = show.seasons[show.currentSeasonIndex];
+              if (!season) continue;
+              if (season.episodesAired === season.episodeCount - 1) {
+                finaleShow = {
+                  title: show.title,
+                  seasonNumber: season.seasonNumber,
+                  hasIntl: season.marketingChannelIDs.includes('international-push'),
+                };
+                break;
+              }
+            }
+
             setTimeout(() => {
               setRecapWeek(nextWeek);
               setRecapYear(nextYear);
               setRecapVisible(true);
               advanceWeek();
+
+              if (finaleShow) {
+                setGlobeShowTitle(finaleShow.title);
+                setGlobeSeasonNumber(finaleShow.seasonNumber);
+                setGlobeHasIntl(finaleShow.hasIntl);
+                pendingGlobeRef.current = true;
+              }
             }, 16);
           }} activeOpacity={0.88}>
             <LinearGradient
@@ -877,9 +909,34 @@ export default function Dashboard() {
 
       <WeeklyRecapModal
         visible={recapVisible}
-        onClose={() => setRecapVisible(false)}
+        onClose={() => {
+          setRecapVisible(false);
+          if (pendingGlobeRef.current) {
+            pendingGlobeRef.current = false;
+            let viewers = 0;
+            for (const show of shows) {
+              if (show.title !== globeShowTitle) continue;
+              const season = show.seasons.find(se => se.seasonNumber === globeSeasonNumber);
+              if (!season) continue;
+              const finaleEp = season.episodes[season.episodes.length - 1];
+              viewers = finaleEp?.viewers ?? 0;
+              break;
+            }
+            setGlobeViewers(viewers);
+            setTimeout(() => setGlobeVisible(true), 300);
+          }
+        }}
         week={recapWeek}
         year={recapYear}
+      />
+
+      <GlobalViewershipModal
+        visible={globeVisible}
+        onClose={() => setGlobeVisible(false)}
+        showTitle={globeShowTitle || ''}
+        seasonNumber={globeSeasonNumber}
+        viewers={globeViewers}
+        hasInternational={globeHasIntl}
       />
 
       {pendingEvent && (
