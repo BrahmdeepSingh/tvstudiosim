@@ -913,7 +913,7 @@ export default function Dashboard() {
             setGlobeShowTitle('Test Show');
             setGlobeSeasonNumber(2);
             setGlobeViewers(8_400_000);
-            setGlobeHasIntl(false);
+            setGlobeHasIntl(true);
             setGlobeVisible(true);
           }}
         >
@@ -933,8 +933,7 @@ export default function Dashboard() {
               if (show.title !== globeShowTitle) continue;
               const season = show.seasons.find(se => se.seasonNumber === globeSeasonNumber);
               if (!season) continue;
-              const finaleEp = season.episodes[season.episodes.length - 1];
-              viewers = finaleEp?.viewers ?? 0;
+              viewers = season.episodes.reduce((sum, ep) => sum + (ep.viewers ?? 0), 0);
               break;
             }
             setGlobeViewers(viewers);

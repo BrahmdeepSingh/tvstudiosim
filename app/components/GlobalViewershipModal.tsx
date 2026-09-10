@@ -189,11 +189,11 @@ export default function GlobalViewershipModal({
 
         {/* ── Text block ────────────────────────────────────────────────────── */}
         <Animated.View style={[gs.textBlock, { opacity: fadeAnim }]}>
-          <Text style={gs.eyebrow}>SEASON {seasonNumber} FINALE</Text>
+          <Text style={gs.eyebrow}>SEASON {seasonNumber} WRAP</Text>
           <Text style={gs.showTitle} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>
             {showTitle.toUpperCase()}
           </Text>
-          <Text style={gs.watchedLabel}>WATCHED AROUND THE WORLD</Text>
+          <Text style={gs.watchedLabel}>TOTAL SEASON VIEWERS</Text>
           <View style={gs.viewerRow}>
             <ViewerCounter target={viewers} delay={700} />
             <Text style={gs.viewerLabel}> VIEWERS</Text>
