@@ -186,7 +186,7 @@ export default function ShowDetailScreen() {
     filming:           { label: 'FILMING',   color: C.amber, bg: C.amberBg,  borderColor: C.amber + '55' },
     writing:           { label: 'WRITING',   color: C.blue,  bg: C.blueBg,   borderColor: C.blue + '55' },
     marketing:         { label: 'MARKETING', color: C.teal,  bg: C.tealBg,   borderColor: C.teal + '55' },
-    'renewal-pending': { label: 'RENEWAL',   color: C.gold,  bg: '#261e0a',  borderColor: C.borderGold55 },
+    'renewal-pending': { label: 'RENEWAL',   color: C.gold,  bg: C.amberBg,  borderColor: C.borderGold55 },
     completed:         { label: 'DONE',      color: C.muted, bg: C.cardBg2,  borderColor: C.muted + '44' },
     cancelled:         { label: 'CANCELLED', color: C.red,   bg: C.redBg,    borderColor: C.red + '55' },
   };
@@ -439,7 +439,7 @@ export default function ShowDetailScreen() {
                 onPress={() => { hap.heavy(); router.push(`/renew?showID=${show.id}`); }}
                 activeOpacity={0.88}
               >
-                <LinearGradient colors={['#f0c060', C.goldMid]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.renewBtnGrad}>
+                <LinearGradient colors={[C.gold, C.goldMid]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.renewBtnGrad}>
                   <Text style={s.renewBtnText}>RENEW SEASON {season.seasonNumber + 1}  ▶</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -683,7 +683,7 @@ function makeStyles(C: ReturnType<typeof useTheme>['C']) {
     streamingNonExclText:  { fontFamily: 'Manrope_700Bold', color: C.teal, fontSize: 11, letterSpacing: 0.5 },
     streamingExclBtn:      { flex: 2, borderRadius: 10 },
     streamingExclGrad:     { padding: 11, alignItems: 'center', borderRadius: 10 },
-    streamingExclText:     { fontFamily: 'Manrope_800ExtraBold', color: '#0a2018', fontSize: 11, letterSpacing: 0.5 },
+    streamingExclText:     { fontFamily: 'Manrope_800ExtraBold', color: C.greenBg, fontSize: 11, letterSpacing: 0.5 },
 
     // ── Streaming deals ──────────────────────────────────────────────────────────
     dealCard:     { backgroundColor: C.greenBg, borderWidth: 1, borderColor: C.green + '55', borderRadius: 12, padding: 14, marginBottom: 8 },
@@ -695,7 +695,7 @@ function makeStyles(C: ReturnType<typeof useTheme>['C']) {
     dealExpiry:   { fontFamily: 'Manrope_400Regular', fontSize: 11 },
 
     // ── Renewal card ─────────────────────────────────────────────────────────────
-    renewalCard:       { backgroundColor: '#1e1808', borderWidth: 1, borderColor: C.borderGold55, borderRadius: 14, padding: 16, marginBottom: 16 },
+    renewalCard:       { backgroundColor: C.amberBg, borderWidth: 1, borderColor: C.borderGold55, borderRadius: 14, padding: 16, marginBottom: 16 },
     renewalTitle:      { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 20, letterSpacing: 1.5, marginBottom: 14 },
     renewalStats:      { flexDirection: 'row', gap: 20, marginBottom: 16 },
     renewalStat:       { alignItems: 'center' },
