@@ -60,7 +60,6 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: 'fantasy',       label: 'Fantasy' },
 ];
 
-// ── Film ribbon ambient texture ───────────────────────────────────────────────
 function FilmRibbonAmbient() {
   const { C } = useTheme();
   return (
@@ -73,14 +72,12 @@ function FilmRibbonAmbient() {
   );
 }
 
-// ── Section label ─────────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: string }) {
   const { C } = useTheme();
   const s = useMemo(() => makeStyles(C), [C]);
   return <Text style={s.label}>{children}</Text>;
 }
 
-// ── Stepper ───────────────────────────────────────────────────────────────────
 function Stepper({
   value, onDec, onInc, disableDec, disableInc, large,
 }: {
@@ -108,7 +105,6 @@ function Stepper({
   );
 }
 
-// ── Screen ────────────────────────────────────────────────────────────────────
 export default function CreateShowScreen() {
   const { C } = useTheme();
   const s = useMemo(() => makeStyles(C), [C]);
@@ -142,7 +138,6 @@ export default function CreateShowScreen() {
   return (
     <LinearGradient
       colors={[C.gradientTop, C.gradientMid, C.gradientBot]}
-      locations={[0, 0.55, 1]}
       style={{ flex: 1 }}
     >
       <FilmRibbonAmbient />
@@ -328,7 +323,7 @@ export default function CreateShowScreen() {
             >
               {canProceed ? (
                 <LinearGradient
-                  colors={['#f0c060', C.goldMid]}
+                  colors={[C.gold, C.goldMid]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={s.nextBtnGradient}
@@ -349,38 +344,31 @@ export default function CreateShowScreen() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
 function makeStyles(C: ReturnType<typeof useTheme>['C']) {
   return StyleSheet.create({
     container:    { flex: 1 },
     scroll:       { flex: 1 },
     scrollContent: { paddingHorizontal: 16, paddingBottom: 8 },
 
-    // ── Header ──────────────────────────────────────────────────────────────────
     header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
     backBtn:     { width: 70 },
     backText:    { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 11, letterSpacing: 1 },
     headerTitle: { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 26, letterSpacing: 2, flex: 1, textAlign: 'center' },
 
-    // ── Section label ────────────────────────────────────────────────────────────
     label: { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 9, letterSpacing: 2, marginTop: 22, marginBottom: 10 },
 
-    // ── Text input ───────────────────────────────────────────────────────────────
     input:        { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontFamily: 'Manrope_400Regular', color: C.text, fontSize: 15 },
     inputFocused: { borderColor: C.gold + '80' },
 
-    // ── Pill grids ───────────────────────────────────────────────────────────────
     pillGrid:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     pill:            { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
     pillActive:      { borderColor: C.gold, backgroundColor: C.goldDim },
     pillText:        { fontFamily: 'Manrope_600SemiBold', color: C.muted, fontSize: 13 },
     pillTextActive:  { fontFamily: 'Manrope_700Bold', color: C.gold },
 
-    // ── Episode card ─────────────────────────────────────────────────────────────
     episodeCard: { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.borderGold, paddingVertical: 20, alignItems: 'center', gap: 4 },
     episodeUnit: { fontFamily: 'Manrope_600SemiBold', color: C.muted, fontSize: 12, letterSpacing: 0.5 },
 
-    // ── Stepper ──────────────────────────────────────────────────────────────────
     stepperRow:     { flexDirection: 'row', alignItems: 'center', gap: 20 },
     stepBtn:        { width: 40, height: 40, borderRadius: 10, backgroundColor: C.cardBg2, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
     stepBtnDisabled:{ opacity: 0.25 },
@@ -388,21 +376,18 @@ function makeStyles(C: ReturnType<typeof useTheme>['C']) {
     stepValueLarge: { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 52, lineHeight: 56, minWidth: 56, textAlign: 'center' },
     stepValueSm:    { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 28, lineHeight: 32, minWidth: 36, textAlign: 'center' },
 
-    // ── Hint ─────────────────────────────────────────────────────────────────────
     hint:     { backgroundColor: C.cardBg, borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: C.border },
     hintText: { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, lineHeight: 19 },
 
-    // ── Cast card ────────────────────────────────────────────────────────────────
     castCard:      { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.borderGold, overflow: 'hidden' },
     castRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16 },
     castRowBorder: { borderTopWidth: 1, borderTopColor: C.border },
     castRowLabel:  { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 14 },
     castRowSub:    { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 11, marginTop: 3 },
 
-    // ── Footer ───────────────────────────────────────────────────────────────────
     footer:              { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
     cashNote:            { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, textAlign: 'center' },
-    capacityBanner:      { backgroundColor: '#1a0e0e', borderRadius: 10, borderWidth: 1, borderColor: C.red + '44', padding: 12, alignItems: 'center', gap: 4 },
+    capacityBanner:      { backgroundColor: C.redBg, borderRadius: 10, borderWidth: 1, borderColor: C.red + '44', padding: 12, alignItems: 'center', gap: 4 },
     capacityBannerTitle: { color: C.red, fontFamily: 'Manrope_700Bold', fontSize: 13 },
     capacityBannerSub:   { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, textAlign: 'center', lineHeight: 17 },
     nextBtn:             { borderRadius: 999 },
