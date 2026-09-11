@@ -945,7 +945,7 @@ function makeStyles(C: ReturnType<typeof useTheme>['C']) {
     sectionAction: { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 10, letterSpacing: 1.5 },
 
     // ── Show cards ──────────────────────────────────────────────────────────────
-    showCard:       { backgroundColor: C.cardBg, borderRadius: 16, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+    showCard:       { backgroundColor: C.cardBg, borderRadius: 16, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10 },
     showCardInner:  { padding: 14 },
     showCardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
     showTitle:      { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 18, letterSpacing: 1.5 },
