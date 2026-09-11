@@ -3,20 +3,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useMemo } from 'react';
 import { useGameStore } from '../src/store/gameStore';
 import { Episode } from '../src/types';
-
-const C = {
-  pageBg: '#0f1220', cardBg: '#191c2a',
-  border: '#252840',
-  text: '#f0ede8', muted: '#9a958e',
-  gold: '#e6b254',
-  green: '#4ec46e', amber: '#d4753a', red: '#c43820',
-};
+import { useTheme } from '../src/context/ThemeContext';
 
 const CHEM_COLORS = { green: '#4ec46e', blue: '#5b8dee', red: '#c43820' };
 
 function FilmRibbonAmbient() {
+  const { C } = useTheme();
   return (
     <Image
       source={require('../assets/tvbg.png')}
@@ -49,6 +44,8 @@ function ratingColor(r: number): string {
 }
 
 function HeatmapDot({ ep, empty }: { ep?: Episode; empty?: boolean }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const color = empty || !ep?.rating ? C.border : ratingColor(ep.rating);
   return (
     <View style={s.dot}>
@@ -60,6 +57,8 @@ function HeatmapDot({ ep, empty }: { ep?: Episode; empty?: boolean }) {
 }
 
 export default function SeasonDetailScreen() {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const router = useRouter();
   const { showID, seasonNumber } = useLocalSearchParams<{ showID: string; seasonNumber: string }>();
   const { shows, talent, talentDeals } = useGameStore();
@@ -70,7 +69,7 @@ export default function SeasonDetailScreen() {
   if (!show || !season) {
     return (
       <SafeAreaView edges={['top']} style={s.container}>
-        <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={[C.gradientTop, C.gradientMid]} style={StyleSheet.absoluteFill} />
         <FilmRibbonAmbient />
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
@@ -109,7 +108,7 @@ export default function SeasonDetailScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={s.container}>
-      <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[C.gradientTop, C.gradientMid, C.gradientBot]} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 
       <View style={s.header}>
@@ -300,7 +299,10 @@ function CrewRow({
   router: ReturnType<typeof useRouter>;
   last?: boolean;
 }) {
-  const chemColor = CHEM_COLORS[talent.chemistryColor as keyof typeof CHEM_COLORS] ?? C.muted;
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
+  const chemColors: Record<string, string> = { green: C.green, blue: '#5b8dee', red: C.red };
+  const chemColor = chemColors[talent.chemistryColor as string] ?? C.muted;
   return (
     <TouchableOpacity
       style={[s.crewRow, last && { borderBottomWidth: 0 }]}
@@ -320,6 +322,8 @@ function CrewRow({
 function ScoreCard({ label, score, sublabel, highlight }: {
   label: string; score: number; sublabel: string; highlight?: boolean;
 }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const color = score >= 75 ? C.green : score >= 50 ? C.amber : C.red;
   return (
     <View style={[s.scoreCard, highlight && { borderColor: color, backgroundColor: color + '18' }]}>
@@ -330,59 +334,61 @@ function ScoreCard({ label, score, sublabel, highlight }: {
   );
 }
 
-const s = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: C.pageBg },
-  header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn:        { width: 60 },
-  backText:       { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  headerTitle:    { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 17, flex: 1, textAlign: 'center' },
-  scrollContent:  { padding: 16 },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    container:      { flex: 1, backgroundColor: C.pageBg },
+    header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
+    backBtn:        { width: 60 },
+    backText:       { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+    headerTitle:    { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 17, flex: 1, textAlign: 'center' },
+    scrollContent:  { padding: 16 },
 
-  seasonHeading:  { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 32, letterSpacing: 0.5, marginBottom: 4 },
-  seasonMeta:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14, marginBottom: 4 },
+    seasonHeading:  { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 32, letterSpacing: 0.5, marginBottom: 4 },
+    seasonMeta:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14, marginBottom: 4 },
 
-  sectionLabel:   { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginTop: 20, marginBottom: 10 },
+    sectionLabel:   { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginTop: 20, marginBottom: 10 },
 
-  statsRow:       { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 },
-  statChip:       { alignItems: 'center' },
-  statChipValue:  { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 24, letterSpacing: 0.5 },
-  statChipLabel:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11, marginTop: 2 },
+    statsRow:       { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 },
+    statChip:       { alignItems: 'center' },
+    statChipValue:  { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 24, letterSpacing: 0.5 },
+    statChipLabel:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11, marginTop: 2 },
 
-  heatmap:        { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
-  dot:            { padding: 2 },
-  dotInner:       { width: 38, height: 38, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
-  dotText:        { color: '#fff', fontFamily: 'Manrope_700Bold', fontSize: 10 },
+    heatmap:        { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+    dot:            { padding: 2 },
+    dotInner:       { width: 38, height: 38, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+    dotText:        { color: '#fff', fontFamily: 'Manrope_700Bold', fontSize: 10 },
 
-  peakRow:        { flexDirection: 'row', gap: 10, marginBottom: 4 },
-  peakChip:       { flex: 1, flexDirection: 'row', justifyContent: 'space-between', backgroundColor: C.cardBg, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, paddingVertical: 8 },
-  peakLabel:      { fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
-  peakValue:      { fontFamily: 'Manrope_800ExtraBold', fontSize: 13 },
+    peakRow:        { flexDirection: 'row', gap: 10, marginBottom: 4 },
+    peakChip:       { flex: 1, flexDirection: 'row', justifyContent: 'space-between', backgroundColor: C.cardBg, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, paddingVertical: 8 },
+    peakLabel:      { fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
+    peakValue:      { fontFamily: 'Manrope_800ExtraBold', fontSize: 13 },
 
-  card:           { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, marginBottom: 4 },
+    card:           { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, marginBottom: 4 },
 
-  epRow:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border, gap: 10 },
-  epNum:          { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, width: 36 },
-  epRatingBadge:  { borderWidth: 1, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
-  epRating:       { fontFamily: 'Manrope_700Bold', fontSize: 13 },
-  epViewers:      { flex: 1, color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13 },
-  epRevenue:      { color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 13 },
+    epRow:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border, gap: 10 },
+    epNum:          { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, width: 36 },
+    epRatingBadge:  { borderWidth: 1, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
+    epRating:       { fontFamily: 'Manrope_700Bold', fontSize: 13 },
+    epViewers:      { flex: 1, color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13 },
+    epRevenue:      { color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 13 },
 
-  finRow:         { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
-  finTotal:       { borderBottomWidth: 0 },
-  finLabel:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14 },
-  finValue:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
+    finRow:         { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
+    finTotal:       { borderBottomWidth: 0 },
+    finLabel:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14 },
+    finValue:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
 
-  crewRow:        { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  crewChemDot:    { width: 10, height: 10, borderRadius: 5 },
-  crewName:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
-  crewRole:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
-  crewChevron:    { color: C.muted, fontSize: 20 },
+    crewRow:        { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+    crewChemDot:    { width: 10, height: 10, borderRadius: 5 },
+    crewName:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
+    crewRole:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
+    crewChevron:    { color: C.muted, fontSize: 20 },
 
-  emptyText:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, fontStyle: 'italic', padding: 14 },
+    emptyText:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, fontStyle: 'italic', padding: 14 },
 
-  scoresRow:      { flexDirection: 'row', gap: 10 },
-  scoreCard:      { flex: 1, backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, alignItems: 'center' },
-  scoreValue:     { fontFamily: 'BebasNeue_400Regular', fontSize: 32, letterSpacing: 0.5, marginBottom: 2 },
-  scoreLabel:     { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 13 },
-  scoreSublabel:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11, marginTop: 2 },
-});
+    scoresRow:      { flexDirection: 'row', gap: 10 },
+    scoreCard:      { flex: 1, backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, alignItems: 'center' },
+    scoreValue:     { fontFamily: 'BebasNeue_400Regular', fontSize: 32, letterSpacing: 0.5, marginBottom: 2 },
+    scoreLabel:     { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 13 },
+    scoreSublabel:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11, marginTop: 2 },
+  });
+}

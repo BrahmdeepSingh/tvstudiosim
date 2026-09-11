@@ -63,8 +63,8 @@ function generateCompetitorPoster(showID: string): PosterConfig {
   };
 }
 
-// ── Design tokens ─────────────────────────────────────────────────────────────
-const C = {
+// Intentional fixed cinema palette — Emmy ceremony is always dark/glamorous
+const EMMY = {
   bg:              '#0d0e14',
   card:            '#131520',
   cardActive:      '#191b2a',
@@ -93,13 +93,13 @@ const F = {
 
 // Confetti relative positions (fractions of screen size, resolved in component)
 const CONFETTI_DEFS = [
-  { xf: 0.13, yf: 0.08, color: C.gold,  rotate: '20deg',  w: 6, h: 14 },
-  { xf: 0.81, yf: 0.14, color: C.green, rotate: '-25deg', w: 6, h: 14 },
-  { xf: 0.21, yf: 0.22, color: C.amber, rotate: '-10deg', w: 5, h: 12 },
-  { xf: 0.69, yf: 0.10, color: C.gold,  rotate: '35deg',  w: 5, h: 12 },
-  { xf: 0.09, yf: 0.30, color: C.blue,  rotate: '-30deg', w: 6, h: 13 },
-  { xf: 0.49, yf: 0.06, color: C.green, rotate: '12deg',  w: 5, h: 12 },
-  { xf: 0.87, yf: 0.25, color: C.gold,  rotate: '-18deg', w: 6, h: 14 },
+  { xf: 0.13, yf: 0.08, color: EMMY.gold,  rotate: '20deg',  w: 6, h: 14 },
+  { xf: 0.81, yf: 0.14, color: EMMY.green, rotate: '-25deg', w: 6, h: 14 },
+  { xf: 0.21, yf: 0.22, color: EMMY.amber, rotate: '-10deg', w: 5, h: 12 },
+  { xf: 0.69, yf: 0.10, color: EMMY.gold,  rotate: '35deg',  w: 5, h: 12 },
+  { xf: 0.09, yf: 0.30, color: EMMY.blue,  rotate: '-30deg', w: 6, h: 13 },
+  { xf: 0.49, yf: 0.06, color: EMMY.green, rotate: '12deg',  w: 5, h: 12 },
+  { xf: 0.87, yf: 0.25, color: EMMY.gold,  rotate: '-18deg', w: 6, h: 14 },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -372,7 +372,7 @@ export function EmmyCeremonyModal() {
                       const { primary, sub } = resolveDisplay(nom);
                       return (
                         <View key={nom.id} style={[s.nomineeRow, nom.isPlayerAward && s.nomineeRowPlayer]}>
-                          <View style={[s.nomDot, { backgroundColor: nom.isPlayerAward ? C.gold : C.muted }]} />
+                          <View style={[s.nomDot, { backgroundColor: nom.isPlayerAward ? EMMY.gold : EMMY.muted }]} />
                           <View style={s.nomTextBlock}>
                             <Text style={[s.nomPrimary, nom.isPlayerAward && s.nomPrimaryPlayer]}>{primary}</Text>
                             <Text style={s.nomSub}>{sub}{nom.isPlayerAward ? ` — ${network.name}` : ''}</Text>
@@ -526,7 +526,7 @@ export function EmmyCeremonyModal() {
       );
 
       return (
-        <View style={[s.emmyPosterWrap, { borderColor: isPlayerWin ? C.gold : '#ffffff40' }]}>
+        <View style={[s.emmyPosterWrap, { borderColor: isPlayerWin ? EMMY.gold : '#ffffff40' }]}>
           <View style={{ width: EMMY_POSTER_W, height: EMMY_POSTER_H, borderRadius: 7, overflow: 'hidden' }}>
             {/* Background — gradient or illustrated */}
             {'render' in bg && bg.render
@@ -741,10 +741,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: C.borderGold,
+    borderBottomColor: EMMY.borderGold,
   },
-  headerSub:   { fontFamily: F.bodyMd, fontSize: 10, letterSpacing: 4, color: C.muted, marginBottom: 4 },
-  headerTitle: { fontFamily: F.display, fontSize: 34, letterSpacing: 3, color: C.gold },
+  headerSub:   { fontFamily: F.bodyMd, fontSize: 10, letterSpacing: 4, color: EMMY.muted, marginBottom: 4 },
+  headerTitle: { fontFamily: F.display, fontSize: 34, letterSpacing: 3, color: EMMY.gold },
   dotRow: {
     flexDirection: 'row',
     gap: 4,
@@ -752,7 +752,7 @@ const s = StyleSheet.create({
     marginBottom: 14,
     overflow: 'hidden',
   },
-  dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.borderGoldStrong },
+  dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: EMMY.borderGoldStrong },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -760,40 +760,40 @@ const s = StyleSheet.create({
   },
   statBlock:   { alignItems: 'center' },
   statNum:     { fontFamily: F.display, fontSize: 22, color: '#fff', lineHeight: 24 },
-  statLabel:   { fontFamily: F.bodyMd, fontSize: 9, letterSpacing: 1.5, color: C.muted, marginTop: 2 },
-  statDivider: { width: 1, height: 28, backgroundColor: C.borderGoldStrong },
+  statLabel:   { fontFamily: F.bodyMd, fontSize: 9, letterSpacing: 1.5, color: EMMY.muted, marginTop: 2 },
+  statDivider: { width: 1, height: 28, backgroundColor: EMMY.borderGoldStrong },
 
   // ── Tracker list ───────────────────────────────────────────────────────────
   listContent: { padding: 16, gap: 10 },
 
   calledCard: {
-    backgroundColor: C.card,
+    backgroundColor: EMMY.card,
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: EMMY.border,
     borderRadius: 12,
     paddingVertical: 11,
     paddingHorizontal: 14,
     opacity: 0.55,
   },
-  calledLabel:     { fontFamily: F.bodyMd, fontSize: 9.5, letterSpacing: 1.5, color: C.muted, marginBottom: 5 },
-  calledResult:    { fontFamily: F.display, fontSize: 14, letterSpacing: 0.3, color: C.muted },
-  calledResultWin: { color: C.green },
+  calledLabel:     { fontFamily: F.bodyMd, fontSize: 9.5, letterSpacing: 1.5, color: EMMY.muted, marginBottom: 5 },
+  calledResult:    { fontFamily: F.display, fontSize: 14, letterSpacing: 0.3, color: EMMY.muted },
+  calledResultWin: { color: EMMY.green },
 
   activeCard: {
-    backgroundColor: C.cardActive,
+    backgroundColor: EMMY.cardActive,
     borderWidth: 1.5,
-    borderColor: C.borderGoldStrong,
+    borderColor: EMMY.borderGoldStrong,
     borderRadius: 16,
     padding: 16,
-    shadowColor: C.gold,
+    shadowColor: EMMY.gold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.18,
     shadowRadius: 18,
     elevation: 8,
   },
   nowAnnouncingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10 },
-  nowAnnouncingText: { fontFamily: F.display, fontSize: 13, letterSpacing: 2.5, color: C.gold },
-  starIcon: { fontSize: 12, color: C.gold },
+  nowAnnouncingText: { fontFamily: F.display, fontSize: 13, letterSpacing: 2.5, color: EMMY.gold },
+  starIcon: { fontSize: 12, color: EMMY.gold },
   activeCatLabel: { fontFamily: F.display, fontSize: 22, letterSpacing: 0.5, color: '#fff', textAlign: 'center', marginBottom: 14 },
 
   nomineeList: { gap: 8, marginBottom: 14 },
@@ -810,14 +810,14 @@ const s = StyleSheet.create({
   },
   nomineeRowPlayer: {
     backgroundColor: '#1e1a08',
-    borderColor: C.borderGoldStrong,
+    borderColor: EMMY.borderGoldStrong,
   },
   nomDot: { width: 7, height: 7, borderRadius: 3.5, flexShrink: 0 },
   nomTextBlock: { flex: 1, minWidth: 0 },
   nomPrimary: { fontFamily: F.bodyBd, fontSize: 13, color: '#bbb8b0' },
   nomPrimaryPlayer: { color: '#fff', fontFamily: F.bodyXBd },
-  nomSub: { fontFamily: F.body, fontSize: 9.5, color: C.muted, marginTop: 1 },
-  youBadge: { fontFamily: F.bodyXBd, fontSize: 9, letterSpacing: 0.5, color: C.gold },
+  nomSub: { fontFamily: F.body, fontSize: 9.5, color: EMMY.muted, marginTop: 1 },
+  youBadge: { fontFamily: F.bodyXBd, fontSize: 9, letterSpacing: 0.5, color: EMMY.gold },
 
   envelopeBtn: {
     height: 46,
@@ -825,10 +825,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  envelopeBtnText: { fontFamily: F.display, fontSize: 14, letterSpacing: 2, color: C.goldText },
+  envelopeBtnText: { fontFamily: F.display, fontSize: 14, letterSpacing: 2, color: EMMY.goldText },
 
   queueCard: {
-    backgroundColor: C.card,
+    backgroundColor: EMMY.card,
     borderWidth: 1,
     borderColor: '#1e2030',
     borderStyle: 'dashed',
@@ -837,8 +837,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
   },
   queueCardUpNext: { borderColor: '#2e3048' },
-  queueLabel: { fontFamily: F.bodyMd, fontSize: 9.5, letterSpacing: 1.5, color: C.mutedMid, marginBottom: 4 },
-  queueNote:  { fontFamily: F.body, fontSize: 11, color: C.mutedMid },
+  queueLabel: { fontFamily: F.bodyMd, fontSize: 9.5, letterSpacing: 1.5, color: EMMY.mutedMid, marginBottom: 4 },
+  queueNote:  { fontFamily: F.body, fontSize: 11, color: EMMY.mutedMid },
 
   // ── Reveal ─────────────────────────────────────────────────────────────────
   warmGlow: {
@@ -860,25 +860,25 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 36,
   },
-  revealCatLabel: { fontFamily: F.bodyMd, fontSize: 10, letterSpacing: 4, color: C.muted, marginBottom: 16 },
+  revealCatLabel: { fontFamily: F.bodyMd, fontSize: 10, letterSpacing: 4, color: EMMY.muted, marginBottom: 16 },
   starCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
     borderWidth: 2,
-    borderColor: C.gold,
+    borderColor: EMMY.gold,
     backgroundColor: '#141620',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
-    shadowColor: C.gold,
+    shadowColor: EMMY.gold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.45,
     shadowRadius: 14,
     elevation: 10,
   },
-  starChar:  { fontSize: 30, color: C.gold },
-  andWinner: { fontFamily: F.bodyMd, fontSize: 11, letterSpacing: 2, color: C.muted, marginBottom: 10 },
+  starChar:  { fontSize: 30, color: EMMY.gold },
+  andWinner: { fontFamily: F.bodyMd, fontSize: 11, letterSpacing: 2, color: EMMY.muted, marginBottom: 10 },
   winnerBlock: { alignItems: 'center', marginBottom: 22 },
   winnerTitle: {
     fontFamily: F.display,
@@ -892,7 +892,7 @@ const s = StyleSheet.create({
     fontFamily: F.bodyBd,
     fontSize: 12,
     letterSpacing: 0.5,
-    color: C.gold,
+    color: EMMY.gold,
     textAlign: 'center',
     marginTop: 6,
   },
@@ -900,12 +900,12 @@ const s = StyleSheet.create({
   pill: { paddingVertical: 6, paddingHorizontal: 13, borderRadius: 999, borderWidth: 1 },
   pillGold:      { backgroundColor: '#e6b25418', borderColor: '#e6b25455' },
   pillGreen:     { backgroundColor: '#4ec46e18', borderColor: '#4ec46e55' },
-  pillGoldText:  { fontFamily: F.bodyBd, fontSize: 10.5, color: C.gold },
-  pillGreenText: { fontFamily: F.bodyBd, fontSize: 10.5, color: C.green },
+  pillGoldText:  { fontFamily: F.bodyBd, fontSize: 10.5, color: EMMY.gold },
+  pillGreenText: { fontFamily: F.bodyBd, fontSize: 10.5, color: EMMY.green },
   emmyPosterWrap: {
     borderWidth: 1.5,
     borderRadius: 9,
-    shadowColor: C.gold,
+    shadowColor: EMMY.gold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.7,
     shadowRadius: 14,
@@ -918,7 +918,7 @@ const s = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
   },
-  continueBtnText: { fontFamily: F.display, fontSize: 13, letterSpacing: 2, color: C.goldText },
+  continueBtnText: { fontFamily: F.display, fontSize: 13, letterSpacing: 2, color: EMMY.goldText },
 
   // ── Done ───────────────────────────────────────────────────────────────────
   doneContainer: {
@@ -929,13 +929,13 @@ const s = StyleSheet.create({
     gap: 24,
   },
   doneHeader:   { alignItems: 'center' },
-  doneSubtitle: { fontFamily: F.bodyMd, fontSize: 10, letterSpacing: 4, color: C.muted, marginBottom: 4 },
-  doneTitle:    { fontFamily: F.display, fontSize: 34, letterSpacing: 3, color: C.gold },
+  doneSubtitle: { fontFamily: F.bodyMd, fontSize: 10, letterSpacing: 4, color: EMMY.muted, marginBottom: 4 },
+  doneTitle:    { fontFamily: F.display, fontSize: 34, letterSpacing: 3, color: EMMY.gold },
   doneSummaryCard: {
     width: '100%',
-    backgroundColor: C.card,
+    backgroundColor: EMMY.card,
     borderWidth: 1,
-    borderColor: C.borderGoldStrong,
+    borderColor: EMMY.borderGoldStrong,
     borderRadius: 16,
     padding: 18,
   },
@@ -949,13 +949,13 @@ const s = StyleSheet.create({
   },
   doneWinsList: { gap: 10 },
   doneWinRow:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  doneWinStar:  { fontSize: 14, color: C.gold },
+  doneWinStar:  { fontSize: 14, color: EMMY.gold },
   doneWinPrimary: { fontFamily: F.bodyBd, fontSize: 14, color: '#fff' },
-  doneWinCat:     { fontFamily: F.bodyMd, fontSize: 9, letterSpacing: 1.5, color: C.muted, marginTop: 2 },
+  doneWinCat:     { fontFamily: F.bodyMd, fontSize: 9, letterSpacing: 1.5, color: EMMY.muted, marginTop: 2 },
   doneNote: {
     fontFamily: F.body,
     fontSize: 13,
-    color: C.muted,
+    color: EMMY.muted,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -965,6 +965,6 @@ const s = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
   },
-  closeBtnText: { fontFamily: F.display, fontSize: 14, letterSpacing: 2, color: C.goldText },
+  closeBtnText: { fontFamily: F.display, fontSize: 14, letterSpacing: 2, color: EMMY.goldText },
 });
 export default EmmyCeremonyModal;

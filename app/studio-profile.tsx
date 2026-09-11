@@ -3,37 +3,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { useGameStore } from '../src/store/gameStore';
 import { COMPETITOR_PRODUCTION_COSTS } from '../src/constants/game';
 import { CompetitorStudio, CompetitorShow } from '../src/types';
-
-const C = {
-  pageBg:     '#0f1220',
-  cardBg:     '#191c2a',
-  border:     '#252840',
-  text:       '#f0ede8',
-  muted:      '#9a958e',
-  mutedMid:   '#6b6880',
-  gold:       '#e6b254',
-  goldDim:    '#e6b25418',
-  goldBorder: '#e6b25440',
-  goldText:   '#161008',
-  green:      '#4ec46e',
-  greenBg:    '#0f2a1a',
-  greenBd:    '#4ec46e55',
-  amber:      '#d4753a',
-  amberBg:    '#2a1f12',
-  amberBd:    '#d4753a55',
-  teal:       '#3db8a8',
-  tealBg:     '#0f2525',
-  tealBd:     '#3db8a855',
-  blue:       '#cccee0',
-  blueBg:     '#141e33',
-  blueBd:     '#cccee055',
-  red:        '#c43820',
-  redBg:      '#2a130f',
-  redBd:      '#c4382055',
-};
+import { useTheme } from '../src/context/ThemeContext';
 
 const F = {
   display: 'BebasNeue_400Regular',
@@ -53,15 +27,6 @@ const STUDIO_COLORS = [
   '#f59e0b',
   '#ec4899',
 ];
-
-const STATUS_META: Record<string, { label: string; color: string; bg: string; bd: string }> = {
-  'pre-production': { label: 'DEV',       color: C.blue,  bg: C.blueBg,  bd: C.blueBd  },
-  filming:          { label: 'FILMING',   color: C.amber, bg: C.amberBg, bd: C.amberBd },
-  marketing:        { label: 'MARKETING', color: C.teal,  bg: C.tealBg,  bd: C.tealBd  },
-  airing:           { label: 'AIRING',    color: C.green, bg: C.greenBg, bd: C.greenBd },
-  completed:        { label: 'WRAPPED',   color: C.muted, bg: '#1a1a2a',  bd: '#3a3a5a' },
-  cancelled:        { label: 'CANCELLED', color: C.red,   bg: C.redBg,   bd: C.redBd   },
-};
 
 const TIER_LABEL: Record<string, string> = {
   powerhouse:   'Powerhouse',
@@ -99,6 +64,18 @@ interface CompetitorShowCardProps {
 }
 
 function CompetitorShowCard({ show }: CompetitorShowCardProps) {
+  const { C } = useTheme();
+  const cs = useMemo(() => makeCardStyles(C), [C]);
+
+  const STATUS_META: Record<string, { label: string; color: string; bg: string; bd: string }> = {
+    'pre-production': { label: 'DEV',       color: C.blue,  bg: C.blueBg,  bd: C.blue + '55'  },
+    filming:          { label: 'FILMING',   color: C.amber, bg: C.amberBg, bd: C.amber + '55' },
+    marketing:        { label: 'MARKETING', color: C.teal,  bg: C.tealBg,  bd: C.teal + '55'  },
+    airing:           { label: 'AIRING',    color: C.green, bg: C.greenBg, bd: C.green + '55' },
+    completed:        { label: 'WRAPPED',   color: C.muted, bg: '#1a1a2a', bd: '#3a3a5a'      },
+    cancelled:        { label: 'CANCELLED', color: C.red,   bg: C.redBg,   bd: C.red + '55'   },
+  };
+
   const meta = STATUS_META[show.status] ?? STATUS_META.cancelled;
   const showRating = show.status === 'airing' && show.currentRating > 0;
   const showViewers = show.status === 'airing' && show.weeklyViewers > 0;
@@ -144,6 +121,8 @@ function CompetitorShowCard({ show }: CompetitorShowCardProps) {
 }
 
 export default function StudioProfileScreen() {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { network, shows, competitors, awards, newsItems } = useGameStore();
@@ -190,13 +169,13 @@ export default function StudioProfileScreen() {
 
   // Active show count
   const activeShows = isPlayer
-    ? shows.filter(s => ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(s.status)).length
-    : studio!.activeShows.filter(s => ['pre-production', 'filming', 'marketing', 'airing'].includes(s.status)).length;
+    ? shows.filter(sh => ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(sh.status)).length
+    : studio!.activeShows.filter(sh => ['pre-production', 'filming', 'marketing', 'airing'].includes(sh.status)).length;
 
   // Their slate: only shows currently in production or on air (not dead shows)
   const LIVE_STATUSES = ['airing', 'filming', 'marketing', 'pre-production'];
   const slate: CompetitorShow[] = isPlayer ? [] : studio!.activeShows
-    .filter(s => LIVE_STATUSES.includes(s.status))
+    .filter(sh => LIVE_STATUSES.includes(sh.status))
     .sort((a, b) => {
       const order = ['airing', 'filming', 'marketing', 'pre-production'];
       return order.indexOf(a.status) - order.indexOf(b.status);
@@ -210,7 +189,7 @@ export default function StudioProfileScreen() {
   return (
     <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient
-        colors={['#131829', '#0f1220', '#0a0d18']}
+        colors={[C.gradientTop, C.gradientMid, C.gradientBot]}
         style={StyleSheet.absoluteFill}
       />
 
@@ -306,58 +285,62 @@ export default function StudioProfileScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container:     { flex: 1, backgroundColor: C.pageBg },
-  scroll:        { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 16 },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    container:     { flex: 1, backgroundColor: C.pageBg },
+    scroll:        { flex: 1 },
+    scrollContent: { paddingHorizontal: 16, paddingBottom: 16 },
 
-  header:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn:       { width: 40, alignItems: 'flex-start', justifyContent: 'center' },
-  backText:      { color: C.gold, fontSize: 22, fontFamily: F.body },
-  headerTitle:   { flex: 1, color: C.gold, fontFamily: F.display, fontSize: 22, letterSpacing: 1, textAlign: 'center' },
+    header:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+    backBtn:       { width: 40, alignItems: 'flex-start', justifyContent: 'center' },
+    backText:      { color: C.gold, fontSize: 22, fontFamily: F.body },
+    headerTitle:   { flex: 1, color: C.gold, fontFamily: F.display, fontSize: 22, letterSpacing: 1, textAlign: 'center' },
 
-  dots:          { color: C.mutedMid, fontSize: 12, textAlign: 'center', letterSpacing: 2, marginTop: 16, marginBottom: 24 },
+    dots:          { color: C.mutedMid, fontSize: 12, textAlign: 'center', letterSpacing: 2, marginTop: 16, marginBottom: 24 },
 
-  identityBlock: { alignItems: 'center', marginBottom: 24 },
-  avatarCircle:  { width: 72, height: 72, borderRadius: 36, borderWidth: 2, justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
-  avatarText:    { fontFamily: F.display, fontSize: 30, letterSpacing: 1 },
-  studioName:    { color: C.text, fontFamily: F.display, fontSize: 26, letterSpacing: 1, marginBottom: 4, textAlign: 'center' },
-  studioSub:     { color: C.muted, fontFamily: F.bodyMd, fontSize: 13 },
+    identityBlock: { alignItems: 'center', marginBottom: 24 },
+    avatarCircle:  { width: 72, height: 72, borderRadius: 36, borderWidth: 2, justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
+    avatarText:    { fontFamily: F.display, fontSize: 30, letterSpacing: 1 },
+    studioName:    { color: C.text, fontFamily: F.display, fontSize: 26, letterSpacing: 1, marginBottom: 4, textAlign: 'center' },
+    studioSub:     { color: C.muted, fontFamily: F.bodyMd, fontSize: 13 },
 
-  statGrid:      { flexDirection: 'row', flexWrap: 'wrap', borderRadius: 14, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 24 },
-  statCell:      { width: '50%', padding: 16, backgroundColor: C.cardBg },
-  statCellLeft:  { borderRightWidth: 1, borderRightColor: C.border },
-  statCellRight: {},
-  statCellBottom: { borderTopWidth: 1, borderTopColor: C.border },
-  statCellLabel: { color: C.muted, fontFamily: F.bodyBd, fontSize: 10, letterSpacing: 1.4, marginBottom: 6 },
-  statCellValue: { color: C.text, fontFamily: F.display, fontSize: 28, letterSpacing: 0.5 },
+    statGrid:      { flexDirection: 'row', flexWrap: 'wrap', borderRadius: 14, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 24 },
+    statCell:      { width: '50%', padding: 16, backgroundColor: C.cardBg },
+    statCellLeft:  { borderRightWidth: 1, borderRightColor: C.border },
+    statCellRight: {},
+    statCellBottom: { borderTopWidth: 1, borderTopColor: C.border },
+    statCellLabel: { color: C.muted, fontFamily: F.bodyBd, fontSize: 10, letterSpacing: 1.4, marginBottom: 6 },
+    statCellValue: { color: C.text, fontFamily: F.display, fontSize: 28, letterSpacing: 0.5 },
 
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  accentBar:     { width: 3, height: 16, backgroundColor: C.gold, borderRadius: 2 },
-  sectionTitle:  { color: C.gold, fontFamily: F.bodyXBd, fontSize: 11, letterSpacing: 2 },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    accentBar:     { width: 3, height: 16, backgroundColor: C.gold, borderRadius: 2 },
+    sectionTitle:  { color: C.gold, fontFamily: F.bodyXBd, fontSize: 11, letterSpacing: 2 },
 
-  emptyCard:     { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: 'center', marginBottom: 20 },
-  emptyText:     { color: C.muted, fontFamily: F.body, fontSize: 13 },
+    emptyCard:     { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 20, alignItems: 'center', marginBottom: 20 },
+    emptyText:     { color: C.muted, fontFamily: F.body, fontSize: 13 },
 
-  historyCard:   { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 20, maxHeight: 280 },
-  historyRow:    { padding: 14 },
-  historyTimestamp: { color: C.muted, fontFamily: F.bodyMd, fontSize: 11, letterSpacing: 0.5, marginBottom: 4 },
-  historyHeadline:  { color: C.text, fontFamily: F.body, fontSize: 13, lineHeight: 19 },
-  historyDivider:   { height: 1, backgroundColor: C.border },
-});
+    historyCard:   { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 20, maxHeight: 280 },
+    historyRow:    { padding: 14 },
+    historyTimestamp: { color: C.muted, fontFamily: F.bodyMd, fontSize: 11, letterSpacing: 0.5, marginBottom: 4 },
+    historyHeadline:  { color: C.text, fontFamily: F.body, fontSize: 13, lineHeight: 19 },
+    historyDivider:   { height: 1, backgroundColor: C.border },
+  });
+}
 
-const cs = StyleSheet.create({
-  showCard:       { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 10 },
-  showCardTop:    { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 },
-  showCardLeft:   { flex: 1, marginRight: 8 },
-  showTitle:      { color: C.text, fontFamily: F.bodyBd, fontSize: 15, marginBottom: 3 },
-  showSub:        { color: C.muted, fontFamily: F.body, fontSize: 12 },
-  badge:          { borderRadius: 6, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeText:      { fontFamily: F.bodyBd, fontSize: 10, letterSpacing: 1 },
-  showStats:      { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 4 },
-  showStat:       { alignItems: 'flex-start' },
-  showStatVal:    { color: C.text, fontFamily: F.bodyXBd, fontSize: 20 },
-  showStatLabel:  { color: C.muted, fontFamily: F.bodyBd, fontSize: 9, letterSpacing: 1.2, marginTop: 1 },
-  showStatDivider: { width: 1, height: 28, backgroundColor: C.border },
-  showSubLine:    { color: C.muted, fontFamily: F.body, fontSize: 12, marginTop: 4 },
-});
+function makeCardStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    showCard:       { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, marginBottom: 10 },
+    showCardTop:    { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 },
+    showCardLeft:   { flex: 1, marginRight: 8 },
+    showTitle:      { color: C.text, fontFamily: F.bodyBd, fontSize: 15, marginBottom: 3 },
+    showSub:        { color: C.muted, fontFamily: F.body, fontSize: 12 },
+    badge:          { borderRadius: 6, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
+    badgeText:      { fontFamily: F.bodyBd, fontSize: 10, letterSpacing: 1 },
+    showStats:      { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 4 },
+    showStat:       { alignItems: 'flex-start' },
+    showStatVal:    { color: C.text, fontFamily: F.bodyXBd, fontSize: 20 },
+    showStatLabel:  { color: C.muted, fontFamily: F.bodyBd, fontSize: 9, letterSpacing: 1.2, marginTop: 1 },
+    showStatDivider: { width: 1, height: 28, backgroundColor: C.border },
+    showSubLine:    { color: C.muted, fontFamily: F.body, fontSize: 12, marginTop: 4 },
+  });
+}
