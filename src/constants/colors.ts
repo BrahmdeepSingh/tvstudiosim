@@ -22,6 +22,7 @@ export const DARK = {
   amber:        '#d4753a',
   amberBg:      '#2a1f12',
   red:          '#c43820',
+  redBg:        '#2a130f',
 
   blue:         '#cccee0',
   blueBg:       '#141e33',
@@ -59,6 +60,7 @@ export const LIGHT: ColorTokens = {
   amber:        '#B55A10',
   amberBg:      '#F5E6D3',
   red:          '#C22218',
+  redBg:        '#FAE0DA',
 
   blue:         '#3A4A6B',
   blueBg:       '#E6EAF5',

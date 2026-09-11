@@ -8,59 +8,7 @@ import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { NewsItem } from '../../src/types';
-/* import * as Clipboard from 'expo-clipboard';
-
-function formatReactionsAsText(reactions: EnrichedReaction[]): string {
-  const lines: string[] = [];
-  lines.push(`=== Social Feed Export — ${new Date().toLocaleString()} ===`);
-  lines.push(`${reactions.length} posts\n`);
-
-  for (const r of reactions) {
-    const tag = r.isAmbient
-      ? r.isCompetitor
-        ? `Competitor buzz${r.relatedShowTitle ? ` — ${r.relatedShowTitle}` : ''}`
-        : r.showTitle
-          ? r.showTitle
-          : 'Ambient'
-      : r.showTitle
-        ? `${r.showTitle}${r.episodeNumber != null ? ` · Ep ${r.episodeNumber}` : ''}`
-        : '';
-
-    lines.push(`${r.username} (${r.handle}) [${tag}] — Wk ${r.weekAired}, Yr ${r.yearAired}`);
-    lines.push(r.content);
-    lines.push(`♥ ${r.likes}   ↻ ${r.reposts}`);
-    lines.push(''); // blank line between posts
-  }
-
-  return lines.join('\n');
-}
-
-async function handleExportFeed(reactions: EnrichedReaction[]) {
-  const text = formatReactionsAsText(reactions);
-  await Clipboard.setStringAsync(text);
-  Alert.alert(
-    'Copied to clipboard',
-    `${reactions.length} posts copied. Paste them wherever you need.`,
-  );
-}
-*/
-const C = {
-  pageBg: '#0f1220', cardBg: '#191c2a', cardBg2: '#1d2035',
-  border: '#252840', borderGold: '#e6b25430',
-  text: '#f0ede8', muted: '#9a958e', mutedMid: '#6b6880',
-  gold: '#e6b254', goldDim: '#e6b25420', goldMid: '#c49440', goldBtnText: '#161008',
-  green: '#4ec46e', amber: '#d4753a', amberBg: '#2a1f12',
-  red: '#c43820',
-  blue: '#cccee0', blueBg: '#141e33',
-  teal: '#3db8a8', tealBg: '#0f2525',
-};
-
-const NEWS_TYPE_META: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  player:     { label: 'YOUR NETWORK', color: C.gold,  bg: C.goldDim,  border: C.gold  + '55' },
-  emmy:       { label: 'EMMYS',        color: C.teal,  bg: C.tealBg,   border: C.teal  + '55' },
-  competitor: { label: 'COMPETITOR',   color: C.amber, bg: C.amberBg,  border: C.amber + '55' },
-  industry:   { label: 'INDUSTRY',     color: C.blue,  bg: C.blueBg,   border: C.blue  + '55' },
-};
+import { useTheme } from '../../src/context/ThemeContext';
 
 const TYPE_PRIORITY: Record<string, number> = { player: 0, emmy: 1, competitor: 2, industry: 3 };
 
@@ -73,14 +21,6 @@ const NEWS_FILTERS: { label: string; value: NewsFilter }[] = [
   { label: 'Competitors',  value: 'competitor' },
   { label: 'Industry',     value: 'industry' },
 ];
-
-const AVATAR_COLORS = [C.teal, C.gold, '#5b8dee', C.green, C.amber, '#b06ad4'];
-
-function avatarColor(username: string): string {
-  let h = 0;
-  for (const ch of username) h = (h * 31 + ch.charCodeAt(0)) & 0xffffffff;
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
 
 function initials(username: string): string {
   const words = username.trim().split(/\s+/);
@@ -112,19 +52,13 @@ type EnrichedReaction = {
 };
 
 function reactionKey(r: EnrichedReaction, idx: number): string {
-  return [
-    r.handle,
-    r.weekAired,
-    r.yearAired,
-    r.showID ?? 'ambient',
-    r.episodeNumber ?? 'x',
-    idx,
-  ].join('-');
+  return [r.handle, r.weekAired, r.yearAired, r.showID ?? 'ambient', r.episodeNumber ?? 'x', idx].join('-');
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function FilmRibbonAmbient() {
+  const { C } = useTheme();
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Image
@@ -137,6 +71,8 @@ function FilmRibbonAmbient() {
 }
 
 function DotRow() {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={s.dotRow}>
       {Array.from({ length: 48 }).map((_, i) => <View key={i} style={s.dot} />)}
@@ -147,7 +83,15 @@ function DotRow() {
 function NewsCard({ item, isTop, curWeek, curYear }: {
   item: NewsItem; isTop: boolean; curWeek: number; curYear: number;
 }) {
-  const meta = NEWS_TYPE_META[item.type] ?? NEWS_TYPE_META.industry;
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
+  const typeMeta: Record<string, { label: string; color: string; bg: string; border: string }> = {
+    player:     { label: 'YOUR NETWORK', color: C.gold,  bg: C.goldDim,  border: C.gold  + '55' },
+    emmy:       { label: 'EMMYS',        color: C.teal,  bg: C.tealBg,   border: C.teal  + '55' },
+    competitor: { label: 'COMPETITOR',   color: C.amber, bg: C.amberBg,  border: C.amber + '55' },
+    industry:   { label: 'INDUSTRY',     color: C.blue,  bg: C.blueBg,   border: C.blue  + '55' },
+  };
+  const meta = typeMeta[item.type] ?? typeMeta.industry;
   return (
     <View style={[s.newsCard, isTop && s.newsCardTop]}>
       <View style={s.newsCardMeta}>
@@ -168,6 +112,16 @@ function NewsCard({ item, isTop, curWeek, curYear }: {
 function ReactionCard({ r, curWeek, curYear }: {
   r: EnrichedReaction; curWeek: number; curYear: number;
 }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
+  const avatarColors = [C.teal, C.gold, '#5b8dee', C.green, C.amber, '#b06ad4'];
+
+  function avatarColor(username: string): string {
+    let h = 0;
+    for (const ch of username) h = (h * 31 + ch.charCodeAt(0)) & 0xffffffff;
+    return avatarColors[Math.abs(h) % avatarColors.length];
+  }
+
   const color = avatarColor(r.username);
   const tagLabel = r.isAmbient
     ? (r.isCompetitor ? 'Competitor buzz' : r.showTitle ?? 'Industry buzz')
@@ -218,13 +172,14 @@ function ReactionCard({ r, curWeek, curYear }: {
 export default function MediaScreen() {
   const { newsItems, shows, network, inboxItems, ambientSocialPosts } = useGameStore();
   const router = useRouter();
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const { width: SW } = useWindowDimensions();
   const [tab, setTab] = useState<'news' | 'social'>('news');
   const [newsFilter, setNewsFilter] = useState<NewsFilter>('all');
   const [socialFilter, setSocialFilter] = useState<string>('all');
 
   const tabOffset = useRef(new Animated.Value(0)).current;
-  // Each tab button width: screen - (16*2 margins) - (1*2 borders) - (4*2 padding)
   const tabBtnW = (SW - 42) / 2;
   const indicatorX = tabOffset.interpolate({ inputRange: [-SW, 0], outputRange: [tabBtnW, 0] });
 
@@ -241,7 +196,6 @@ export default function MediaScreen() {
 
   const allReactions = useMemo<EnrichedReaction[]>(() => {
     const result: EnrichedReaction[] = [];
-
     for (const show of shows) {
       for (const season of show.seasons) {
         for (const ep of season.episodes) {
@@ -259,7 +213,6 @@ export default function MediaScreen() {
         }
       }
     }
-
     for (const post of ambientSocialPosts) {
       result.push({
         username: post.username,
@@ -275,7 +228,6 @@ export default function MediaScreen() {
         relatedShowTitle: post.relatedShowTitle,
       });
     }
-
     return result.sort((a, b) => {
       if (a.yearAired !== b.yearAired) return b.yearAired - a.yearAired;
       return b.weekAired - a.weekAired;
@@ -307,7 +259,6 @@ export default function MediaScreen() {
 
   const filteredReactions = useMemo(() => {
     let src = allReactions;
-
     if (socialFilter === 'ambient') {
       src = allReactions.filter(r => r.isAmbient);
     } else if (socialFilter !== 'all') {
@@ -317,7 +268,6 @@ export default function MediaScreen() {
         (r.isAmbient && selectedShow && r.showTitle === selectedShow.title),
       );
     }
-
     return [...src].sort((a, b) => {
       if (b.yearAired !== a.yearAired) return b.yearAired - a.yearAired;
       if (b.weekAired !== a.weekAired) return b.weekAired - a.weekAired;
@@ -330,7 +280,7 @@ export default function MediaScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={s.container}>
-      <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[C.gradientTop, C.gradientMid, C.gradientBot]} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 
       <View style={s.header}>
@@ -354,7 +304,6 @@ export default function MediaScreen() {
       <DotRow />
 
       <View style={s.tabRow}>
-        {/* Sliding gold pill — synced to the same spring as the panels */}
         <Animated.View
           pointerEvents="none"
           style={[s.tabIndicator, { width: tabBtnW, transform: [{ translateX: indicatorX }] }]}
@@ -374,19 +323,10 @@ export default function MediaScreen() {
         </TouchableOpacity>
       </View>
 
-      {/*
-      <TouchableOpacity
-        onPress={() => handleExportFeed(filteredReactions)}
-        style={s.exportButton}
-      >
-        <Text style={s.exportButtonText}>Copy Feed as Text</Text>
-      </TouchableOpacity>
-      */}
-
       <View style={{ flex: 1, overflow: 'hidden' }}>
         <Animated.View style={{ flex: 1, flexDirection: 'row', width: SW * 2, transform: [{ translateX: tabOffset }] }}>
 
-          {/* ── News panel ──────────────────────────────────── */}
+          {/* ── News panel ── */}
           <View style={{ width: SW, flex: 1 }}>
             <ScrollView
               horizontal
@@ -426,7 +366,7 @@ export default function MediaScreen() {
             </ScrollView>
           </View>
 
-          {/* ── Social panel ─────────────────────────────────── */}
+          {/* ── Social panel ── */}
           <View style={{ width: SW, flex: 1 }}>
             {trendingReaction && (
               <View style={s.trendingBanner}>
@@ -500,72 +440,72 @@ export default function MediaScreen() {
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: C.pageBg },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    container:   { flex: 1, backgroundColor: C.pageBg },
 
-  header:      { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
-  brandTitle:  { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 34, letterSpacing: 1.5, lineHeight: 36 },
-  brandSub:    { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 4 },
-  headerRight: { alignItems: 'flex-end', gap: 6, paddingTop: 2 },
-  weekLabel:   { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1 },
+    header:      { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
+    brandTitle:  { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 34, letterSpacing: 1.5, lineHeight: 36 },
+    brandSub:    { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 4 },
+    headerRight: { alignItems: 'flex-end', gap: 6, paddingTop: 2 },
+    weekLabel:   { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1 },
 
-  inboxBtn:       { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.gold + '44', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  inboxBtnText:   { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 0.5 },
-  inboxBadge:     { backgroundColor: C.gold, borderRadius: 999, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  inboxBadgeText: { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 10 },
-  /*exportButton:     { alignSelf: 'flex-start', marginHorizontal: 16, marginBottom: 12, backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.gold + '44', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
-  exportButtonText: { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 12, letterSpacing: 0.3 },*/
+    inboxBtn:       { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.gold + '44', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+    inboxBtnText:   { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 0.5 },
+    inboxBadge:     { backgroundColor: C.gold, borderRadius: 999, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+    inboxBadgeText: { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 10 },
 
-  dotRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 5, marginBottom: 14, flexWrap: 'nowrap', overflow: 'hidden' },
-  dot:    { width: 5, height: 5, borderRadius: 999, backgroundColor: C.gold, opacity: 0.3 },
+    dotRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 5, marginBottom: 14, flexWrap: 'nowrap', overflow: 'hidden' },
+    dot:    { width: 5, height: 5, borderRadius: 999, backgroundColor: C.gold, opacity: 0.3 },
 
-  tabRow:       { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, backgroundColor: '#0a0c18', borderRadius: 12, borderWidth: 1, borderColor: C.gold + '33', padding: 4 },
-  tabIndicator: { position: 'absolute', top: 4, left: 4, bottom: 4, borderRadius: 9, overflow: 'hidden' },
-  tabBtn:       { flex: 1 },
-  tabInner:     { paddingVertical: 11, alignItems: 'center', borderRadius: 9 },
-  tabText:      { fontFamily: 'BebasNeue_400Regular', fontSize: 17, letterSpacing: 1.5, color: C.muted },
-  tabTextActive:{ color: C.goldBtnText },
+    tabRow:        { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, backgroundColor: C.pageBg, borderRadius: 12, borderWidth: 1, borderColor: C.gold + '33', padding: 4 },
+    tabIndicator:  { position: 'absolute', top: 4, left: 4, bottom: 4, borderRadius: 9, overflow: 'hidden' },
+    tabBtn:        { flex: 1 },
+    tabInner:      { paddingVertical: 11, alignItems: 'center', borderRadius: 9 },
+    tabText:       { fontFamily: 'BebasNeue_400Regular', fontSize: 17, letterSpacing: 1.5, color: C.muted },
+    tabTextActive: { color: C.goldBtnText },
 
-  filterRow: { paddingHorizontal: 14, paddingBottom: 12, gap: 8, flexDirection: 'row' },
-  chip:         { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg, flexShrink: 0 },
-  chipActive:   { borderColor: C.gold, backgroundColor: C.goldDim },
-  chipText:     { fontFamily: 'Manrope_600SemiBold', fontSize: 13, color: C.muted },
-  chipTextActive:{ color: C.gold },
+    filterRow:      { paddingHorizontal: 14, paddingBottom: 12, gap: 8, flexDirection: 'row' },
+    chip:           { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg, flexShrink: 0 },
+    chipActive:     { borderColor: C.gold, backgroundColor: C.goldDim },
+    chipText:       { fontFamily: 'Manrope_600SemiBold', fontSize: 13, color: C.muted },
+    chipTextActive: { color: C.gold },
 
-  listContent: { paddingHorizontal: 14, paddingBottom: 32, gap: 12 },
+    listContent: { paddingHorizontal: 14, paddingBottom: 32, gap: 12 },
 
-  newsCard:     { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16 },
-  newsCardTop:  { borderColor: C.gold + '55', backgroundColor: '#181508' },
-  newsCardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  newsTagPill:  { borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  newsTagText:  { fontFamily: 'Manrope_800ExtraBold', fontSize: 9, letterSpacing: 1.5 },
-  newsTime:     { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12 },
-  newsHeadline: { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 22, letterSpacing: 0.5, lineHeight: 26, marginBottom: 8 },
-  newsBody:     { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 13, lineHeight: 20, marginBottom: 10 },
-  newsByline:   { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 11 },
+    newsCard:     { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16 },
+    newsCardTop:  { borderColor: C.gold + '55', backgroundColor: C.amberBg },
+    newsCardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+    newsTagPill:  { borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+    newsTagText:  { fontFamily: 'Manrope_800ExtraBold', fontSize: 9, letterSpacing: 1.5 },
+    newsTime:     { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12 },
+    newsHeadline: { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 22, letterSpacing: 0.5, lineHeight: 26, marginBottom: 8 },
+    newsBody:     { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 13, lineHeight: 20, marginBottom: 10 },
+    newsByline:   { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 11 },
 
-  trendingBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 14, marginBottom: 10, backgroundColor: '#1e1508', borderWidth: 1, borderColor: C.amber + '55', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
-  trendingArrow:  { color: C.amber, fontFamily: 'Manrope_800ExtraBold', fontSize: 14 },
-  trendingText:   { flex: 1, color: C.amber, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
+    trendingBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 14, marginBottom: 10, backgroundColor: C.amberBg, borderWidth: 1, borderColor: C.amber + '55', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
+    trendingArrow:  { color: C.amber, fontFamily: 'Manrope_800ExtraBold', fontSize: 14 },
+    trendingText:   { flex: 1, color: C.amber, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
 
-  reactionCard:    { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16 },
-  reactionCardAmbient: { backgroundColor: C.cardBg2 },
-  reactionHeader:  { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 },
-  avatar:          { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  avatarText:      { fontFamily: 'Manrope_800ExtraBold', fontSize: 14 },
-  reactionNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' },
-  reactionUsername:{ fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 14 },
-  showTagPill:     { backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.gold + '44', borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 },
-  showTagText:     { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 10 },
-  ambientTagPill:  { backgroundColor: C.blueBg, borderColor: C.blue + '44' },
-  ambientTagText:  { color: C.blue },
-  competitorTagPill: { backgroundColor: C.amberBg, borderColor: C.amber + '44' },
-  competitorTagText: { color: C.amber },
-  reactionHandle:  { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12 },
-  reactionContent: { fontFamily: 'Manrope_400Regular', color: C.text, fontSize: 14, lineHeight: 21, marginBottom: 12 },
-  reactionFooter:  { flexDirection: 'row', gap: 16 },
-  reactionStat:    { fontFamily: 'Manrope_600SemiBold', color: C.muted, fontSize: 13 },
+    reactionCard:        { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16 },
+    reactionCardAmbient: { backgroundColor: C.cardBg2 },
+    reactionHeader:      { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 },
+    avatar:              { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    avatarText:          { fontFamily: 'Manrope_800ExtraBold', fontSize: 14 },
+    reactionNameRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' },
+    reactionUsername:    { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 14 },
+    showTagPill:         { backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.gold + '44', borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 },
+    showTagText:         { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 10 },
+    ambientTagPill:      { backgroundColor: C.blueBg, borderColor: C.blue + '44' },
+    ambientTagText:      { color: C.blue },
+    competitorTagPill:   { backgroundColor: C.amberBg, borderColor: C.amber + '44' },
+    competitorTagText:   { color: C.amber },
+    reactionHandle:      { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12 },
+    reactionContent:     { fontFamily: 'Manrope_400Regular', color: C.text, fontSize: 14, lineHeight: 21, marginBottom: 12 },
+    reactionFooter:      { flexDirection: 'row', gap: 16 },
+    reactionStat:        { fontFamily: 'Manrope_600SemiBold', color: C.muted, fontSize: 13 },
 
-  emptyState: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 24 },
-  emptyText:  { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 14, textAlign: 'center', lineHeight: 22 },
-});
+    emptyState: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 24 },
+    emptyText:  { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  });
+}
