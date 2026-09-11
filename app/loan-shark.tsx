@@ -1,22 +1,11 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import { useGameStore } from '../src/store/gameStore';
 import { ActiveLoan } from '../src/types';
-
-const C = {
-  pageBg: '#0f1220', cardBg: '#191c2a',
-  border: '#252840',
-  text: '#f0ede8', muted: '#9a958e',
-  gold: '#e6b254',
-  amber: '#d4753a',
-  red: '#c43820',
-  redBg: '#2a130f', redBorder: '#c4382044',
-  greenBg: '#0d2016', greenBorder: '#4ec46e44',
-  green: '#4ec46e',
-};
+import { useTheme } from '../src/context/ThemeContext';
 
 const LOAN_OPTIONS: { size: 'small' | 'medium' | 'large'; label: string; principal: number }[] = [
   { size: 'small',  label: '$2M',  principal: 2_000_000 },
@@ -45,6 +34,8 @@ function fmtDue(loan: ActiveLoan): string {
 }
 
 function StatRow({ label, value, color }: { label: string; value: string; color?: string }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={s.statRow}>
       <Text style={s.statLabel}>{label}</Text>
@@ -54,13 +45,14 @@ function StatRow({ label, value, color }: { label: string; value: string; color?
 }
 
 export default function LoanSharkScreen() {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const router = useRouter();
   const { network, activeLoan, loansTaken, takeLoan, repayLoan } = useGameStore();
   const cashOnHand = network.cashOnHand;
   const rate = loanInterestRate(loansTaken);
   const rateLabel = `${Math.round(rate * 100)}%`;
 
-  // inline confirmation state — null = none pending, else the selected option
   const [pending, setPending] = useState<'small' | 'medium' | 'large' | null>(null);
   const [confirmRepay, setConfirmRepay] = useState(false);
 
@@ -77,10 +69,7 @@ export default function LoanSharkScreen() {
 
   function handleRepayPress() {
     if (!activeLoan) return;
-    if (cashOnHand < activeLoan.amountOwed) {
-      // not enough cash — just show the UI state, no action
-      return;
-    }
+    if (cashOnHand < activeLoan.amountOwed) return;
     setConfirmRepay(true);
   }
 
@@ -90,13 +79,12 @@ export default function LoanSharkScreen() {
   }
 
   const overdue = !!activeLoan && activeLoan.weeksOverdue > 0;
-  const canPay = !!activeLoan && cashOnHand >= activeLoan.amountOwed;
+  const canPay  = !!activeLoan && cashOnHand >= activeLoan.amountOwed;
 
   return (
     <SafeAreaView edges={['top']} style={s.container}>
-      <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[C.gradientTop, C.gradientMid, C.gradientBot]} style={StyleSheet.absoluteFill} />
 
-      {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
           <Text style={s.backText}>← Back</Text>
@@ -107,7 +95,6 @@ export default function LoanSharkScreen() {
 
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
-        {/* Flavour header */}
         <View style={s.flavourCard}>
           <Text style={s.flavourTitle}>🦈  No questions asked.</Text>
           <Text style={s.flavourSub}>
@@ -116,7 +103,6 @@ export default function LoanSharkScreen() {
         </View>
 
         {activeLoan ? (
-          /* ── Active loan card ── */
           <>
             <Text style={s.sectionLabel}>ACTIVE LOAN</Text>
             <View style={[s.card, overdue && s.cardOverdue]}>
@@ -126,13 +112,13 @@ export default function LoanSharkScreen() {
                   <Text style={s.overdueSubText}>Balance growing 20% per week until paid.</Text>
                 </View>
               )}
-              <StatRow label="Borrowed"       value={fmt(activeLoan.principal)} />
+              <StatRow label="Borrowed"     value={fmt(activeLoan.principal)} />
               <View style={s.divider} />
-              <StatRow label="Amount Owed"    value={fmt(activeLoan.amountOwed)} color={overdue ? C.red : C.amber} />
+              <StatRow label="Amount Owed"  value={fmt(activeLoan.amountOwed)} color={overdue ? C.red : C.amber} />
               <View style={s.divider} />
-              <StatRow label="Due Date"       value={fmtDue(activeLoan)} color={overdue ? C.red : C.muted} />
+              <StatRow label="Due Date"     value={fmtDue(activeLoan)} color={overdue ? C.red : C.muted} />
               <View style={s.divider} />
-              <StatRow label="Cash on Hand"   value={fmt(cashOnHand)} color={canPay ? C.green : C.red} />
+              <StatRow label="Cash on Hand" value={fmt(cashOnHand)} color={canPay ? C.green : C.red} />
               <View style={{ height: 16 }} />
               {confirmRepay ? (
                 <View style={s.confirmRow}>
@@ -160,7 +146,6 @@ export default function LoanSharkScreen() {
             </View>
           </>
         ) : (
-          /* ── No active loan — offer options ── */
           <>
             <Text style={s.sectionLabel}>BORROW</Text>
             <View style={s.card}>
@@ -189,7 +174,6 @@ export default function LoanSharkScreen() {
                 })}
               </View>
 
-              {/* Inline confirm panel */}
               {pending && (() => {
                 const opt = LOAN_OPTIONS.find(o => o.size === pending)!;
                 const owed = loanOwed(opt.principal, rate);
@@ -227,54 +211,56 @@ export default function LoanSharkScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: C.pageBg },
-  header:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn:          { width: 70 },
-  backText:         { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
-  headerTitle:      { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 1, flex: 1, textAlign: 'center' },
-  scroll:           { flex: 1 },
-  scrollContent:    { padding: 16 },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    container:        { flex: 1, backgroundColor: C.pageBg },
+    header:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+    backBtn:          { width: 70 },
+    backText:         { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
+    headerTitle:      { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 1, flex: 1, textAlign: 'center' },
+    scroll:           { flex: 1 },
+    scrollContent:    { padding: 16 },
 
-  sectionLabel:     { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 10, marginTop: 20 },
+    sectionLabel:     { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 10, marginTop: 20 },
 
-  flavourCard:      { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16 },
-  flavourTitle:     { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 16, marginBottom: 6 },
-  flavourSub:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 20 },
+    flavourCard:      { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16 },
+    flavourTitle:     { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 16, marginBottom: 6 },
+    flavourSub:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 20 },
 
-  card:             { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16 },
-  cardOverdue:      { borderColor: C.red, borderWidth: 1.5 },
+    card:             { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16 },
+    cardOverdue:      { borderColor: C.red, borderWidth: 1.5 },
 
-  overdueBanner:    { backgroundColor: C.redBg, borderRadius: 8, borderWidth: 1, borderColor: C.redBorder, padding: 12, marginBottom: 14 },
-  overdueBannerText:{ color: C.red, fontFamily: 'Manrope_700Bold', fontSize: 13, marginBottom: 4 },
-  overdueSubText:   { color: '#c4382099', fontFamily: 'Manrope_400Regular', fontSize: 12 },
+    overdueBanner:    { backgroundColor: C.redBg, borderRadius: 8, borderWidth: 1, borderColor: C.red + '44', padding: 12, marginBottom: 14 },
+    overdueBannerText:{ color: C.red, fontFamily: 'Manrope_700Bold', fontSize: 13, marginBottom: 4 },
+    overdueSubText:   { color: C.red + '99', fontFamily: 'Manrope_400Regular', fontSize: 12 },
 
-  statRow:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11 },
-  statLabel:        { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14 },
-  statValue:        { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
-  divider:          { height: 1, backgroundColor: C.border },
+    statRow:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11 },
+    statLabel:        { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14 },
+    statValue:        { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
+    divider:          { height: 1, backgroundColor: C.border },
 
-  repayBtn:         { backgroundColor: '#1a2a1a', borderRadius: 10, borderWidth: 1, borderColor: C.green, paddingVertical: 14, alignItems: 'center' },
-  repayBtnDisabled: { backgroundColor: C.cardBg, borderColor: C.border },
-  repayBtnText:     { color: C.green, fontFamily: 'Manrope_700Bold', fontSize: 13, letterSpacing: 0.5 },
+    repayBtn:         { backgroundColor: C.greenBg, borderRadius: 10, borderWidth: 1, borderColor: C.green, paddingVertical: 14, alignItems: 'center' },
+    repayBtnDisabled: { backgroundColor: C.cardBg, borderColor: C.border },
+    repayBtnText:     { color: C.green, fontFamily: 'Manrope_700Bold', fontSize: 13, letterSpacing: 0.5 },
 
-  termsHeading:     { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 6 },
-  termsBody:        { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 20 },
+    termsHeading:     { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 6 },
+    termsBody:        { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 20 },
 
-  optionsRow:       { flexDirection: 'row', gap: 10 },
-  optionBtn:        { flex: 1, backgroundColor: '#1a1d2e', borderRadius: 10, borderWidth: 1, borderColor: C.border, paddingVertical: 14, alignItems: 'center' },
-  optionBtnSelected:{ borderColor: C.gold, backgroundColor: '#22200e' },
-  optionAmount:     { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 26, letterSpacing: 1 },
-  optionOwedLabel:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 10, marginTop: 4, letterSpacing: 0.5 },
-  optionOwed:       { color: C.amber, fontFamily: 'Manrope_600SemiBold', fontSize: 12, marginTop: 2 },
+    optionsRow:       { flexDirection: 'row', gap: 10 },
+    optionBtn:        { flex: 1, backgroundColor: C.cardBg2, borderRadius: 10, borderWidth: 1, borderColor: C.border, paddingVertical: 14, alignItems: 'center' },
+    optionBtnSelected:{ borderColor: C.gold, backgroundColor: C.amberBg },
+    optionAmount:     { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 26, letterSpacing: 1 },
+    optionOwedLabel:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 10, marginTop: 4, letterSpacing: 0.5 },
+    optionOwed:       { color: C.amber, fontFamily: 'Manrope_600SemiBold', fontSize: 12, marginTop: 2 },
 
-  confirmRow:       { marginTop: 14, backgroundColor: '#111420', borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14 },
-  confirmText:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 20, marginBottom: 12 },
-  confirmBtns:      { flexDirection: 'row', gap: 10 },
-  confirmCancel:    { flex: 1, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingVertical: 10, alignItems: 'center' },
-  confirmCancelText:{ color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
-  confirmGo:        { flex: 1, borderRadius: 8, borderWidth: 1, borderColor: C.amber, backgroundColor: '#2a1e0a', paddingVertical: 10, alignItems: 'center' },
-  confirmGoText:    { color: C.amber, fontFamily: 'Manrope_700Bold', fontSize: 13 },
+    confirmRow:       { marginTop: 14, backgroundColor: C.pageBg, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 14 },
+    confirmText:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 20, marginBottom: 12 },
+    confirmBtns:      { flexDirection: 'row', gap: 10 },
+    confirmCancel:    { flex: 1, borderRadius: 8, borderWidth: 1, borderColor: C.border, paddingVertical: 10, alignItems: 'center' },
+    confirmCancelText:{ color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
+    confirmGo:        { flex: 1, borderRadius: 8, borderWidth: 1, borderColor: C.amber, backgroundColor: C.amberBg, paddingVertical: 10, alignItems: 'center' },
+    confirmGoText:    { color: C.amber, fontFamily: 'Manrope_700Bold', fontSize: 13 },
 
-  consequenceLine:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 22 },
-});
+    consequenceLine:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 22 },
+  });
+}
