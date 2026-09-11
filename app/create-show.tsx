@@ -4,30 +4,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../src/store/gameStore';
 import { Genre, Theme } from '../src/types';
 import { MIN_EPISODES, MAX_EPISODES, getShowCapacity, ACTIVE_SHOW_STATUSES } from '../src/constants/game';
 import { WRITERS_ROOM_PRESTIGE } from '../src/engine/quality';
 import { hap } from '../src/utils/haptics';
-
-// ── Design tokens ─────────────────────────────────────────────────────────────
-const C = {
-  pageBg:      '#0f1220',
-  cardBg:      '#191c2a',
-  cardBg2:     '#1d2035',
-  border:      '#252840',
-  borderGold:  '#e6b25430',
-  text:        '#f0ede8',
-  muted:       '#9a958e',
-  mutedMid:    '#6b6880',
-  gold:        '#e6b254',
-  goldDim:     '#e6b25420',
-  goldMid:     '#c49440',
-  goldBtnText: '#161008',
-  green:       '#4ec46e',
-};
+import { useTheme } from '../src/context/ThemeContext';
 
 const F = {
   display: 'BebasNeue_400Regular',
@@ -78,6 +62,7 @@ const THEMES: { value: Theme; label: string }[] = [
 
 // ── Film ribbon ambient texture ───────────────────────────────────────────────
 function FilmRibbonAmbient() {
+  const { C } = useTheme();
   return (
     <Image
       source={require('../assets/tvbg.png')}
@@ -90,6 +75,8 @@ function FilmRibbonAmbient() {
 
 // ── Section label ─────────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: string }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   return <Text style={s.label}>{children}</Text>;
 }
 
@@ -100,6 +87,8 @@ function Stepper({
   value: number; onDec: () => void; onInc: () => void;
   disableDec: boolean; disableInc: boolean; large?: boolean;
 }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={s.stepperRow}>
       <TouchableOpacity
@@ -121,6 +110,8 @@ function Stepper({
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function CreateShowScreen() {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const router = useRouter();
   const { createShow, network, shows } = useGameStore();
 
@@ -136,7 +127,7 @@ export default function CreateShowScreen() {
   const writersRoomUnlocked = network.prestige >= WRITERS_ROOM_PRESTIGE;
 
   const capacity = getShowCapacity(network.prestige);
-  const activeCount = shows.filter(s => ACTIVE_SHOW_STATUSES.has(s.status)).length;
+  const activeCount = shows.filter(sh => ACTIVE_SHOW_STATUSES.has(sh.status)).length;
   const atCapacity = activeCount >= capacity;
 
   const canProceed = !atCapacity && title.trim().length > 0 && genre !== null && theme !== null;
@@ -150,7 +141,7 @@ export default function CreateShowScreen() {
 
   return (
     <LinearGradient
-      colors={['#141726', '#0c0f1a', '#070a12']}
+      colors={[C.gradientTop, C.gradientMid, C.gradientBot]}
       locations={[0, 0.55, 1]}
       style={{ flex: 1 }}
     >
@@ -337,7 +328,7 @@ export default function CreateShowScreen() {
             >
               {canProceed ? (
                 <LinearGradient
-                  colors={['#f0c060', '#c49440']}
+                  colors={['#f0c060', C.goldMid]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={s.nextBtnGradient}
@@ -359,63 +350,65 @@ export default function CreateShowScreen() {
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-  container:    { flex: 1 },
-  scroll:       { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 8 },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    container:    { flex: 1 },
+    scroll:       { flex: 1 },
+    scrollContent: { paddingHorizontal: 16, paddingBottom: 8 },
 
-  // ── Header ──────────────────────────────────────────────────────────────────
-  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn:     { width: 70 },
-  backText:    { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 11, letterSpacing: 1 },
-  headerTitle: { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 26, letterSpacing: 2, flex: 1, textAlign: 'center' },
+    // ── Header ──────────────────────────────────────────────────────────────────
+    header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+    backBtn:     { width: 70 },
+    backText:    { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 11, letterSpacing: 1 },
+    headerTitle: { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 26, letterSpacing: 2, flex: 1, textAlign: 'center' },
 
-  // ── Section label ────────────────────────────────────────────────────────────
-  label: { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 9, letterSpacing: 2, marginTop: 22, marginBottom: 10 },
+    // ── Section label ────────────────────────────────────────────────────────────
+    label: { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 9, letterSpacing: 2, marginTop: 22, marginBottom: 10 },
 
-  // ── Text input ───────────────────────────────────────────────────────────────
-  input:        { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontFamily: 'Manrope_400Regular', color: C.text, fontSize: 15 },
-  inputFocused: { borderColor: C.gold + '80' },
+    // ── Text input ───────────────────────────────────────────────────────────────
+    input:        { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, fontFamily: 'Manrope_400Regular', color: C.text, fontSize: 15 },
+    inputFocused: { borderColor: C.gold + '80' },
 
-  // ── Pill grids ───────────────────────────────────────────────────────────────
-  pillGrid:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill:            { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
-  pillActive:      { borderColor: C.gold, backgroundColor: C.goldDim },
-  pillText:        { fontFamily: 'Manrope_600SemiBold', color: C.muted, fontSize: 13 },
-  pillTextActive:  { fontFamily: 'Manrope_700Bold', color: C.gold },
+    // ── Pill grids ───────────────────────────────────────────────────────────────
+    pillGrid:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    pill:            { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
+    pillActive:      { borderColor: C.gold, backgroundColor: C.goldDim },
+    pillText:        { fontFamily: 'Manrope_600SemiBold', color: C.muted, fontSize: 13 },
+    pillTextActive:  { fontFamily: 'Manrope_700Bold', color: C.gold },
 
-  // ── Episode card ─────────────────────────────────────────────────────────────
-  episodeCard: { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.borderGold, paddingVertical: 20, alignItems: 'center', gap: 4 },
-  episodeUnit: { fontFamily: 'Manrope_600SemiBold', color: C.muted, fontSize: 12, letterSpacing: 0.5 },
+    // ── Episode card ─────────────────────────────────────────────────────────────
+    episodeCard: { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.borderGold, paddingVertical: 20, alignItems: 'center', gap: 4 },
+    episodeUnit: { fontFamily: 'Manrope_600SemiBold', color: C.muted, fontSize: 12, letterSpacing: 0.5 },
 
-  // ── Stepper ──────────────────────────────────────────────────────────────────
-  stepperRow:     { flexDirection: 'row', alignItems: 'center', gap: 20 },
-  stepBtn:        { width: 40, height: 40, borderRadius: 10, backgroundColor: C.cardBg2, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
-  stepBtnDisabled:{ opacity: 0.25 },
-  stepBtnText:    { fontFamily: 'Manrope_400Regular', color: C.text, fontSize: 22, lineHeight: 26 },
-  stepValueLarge: { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 52, lineHeight: 56, minWidth: 56, textAlign: 'center' },
-  stepValueSm:    { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 28, lineHeight: 32, minWidth: 36, textAlign: 'center' },
+    // ── Stepper ──────────────────────────────────────────────────────────────────
+    stepperRow:     { flexDirection: 'row', alignItems: 'center', gap: 20 },
+    stepBtn:        { width: 40, height: 40, borderRadius: 10, backgroundColor: C.cardBg2, borderWidth: 1, borderColor: C.border, justifyContent: 'center', alignItems: 'center' },
+    stepBtnDisabled:{ opacity: 0.25 },
+    stepBtnText:    { fontFamily: 'Manrope_400Regular', color: C.text, fontSize: 22, lineHeight: 26 },
+    stepValueLarge: { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 52, lineHeight: 56, minWidth: 56, textAlign: 'center' },
+    stepValueSm:    { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 28, lineHeight: 32, minWidth: 36, textAlign: 'center' },
 
-  // ── Hint ─────────────────────────────────────────────────────────────────────
-  hint:     { backgroundColor: C.cardBg, borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: C.border },
-  hintText: { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, lineHeight: 19 },
+    // ── Hint ─────────────────────────────────────────────────────────────────────
+    hint:     { backgroundColor: C.cardBg, borderRadius: 10, padding: 12, marginTop: 12, borderWidth: 1, borderColor: C.border },
+    hintText: { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, lineHeight: 19 },
 
-  // ── Cast card ────────────────────────────────────────────────────────────────
-  castCard:      { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.borderGold, overflow: 'hidden' },
-  castRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16 },
-  castRowBorder: { borderTopWidth: 1, borderTopColor: C.border },
-  castRowLabel:  { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 14 },
-  castRowSub:    { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 11, marginTop: 3 },
+    // ── Cast card ────────────────────────────────────────────────────────────────
+    castCard:      { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.borderGold, overflow: 'hidden' },
+    castRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16 },
+    castRowBorder: { borderTopWidth: 1, borderTopColor: C.border },
+    castRowLabel:  { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 14 },
+    castRowSub:    { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 11, marginTop: 3 },
 
-  // ── Footer ───────────────────────────────────────────────────────────────────
-  footer:              { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
-  cashNote:            { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, textAlign: 'center' },
-  capacityBanner:      { backgroundColor: '#1a0e0e', borderRadius: 10, borderWidth: 1, borderColor: '#c4382044', padding: 12, alignItems: 'center', gap: 4 },
-  capacityBannerTitle: { color: '#c43820', fontFamily: 'Manrope_700Bold', fontSize: 13 },
-  capacityBannerSub:   { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, textAlign: 'center', lineHeight: 17 },
-  nextBtn:             { borderRadius: 999 },
-  nextBtnGradient:     { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
-  nextBtnInactive:     { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 999 },
-  nextBtnTextActive:   { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
-  nextBtnTextInactive: { fontFamily: 'BebasNeue_400Regular', color: C.mutedMid, fontSize: 16, letterSpacing: 3 },
-});
+    // ── Footer ───────────────────────────────────────────────────────────────────
+    footer:              { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
+    cashNote:            { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, textAlign: 'center' },
+    capacityBanner:      { backgroundColor: '#1a0e0e', borderRadius: 10, borderWidth: 1, borderColor: C.red + '44', padding: 12, alignItems: 'center', gap: 4 },
+    capacityBannerTitle: { color: C.red, fontFamily: 'Manrope_700Bold', fontSize: 13 },
+    capacityBannerSub:   { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, textAlign: 'center', lineHeight: 17 },
+    nextBtn:             { borderRadius: 999 },
+    nextBtnGradient:     { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
+    nextBtnInactive:     { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 999 },
+    nextBtnTextActive:   { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
+    nextBtnTextInactive: { fontFamily: 'BebasNeue_400Regular', color: C.mutedMid, fontSize: 16, letterSpacing: 3 },
+  });
+}
