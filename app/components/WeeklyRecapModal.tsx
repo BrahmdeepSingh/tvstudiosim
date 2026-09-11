@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Modal, TouchableOpacity, StyleSheet,
-  Animated, ScrollView, Dimensions,
+  Animated, ScrollView, useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
@@ -31,8 +31,7 @@ const F = {
   bodyXBd: 'Manrope_800ExtraBold',
 };
 
-const { width: SW } = Dimensions.get('window');
-const CARD_W = Math.min(SW - 32, 380);
+// CARD_W is computed inside the component via useWindowDimensions
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtViewers(n: number): string {
@@ -82,6 +81,8 @@ interface Props {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function WeeklyRecapModal({ visible, onClose, week, year }: Props) {
+  const { width: SW } = useWindowDimensions();
+  const CARD_W = Math.min(SW - 32, 380);
   const { shows, network, ambientSocialPosts } = useGameStore();
 
   const slideAnim = useRef(new Animated.Value(60)).current;
@@ -106,12 +107,16 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
   }
 
   // ── Derive this week's data ─────────────────────────────────────────────────
-  const airedEpisodes: Array<{ show: Show; episode: Episode }> = [];
+  // One entry per show: the episode that aired this week (a show can only air one episode per week)
+  const airedEpisodes: Array<{ show: Show; episode: Episode; seasonNumber: number }> = [];
   for (const show of shows) {
     for (const season of show.seasons) {
       for (const ep of season.episodes) {
         if (ep.weekAired === week && ep.yearAired === year && ep.rating !== null) {
-          airedEpisodes.push({ show, episode: ep });
+          // Only add once per show (take first match — there can only be one per show per week)
+          if (!airedEpisodes.some(ae => ae.show.id === show.id)) {
+            airedEpisodes.push({ show, episode: ep, seasonNumber: season.seasonNumber });
+          }
         }
       }
     }
@@ -182,7 +187,7 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
       <Animated.View style={[s.overlay, { opacity: fadeAnim }]}>
-        <Animated.View style={[s.sheet, { transform: [{ translateY: slideAnim }] }]}>
+        <Animated.View style={[s.sheet, { width: CARD_W, transform: [{ translateY: slideAnim }] }]}>
 
           {/* Paper background */}
           <LinearGradient
@@ -221,7 +226,7 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
                             "{ae.show.title.toUpperCase()}"
                           </Text>
                           <Text style={s.multiShowEp}>
-                            S{ae.show.currentSeasonIndex + 1} · EP {ae.episode.episodeNumber}
+                            S{ae.seasonNumber} · EP {ae.episode.episodeNumber}
                           </Text>
                         </View>
                         {/* Stat strip: Rating · Viewers · Ad Revenue */}
@@ -269,7 +274,7 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
                         "{primary!.show.title.toUpperCase()}"
                       </Text>
                       <Text style={s.headlineEp}>
-                        SEASON {primary!.show.currentSeasonIndex + 1} · EPISODE {primary!.episode.episodeNumber}
+                        SEASON {primary!.seasonNumber} · EPISODE {primary!.episode.episodeNumber}
                       </Text>
                       {/* Pipeline note inline under headline */}
                       {featuredProductionShow && (
@@ -469,7 +474,6 @@ const s = StyleSheet.create({
   },
 
   sheet: {
-    width: CARD_W,
     maxHeight: '88%',
     borderRadius: 20,
     overflow: 'hidden',

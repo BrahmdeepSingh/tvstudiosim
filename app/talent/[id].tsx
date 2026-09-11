@@ -547,14 +547,27 @@ export default function TalentDetailScreen() {
                   <Text style={s.cardValue}>{credit.genre}</Text>
                 </View>
               ))}
-              {careerShows.map((sh, i) => (
-                <View key={sh.id} style={[s.cardRow, i === careerShows.length - 1 && { borderBottomWidth: 0 }]}>
-                  <Text style={s.cardLabel}>{sh.title}</Text>
-                  <Text style={s.cardValue}>
-                    {sh.genre} · {sh.seasons.length} season{sh.seasons.length > 1 ? 's' : ''}
-                  </Text>
-                </View>
-              ))}
+              {careerShows.map((sh, i) => {
+                const appearedSeasons = sh.seasons
+                  .filter(se =>
+                    se.leadActorIDs.includes(person.id) ||
+                    se.supportingActorIDs.includes(person.id) ||
+                    se.directorID === person.id ||
+                    se.showrunnerIDs.includes(person.id)
+                  )
+                  .map(se => se.seasonNumber);
+                const seasonLabel = appearedSeasons.length === 0
+                  ? `${sh.seasons.length} season${sh.seasons.length !== 1 ? 's' : ''}`
+                  : appearedSeasons.length === 1
+                    ? `Season ${appearedSeasons[0]}`
+                    : `Season ${appearedSeasons.join(', ')}`;
+                return (
+                  <View key={sh.id} style={[s.cardRow, i === careerShows.length - 1 && { borderBottomWidth: 0 }]}>
+                    <Text style={s.cardLabel}>{sh.title}</Text>
+                    <Text style={s.cardValue}>{sh.genre} · {seasonLabel}</Text>
+                  </View>
+                );
+              })}
             </View>
           </>
         ) : (

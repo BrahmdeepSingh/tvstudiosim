@@ -275,7 +275,7 @@ export default function CreateShowScreen() {
             <SectionLabel>CAST SLOTS</SectionLabel>
             <View style={s.castCard}>
               <View style={s.castRow}>
-                <View>
+                <View style={{ flex: 1, paddingRight: 12 }}>
                   <Text style={s.castRowLabel}>Lead Actors</Text>
                   <Text style={s.castRowSub}>Higher salary, bigger impact on ratings</Text>
                 </View>
@@ -288,7 +288,7 @@ export default function CreateShowScreen() {
                 />
               </View>
               <View style={[s.castRow, s.castRowBorder]}>
-                <View>
+                <View style={{ flex: 1, paddingRight: 12 }}>
                   <Text style={s.castRowLabel}>Supporting Cast</Text>
                   <Text style={s.castRowSub}>Adds depth, lower cost per actor</Text>
                 </View>

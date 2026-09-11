@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, Modal, ScrollView, TouchableOpacity,
-  StyleSheet, Animated, Dimensions, SafeAreaView,
+  StyleSheet, Animated, useWindowDimensions, SafeAreaView,
 } from 'react-native';
 import { hap } from '../../src/utils/haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -91,21 +91,22 @@ const F = {
   bodyXBd: 'Manrope_800ExtraBold',
 };
 
-const { width: SW, height: SH } = Dimensions.get('window');
-
-// Confetti piece configs (absolute pixel positions)
-const CONFETTI = [
-  { x: SW * 0.13, y: SH * 0.08, color: C.gold,  rotate: '20deg',  w: 6, h: 14 },
-  { x: SW * 0.81, y: SH * 0.14, color: C.green, rotate: '-25deg', w: 6, h: 14 },
-  { x: SW * 0.21, y: SH * 0.22, color: C.amber, rotate: '-10deg', w: 5, h: 12 },
-  { x: SW * 0.69, y: SH * 0.10, color: C.gold,  rotate: '35deg',  w: 5, h: 12 },
-  { x: SW * 0.09, y: SH * 0.30, color: C.blue,  rotate: '-30deg', w: 6, h: 13 },
-  { x: SW * 0.49, y: SH * 0.06, color: C.green, rotate: '12deg',  w: 5, h: 12 },
-  { x: SW * 0.87, y: SH * 0.25, color: C.gold,  rotate: '-18deg', w: 6, h: 14 },
+// Confetti relative positions (fractions of screen size, resolved in component)
+const CONFETTI_DEFS = [
+  { xf: 0.13, yf: 0.08, color: C.gold,  rotate: '20deg',  w: 6, h: 14 },
+  { xf: 0.81, yf: 0.14, color: C.green, rotate: '-25deg', w: 6, h: 14 },
+  { xf: 0.21, yf: 0.22, color: C.amber, rotate: '-10deg', w: 5, h: 12 },
+  { xf: 0.69, yf: 0.10, color: C.gold,  rotate: '35deg',  w: 5, h: 12 },
+  { xf: 0.09, yf: 0.30, color: C.blue,  rotate: '-30deg', w: 6, h: 13 },
+  { xf: 0.49, yf: 0.06, color: C.green, rotate: '12deg',  w: 5, h: 12 },
+  { xf: 0.87, yf: 0.25, color: C.gold,  rotate: '-18deg', w: 6, h: 14 },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function EmmyCeremonyModal() {
+  const { width: SW, height: SH } = useWindowDimensions();
+  const CONFETTI = CONFETTI_DEFS.map(d => ({ ...d, x: d.xf * SW, y: d.yf * SH }));
+
   const {
     awards, shows, talent, competitors, network,
     emmyCeremonyPendingYear, dismissEmmyCeremony,

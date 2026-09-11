@@ -1,6 +1,6 @@
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Switch, Dimensions, Image,
+  TextInput, Switch, Image, useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,10 +8,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, type ReactElement } from 'react';
 import { useGameStore } from '../src/store/gameStore';
 import { PosterConfig } from '../src/types';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const POSTER_WIDTH  = SCREEN_WIDTH * 0.65;
-const POSTER_HEIGHT = POSTER_WIDTH * 1.5;
 
 const C = {
   pageBg:   '#0f1220',
@@ -691,12 +687,14 @@ const DEFAULT_CONFIG: PosterConfig = {
 };
 
 // ── Poster preview ────────────────────────────────────────────────────────────
-function PosterPreview({ config, title, seasonNumber, studioName, castNames }: {
+function PosterPreview({ config, title, seasonNumber, studioName, castNames, posterWidth, posterHeight }: {
   config: PosterConfig;
   title: string;
   seasonNumber: number;
   studioName: string;
   castNames: string[];
+  posterWidth: number;
+  posterHeight: number;
 }) {
   const bg = POSTER_BACKGROUNDS.find(b => b.id === config.backgroundID) ?? POSTER_BACKGROUNDS[0];
   const sizeEntry = TITLE_SIZES.find(s => s.value === config.titleSize) ?? TITLE_SIZES[2];
@@ -759,10 +757,10 @@ function PosterPreview({ config, title, seasonNumber, studioName, castNames }: {
   ) : null;
 
   return (
-    <View style={st.posterFrame}>
+    <View style={[st.posterFrame, { width: posterWidth, height: posterHeight }]}>
       {/* Background — gradient or illustrated */}
       {'render' in bg && bg.render
-        ? bg.render(POSTER_WIDTH, POSTER_HEIGHT)
+        ? bg.render(posterWidth, posterHeight)
         : <LinearGradient colors={[...bg.colors] as [string, string, ...string[]]} style={StyleSheet.absoluteFill} />
       }
       {/* Content overlay (all children are already position:absolute) */}
@@ -806,6 +804,10 @@ function ToggleRow<T extends string>({
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function PosterCreatorScreen() {
+  const { width: screenWidth } = useWindowDimensions();
+  const POSTER_WIDTH  = screenWidth * 0.65;
+  const POSTER_HEIGHT = POSTER_WIDTH * 1.5;
+
   const router = useRouter();
   const { showID, targetWeek, targetYear } = useLocalSearchParams<{
     showID: string; targetWeek: string; targetYear: string;
@@ -899,6 +901,8 @@ export default function PosterCreatorScreen() {
               seasonNumber={seasonNumber}
               studioName={network.name}
               castNames={castNames}
+              posterWidth={POSTER_WIDTH}
+              posterHeight={POSTER_HEIGHT}
             />
           </View>
 
@@ -1056,7 +1060,6 @@ const st = StyleSheet.create({
     alignItems: 'center', paddingVertical: 24,
   },
   posterFrame: {
-    width: POSTER_WIDTH, height: POSTER_HEIGHT,
     borderRadius: 12, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.6, shadowRadius: 20, elevation: 16,

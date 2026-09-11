@@ -1,11 +1,13 @@
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Modal,
+  Easing, useWindowDimensions,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { LogoBadge } from '../components/LogoBadge';
 import { TutorialTarget } from '../components/TutorialTarget';
 import { useTutorialStore } from '../../src/store/tutorialStore';
@@ -14,6 +16,7 @@ import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { THEME_WINDOWS } from '../../src/constants/schedule';
 import { EmmyCeremonyModal } from '../components/EmmyCeremonyModal';
 import WeeklyRecapModal from '../components/WeeklyRecapModal';
+import GlobalViewershipModal from '../components/GlobalViewershipModal';
 import { hap } from '../../src/utils/haptics';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -140,6 +143,62 @@ function StatCard({ label, value, valueColor }: {
     <View style={s.statCard}>
       <Text style={s.statCardLabel}>{label}</Text>
       <Text style={[s.statCardValue, valueColor ? { color: valueColor } : undefined]}>{value}</Text>
+    </View>
+  );
+}
+
+// ── News ticker (chyron) ──────────────────────────────────────────────────────
+function NewsTicker({ items }: { items: NewsItem[] }) {
+  const { width: SW } = useWindowDimensions();
+  const translateX = useRef(new Animated.Value(0)).current;
+  const textWidthRef = useRef(0);
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const tickerText = items.length === 0
+    ? '     NO NEWS THIS WEEK     '
+    : items.map(item => `     ${item.headline}     `).join('');
+
+  function runTicker(textWidth: number) {
+    if (textWidth === 0) return;
+    animRef.current?.stop();
+    translateX.setValue(SW);
+    animRef.current = Animated.loop(
+      Animated.timing(translateX, {
+        toValue: -textWidth,
+        duration: ((textWidth + SW) / 65) * 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    animRef.current.start();
+  }
+
+  useEffect(() => {
+    if (textWidthRef.current > 0) runTicker(textWidthRef.current);
+    return () => animRef.current?.stop();
+  }, [tickerText, SW]);
+
+  return (
+    <View style={tk.strip}>
+      <View style={tk.pill}>
+        <Text style={tk.pillText}>NEWS</Text>
+      </View>
+      <View style={tk.textArea}>
+        <Animated.View style={{ position: 'absolute', top: 0, bottom: 0, width: 4000, justifyContent: 'center', transform: [{ translateX }] }}>
+          <Text
+            style={tk.text}
+            onTextLayout={e => {
+              const line = e.nativeEvent.lines[0];
+              if (line && line.width > 0 && line.width !== textWidthRef.current) {
+                textWidthRef.current = line.width;
+                runTicker(line.width);
+              }
+            }}
+          >
+            {tickerText}
+          </Text>
+        </Animated.View>
+      </View>
     </View>
   );
 }
@@ -420,6 +479,7 @@ function StudioEventModal({ event: ev, visible }: { event: StudioEvent; visible:
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     network, shows, inboxItems, newsItems, pitches, studioEvents,
     emmyCeremonyPendingYear,
@@ -436,6 +496,13 @@ export default function Dashboard() {
   const [recapVisible, setRecapVisible]   = useState(false);
   const [recapWeek,    setRecapWeek]      = useState(1);
   const [recapYear,    setRecapYear]      = useState(1);
+
+  const [globeVisible,       setGlobeVisible]       = useState(false);
+  const [globeShowTitle,     setGlobeShowTitle]      = useState('');
+  const [globeSeasonNumber,  setGlobeSeasonNumber]   = useState(1);
+  const [globeViewers,       setGlobeViewers]        = useState(0);
+  const [globeHasIntl,       setGlobeHasIntl]        = useState(false);
+  const pendingGlobeRef = useRef(false);
 
   const tutorialStep   = useTutorialStore(s => s.step);
   const tutorialActive = useTutorialStore(s => s.active);
@@ -525,6 +592,15 @@ export default function Dashboard() {
     .filter(i => !i.read && !fadedIds.has(i.id) && (itemAgeWeeks(i) < 2 || expiringRef.current.has(i.id)))
     .slice(0, 3);
 
+  const TYPE_PRIORITY_TICKER: Record<string, number> = { player: 0, emmy: 1, competitor: 2, industry: 3 };
+  const tickerItems = useMemo(() => {
+    if (newsItems.length === 0) return [];
+    const thisWeek = newsItems
+      .filter(n => n.week === network.currentWeek && n.year === network.currentYear)
+      .sort((a, b) => (TYPE_PRIORITY_TICKER[a.type] ?? 4) - (TYPE_PRIORITY_TICKER[b.type] ?? 4));
+    return thisWeek.length > 0 ? thisWeek : [newsItems[newsItems.length - 1]];
+  }, [newsItems, network.currentWeek, network.currentYear]);
+
   // ── Tasks ───────────────────────────────────────────────────────────────────
   type TaskItem = {
     id: string; label: string; sub: string;
@@ -592,12 +668,11 @@ export default function Dashboard() {
       style={{ flex: 1 }}
     >
       <FilmRibbonAmbient />
-      <SafeAreaView edges={['top']} style={s.container}>
+      <SafeAreaView edges={[]} style={s.container}>
         <ScrollView ref={scrollRef} style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
           {/* ── Header ── */}
-          <View style={s.header}>
-            <DotRow />
+          <View style={[s.header, { paddingTop: insets.top }]}>
             <View style={s.headerRow}>
               {/* Network badge */}
               <LogoBadge size={46} initials={network.initials} config={network.logoConfig} />
@@ -608,14 +683,16 @@ export default function Dashboard() {
                 <Text style={s.networkSub}>Independent · Year {network.currentYear}</Text>
               </View>
 
-              {/* Week widget — column card */}
-              <View style={s.weekCard}>
+              {/* Week widget — tappable, leads to schedule */}
+              <TouchableOpacity style={s.weekCard} onPress={() => router.push('/schedule')} activeOpacity={0.8}>
                 <Text style={s.weekCardLabel}>WEEK</Text>
                 <Text style={s.weekCardNumber}>{network.currentWeek}</Text>
-              </View>
+              </TouchableOpacity>
             </View>
-            <DotRow />
           </View>
+
+          {/* ── News ticker chyron ── */}
+          <NewsTicker items={tickerItems} />
 
           {/* ── Stats 2×2 grid ── */}
           <View style={s.statsGrid}>
@@ -639,81 +716,14 @@ export default function Dashboard() {
             />
           </View>
 
-          {/* ── DEADLINE news card — top story this week (priority: player > emmy > competitor > industry) ── */}
-          <NewsCard
-            item={(() => {
-              if (newsItems.length === 0) return null;
-              const TYPE_PRIORITY: Record<string, number> = { player: 0, emmy: 1, competitor: 2, industry: 3 };
-              const thisWeekItems = newsItems.filter(
-                n => n.week === network.currentWeek && n.year === network.currentYear
-              );
-              const pool = thisWeekItems.length > 0 ? thisWeekItems : [newsItems[newsItems.length - 1]];
-              return pool.reduce((best, n) =>
-                (TYPE_PRIORITY[n.type] ?? 99) < (TYPE_PRIORITY[best.type] ?? 99) ? n : best
-              );
-            })()}
-            week={network.currentWeek}
-            year={network.currentYear}
-          />
-
-          {/* ── Schedule strip ── */}
+          {/* ── Schedule strip (hidden — week card taps to schedule instead) ── */}
+          {/*
           <ScheduleStrip
             currentWeek={network.currentWeek}
             currentYear={network.currentYear}
             onPress={() => router.push('/schedule')}
           />
-
-          {/* ── Your Slate ── */}
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>YOUR SLATE</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              {activeShows.length > 0 && (
-                <Text style={s.sectionMeta}>{activeShows.length} in production</Text>
-              )}
-              <TouchableOpacity onPress={() => {
-                if (tutorialStep === 'create-show') tutorialAdvance();
-                router.push('/create-show');
-              }}>
-                <Text style={s.sectionAction}>+ NEW SHOW</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {activeShows.length === 0 ? (
-            <TouchableOpacity style={s.emptyCard} onPress={() => {
-              if (tutorialStep === 'create-show') tutorialAdvance();
-              router.push('/create-show');
-            }}>
-              {tutorialStep === 'create-show' && (
-                <TutorialTarget stepID="create-show" style={StyleSheet.absoluteFill} pointerEvents="none" />
-              )}
-              <Text style={s.emptyTitle}>NO ACTIVE SHOWS</Text>
-              <Text style={s.emptyBody}>Greenlight a pitch or create your first show to get started.</Text>
-              <View style={s.emptyAction}>
-                <Text style={s.emptyActionText}>+ CREATE SHOW</Text>
-              </View>
-            </TouchableOpacity>
-          ) : (
-            activeShows.map((show, idx) => {
-              const isWriting   = show.status === 'writing' && idx === 0 && tutorialStep === 'show-writing';
-              const isFilming   = show.status === 'filming' && idx === 0 && tutorialStep === 'post-writing-tasks';
-              const isMarketing = show.status === 'marketing' && idx === 0 && tutorialStep === 'post-filming';
-              const isAired     = (show.status === 'airing' || show.status === 'renewal-pending') && idx === 0 && tutorialStep === 'episode-aired';
-              const targetStep  = isWriting ? 'show-writing'
-                                : isFilming ? 'post-writing-tasks'
-                                : isMarketing ? 'post-filming'
-                                : isAired ? 'episode-aired'
-                                : null;
-              return (
-                <View key={show.id} style={{ position: 'relative' }}>
-                  {targetStep && (
-                    <TutorialTarget stepID={targetStep} style={StyleSheet.absoluteFill} pointerEvents="none" />
-                  )}
-                  <ShowCard show={show} onPress={() => router.push(`/show/${show.id}`)} />
-                </View>
-              );
-            })
-          )}
+          */}
 
           {/* ── Tasks ── */}
           {tasks.length > 0 && (
@@ -781,6 +791,58 @@ export default function Dashboard() {
             </>
           )}
 
+          {/* ── Your Slate ── */}
+          <View style={[s.sectionHeader, { marginTop: 10 }]}>
+            <Text style={s.sectionTitle}>YOUR SLATE</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              {activeShows.length > 0 && (
+                <Text style={s.sectionMeta}>{activeShows.length} in production</Text>
+              )}
+              <TouchableOpacity onPress={() => {
+                if (tutorialStep === 'create-show') tutorialAdvance();
+                router.push('/create-show');
+              }}>
+                <Text style={s.sectionAction}>+ NEW SHOW</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {activeShows.length === 0 ? (
+            <TouchableOpacity style={s.emptyCard} onPress={() => {
+              if (tutorialStep === 'create-show') tutorialAdvance();
+              router.push('/create-show');
+            }}>
+              {tutorialStep === 'create-show' && (
+                <TutorialTarget stepID="create-show" style={StyleSheet.absoluteFill} pointerEvents="none" />
+              )}
+              <Text style={s.emptyTitle}>NO ACTIVE SHOWS</Text>
+              <Text style={s.emptyBody}>Greenlight a pitch or create your first show to get started.</Text>
+              <View style={s.emptyAction}>
+                <Text style={s.emptyActionText}>+ CREATE SHOW</Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            activeShows.map((show, idx) => {
+              const isWriting   = show.status === 'writing' && idx === 0 && tutorialStep === 'show-writing';
+              const isFilming   = show.status === 'filming' && idx === 0 && tutorialStep === 'post-writing-tasks';
+              const isMarketing = show.status === 'marketing' && idx === 0 && tutorialStep === 'post-filming';
+              const isAired     = (show.status === 'airing' || show.status === 'renewal-pending') && idx === 0 && tutorialStep === 'episode-aired';
+              const targetStep  = isWriting ? 'show-writing'
+                                : isFilming ? 'post-writing-tasks'
+                                : isMarketing ? 'post-filming'
+                                : isAired ? 'episode-aired'
+                                : null;
+              return (
+                <View key={show.id} style={{ position: 'relative' }}>
+                  {targetStep && (
+                    <TutorialTarget stepID={targetStep} style={StyleSheet.absoluteFill} pointerEvents="none" />
+                  )}
+                  <ShowCard show={show} onPress={() => router.push(`/show/${show.id}`)} />
+                </View>
+              );
+            })
+          )}
+
           <View style={{ height: 24 }} />
         </ScrollView>
 
@@ -800,11 +862,35 @@ export default function Dashboard() {
           <TouchableOpacity style={s.advanceBtn} onPress={() => {
             hap.medium();
             if (tutorialStep === 'dashboard') tutorialAdvance();
+
+            // Detect season finale before advancing so we can show globe after recap
+            let finaleShow: { title: string; seasonNumber: number; hasIntl: boolean } | null = null;
+            for (const show of shows) {
+              if (show.status !== 'airing') continue;
+              const season = show.seasons[show.currentSeasonIndex];
+              if (!season) continue;
+              if (season.episodesAired === season.episodeCount - 1) {
+                finaleShow = {
+                  title: show.title,
+                  seasonNumber: season.seasonNumber,
+                  hasIntl: season.marketingChannelIDs.includes('international-push'),
+                };
+                break;
+              }
+            }
+
             setTimeout(() => {
               setRecapWeek(nextWeek);
               setRecapYear(nextYear);
               setRecapVisible(true);
               advanceWeek();
+
+              if (finaleShow) {
+                setGlobeShowTitle(finaleShow.title);
+                setGlobeSeasonNumber(finaleShow.seasonNumber);
+                setGlobeHasIntl(finaleShow.hasIntl);
+                pendingGlobeRef.current = true;
+              }
             }, 16);
           }} activeOpacity={0.88}>
             <LinearGradient
@@ -819,13 +905,39 @@ export default function Dashboard() {
             </LinearGradient>
           </TouchableOpacity>
         </TutorialTarget>
+
+
       </SafeAreaView>
 
       <WeeklyRecapModal
         visible={recapVisible}
-        onClose={() => setRecapVisible(false)}
+        onClose={() => {
+          setRecapVisible(false);
+          if (pendingGlobeRef.current) {
+            pendingGlobeRef.current = false;
+            let viewers = 0;
+            for (const show of shows) {
+              if (show.title !== globeShowTitle) continue;
+              const season = show.seasons.find(se => se.seasonNumber === globeSeasonNumber);
+              if (!season) continue;
+              viewers = season.episodes.reduce((sum, ep) => sum + (ep.viewers ?? 0), 0);
+              break;
+            }
+            setGlobeViewers(viewers);
+            setTimeout(() => setGlobeVisible(true), 300);
+          }
+        }}
         week={recapWeek}
         year={recapYear}
+      />
+
+      <GlobalViewershipModal
+        visible={globeVisible}
+        onClose={() => setGlobeVisible(false)}
+        showTitle={globeShowTitle || ''}
+        seasonNumber={globeSeasonNumber}
+        viewers={globeViewers}
+        hasInternational={globeHasIntl}
       />
 
       {pendingEvent && (
@@ -861,7 +973,7 @@ const s = StyleSheet.create({
   networkSub:      { fontFamily: 'Manrope_600SemiBold', color: C.mutedMid, fontSize: 9, letterSpacing: 1.5, marginTop: 2 },
 
   // Week widget — column card
-  weekCard:       { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minWidth: 54, height: 48, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#e6b25459' },
+  weekCard:       { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minWidth: 54, minHeight: 48, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#e6b25459' },
   weekCardLabel:  { fontFamily: 'Manrope_600SemiBold', fontSize: 8.5, letterSpacing: 1.5, color: C.muted },
   weekCardNumber: { fontFamily: 'BebasNeue_400Regular', fontSize: 22, color: '#ffffff', lineHeight: 24 },
 
@@ -945,6 +1057,15 @@ const s = StyleSheet.create({
   advanceBtn:         { borderRadius: 999 },
   advanceBtnGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
   advanceBtnText:     { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
+});
+
+// ── News ticker styles ────────────────────────────────────────────────────────
+const tk = StyleSheet.create({
+  strip:    { flexDirection: 'row', alignItems: 'center', height: 36, backgroundColor: '#12142a', borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.borderGold, marginBottom: 14, overflow: 'hidden' },
+  pill:     { paddingHorizontal: 12, borderRightWidth: 1, borderRightColor: C.borderGold, alignSelf: 'stretch', justifyContent: 'center', backgroundColor: C.goldDim },
+  pillText: { fontFamily: F.bodyXBd, color: C.gold, fontSize: 8, letterSpacing: 2 },
+  textArea: { flex: 1, overflow: 'hidden', alignSelf: 'stretch', justifyContent: 'center' },
+  text:     { fontFamily: F.bodyMd, color: C.text, fontSize: 12, letterSpacing: 0.2 },
 });
 
 // ── Schedule strip styles ─────────────────────────────────────────────────────
