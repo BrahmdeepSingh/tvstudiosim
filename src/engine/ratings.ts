@@ -44,7 +44,9 @@ export function calculateEpisodeRating(
   episodeNumber: number,
   genre: Genre,
   previousEpisodes: Episode[],
-  castPopularity?: number,
+  leadPopularity?: number,
+  supportingPopularity?: number,
+  heatMultiplier?: number,
 ): EpisodeResult {
   const config = GENRE_CONFIG[genre];
 
@@ -72,12 +74,23 @@ export function calculateEpisodeRating(
   // Organic word-of-mouth scales super-linearly with quality
   const organicBuzz = Math.pow(rating / 5.0, 1.3);
 
-  // Cast popularity boosts opening viewership, decaying to zero by episode 9
+  // Weighted cast popularity: leads count more but supporting now contributes.
+  // Boost decays slowly and floors at 40% so stars remain meaningful late in a season.
+  const castPopularity = leadPopularity != null
+    ? supportingPopularity != null
+      ? leadPopularity * 0.65 + supportingPopularity * 0.35
+      : leadPopularity
+    : undefined;
   const popularityBoost = castPopularity != null
-    ? 1.0 + (castPopularity / 100) * 0.30 * Math.max(0, 1 - (episodeNumber - 1) * 0.12)
+    ? 1.0 + (castPopularity / 100) * 0.30 * Math.max(0.4, 1 - (episodeNumber - 1) * 0.07)
     : 1.0;
 
-  const viewers = Math.round(config.baseViewers * marketingReach * organicBuzz * popularityBoost);
+  // Prior-season heat gives a modest carry-forward from an established show's reputation.
+  const heatBoost = heatMultiplier != null
+    ? 1.0 + (heatMultiplier - 1.0) * 0.4
+    : 1.0;
+
+  const viewers = Math.round(config.baseViewers * marketingReach * organicBuzz * popularityBoost * heatBoost);
 
   // Higher-rated shows command premium ad rates
   const effectiveCPM = config.cpm * (1 + (rating - 5) / 10);

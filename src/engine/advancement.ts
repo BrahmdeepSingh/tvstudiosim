@@ -806,6 +806,13 @@ function tickAiring(
       }, 0) / season.leadActorIDs.length
     : undefined;
 
+  const avgSupportingPopularity = season.supportingActorIDs.length > 0
+    ? season.supportingActorIDs.reduce((sum, id) => {
+        const actor = talent.find(t => t.id === id);
+        return sum + (actor?.popularity ?? 50);
+      }, 0) / season.supportingActorIDs.length
+    : undefined;
+
   const prevEpisodes = season.episodes.filter(ep => ep.rating !== null);
   const { rating, viewers: baseViewers, adRevenue: baseAdRevenue } = calculateEpisodeRating(
     season,
@@ -813,6 +820,8 @@ function tickAiring(
     show.genre,
     prevEpisodes,
     avgLeadPopularity,
+    avgSupportingPopularity,
+    show.heatMultiplier ?? 1.0,
   );
 
   // Apply theme window viewership boost — only viewers/revenue are affected, not the rating

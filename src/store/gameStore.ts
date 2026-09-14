@@ -292,13 +292,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
       : TALENT_FEES[role][tierIndex];
 
     const prestigeMod = 1 - clamp((networkPrestige - talent.prestigeRequired) / 200, 0, 0.15);
-    const heatMultiplier = state.shows.find(s => s.id === showID)?.heatMultiplier ?? 1.0;
-    const effectiveMin = feeRange[0] * prestigeMod * heatMultiplier;
+    const show = state.shows.find(s => s.id === showID);
+    const heatMultiplier = show?.heatMultiplier ?? 1.0;
+
+    // Returning talent (was on any prior season of this show) knows their market value
+    // and won't accept the range floor — they demand the midpoint, same as the renewal screen.
+    const wasOnShow = role === 'actor' && show?.seasons.some(se =>
+      se.leadActorIDs.includes(talentID) || se.supportingActorIDs.includes(talentID),
+    );
+    const effectiveMin = wasOnShow
+      ? Math.round((feeRange[0] + feeRange[1]) / 2 / 50_000) * 50_000 * heatMultiplier
+      : feeRange[0] * prestigeMod * heatMultiplier;
 
     // Convert revenue share % to cash-equivalent value using expected season ad revenue
     let revShareValue = 0;
     if (revenueSharePercent > 0) {
-      const show = state.shows.find(s => s.id === showID);
       if (show) {
         const season = show.seasons[show.currentSeasonIndex];
         const episodeCount = season?.episodeCount ?? 10;

@@ -8,7 +8,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../src/store/gameStore';
 import { Talent } from '../src/types';
-import { TALENT_FEES, MIN_EPISODES, MAX_EPISODES, popularityToFeeTier } from '../src/constants/game';
+import { TALENT_FEES, SUPPORTING_ACTOR_FEES, MIN_EPISODES, MAX_EPISODES, popularityToFeeTier } from '../src/constants/game';
 import { WRITERS_ROOM_PRESTIGE } from '../src/engine/quality';
 import { AVATAR_MAP } from '../src/utils/avatars';
 import { useTheme } from '../src/context/ThemeContext';
@@ -33,9 +33,11 @@ function fmt(n: number): string {
   return `${sign}$${abs}`;
 }
 
-function autoResignFee(t: Talent, heatMultiplier: number): number {
+function autoResignFee(t: Talent, heatMultiplier: number, actorType: 'lead' | 'supporting' | 'other' = 'other'): number {
   const tier = popularityToFeeTier(t.popularity);
-  const range = t.role === 'actor' ? TALENT_FEES.actor[tier] : TALENT_FEES[t.role][tier];
+  const range = t.role === 'actor'
+    ? actorType === 'supporting' ? SUPPORTING_ACTOR_FEES[tier] : TALENT_FEES.actor[tier]
+    : TALENT_FEES[t.role][tier];
   const base = Math.round((range[0] + range[1]) / 2 / 50_000) * 50_000;
   return Math.round((base * heatMultiplier) / 50_000) * 50_000;
 }
@@ -47,6 +49,7 @@ function isReturnable(t: Talent): boolean {
 function TalentReturnCard({
   talent,
   role,
+  actorType,
   selected,
   returnable,
   canSelect,
@@ -55,6 +58,7 @@ function TalentReturnCard({
 }: {
   talent: Talent;
   role: string;
+  actorType: 'lead' | 'supporting' | 'other';
   selected: boolean;
   returnable: boolean;
   canSelect: boolean;
@@ -65,7 +69,7 @@ function TalentReturnCard({
   const s = useMemo(() => makeStyles(C), [C]);
   const CHEM_COLORS = { green: C.green, blue: '#5b8dee', red: C.red };
   const chemColor = CHEM_COLORS[talent.chemistryColor];
-  const fee = autoResignFee(talent, heatMultiplier);
+  const fee = autoResignFee(talent, heatMultiplier, actorType);
 
   let primaryStat = 0;
   let primaryLabel = '';
@@ -216,11 +220,11 @@ export default function RenewScreen() {
   const directorFee    = resignDirector && returningDirector ? autoResignFee(returningDirector, heat) : 0;
   const leadFees       = resignLeadIDs.reduce((sum, id) => {
     const t = talent.find(x => x.id === id);
-    return sum + (t ? autoResignFee(t, heat) : 0);
+    return sum + (t ? autoResignFee(t, heat, 'lead') : 0);
   }, 0);
   const supportingFees = resignSupportingIDs.reduce((sum, id) => {
     const t = talent.find(x => x.id === id);
-    return sum + (t ? autoResignFee(t, heat) : 0);
+    return sum + (t ? autoResignFee(t, heat, 'supporting') : 0);
   }, 0);
   const totalResignCost = showrunnerFee + directorFee + leadFees + supportingFees;
   const canAfford = network.cashOnHand >= totalResignCost;
@@ -234,11 +238,11 @@ export default function RenewScreen() {
     }
     for (const id of resignLeadIDs) {
       const t = talent.find(x => x.id === id);
-      if (t) hireActor(showID!, t.id, autoResignFee(t, heat), 0, 'lead');
+      if (t) hireActor(showID!, t.id, autoResignFee(t, heat, 'lead'), 0, 'lead');
     }
     for (const id of resignSupportingIDs) {
       const t = talent.find(x => x.id === id);
-      if (t) hireActor(showID!, t.id, autoResignFee(t, heat), 0, 'supporting');
+      if (t) hireActor(showID!, t.id, autoResignFee(t, heat, 'supporting'), 0, 'supporting');
     }
 
     router.replace(`/show/${showID}`);
@@ -325,6 +329,7 @@ export default function RenewScreen() {
                 key={t.id}
                 talent={t}
                 role="Showrunner"
+                actorType="other"
                 selected={resignShowrunnerIDs.includes(t.id)}
                 returnable={true}
                 canSelect={resignShowrunnerIDs.length < showrunnerSlots}
@@ -373,6 +378,7 @@ export default function RenewScreen() {
             <TalentReturnCard
               talent={returningDirector}
               role="Director"
+              actorType="other"
               selected={resignDirector}
               returnable={directorReturnable}
               canSelect={true}
@@ -407,6 +413,7 @@ export default function RenewScreen() {
                 key={t.id}
                 talent={t}
                 role="Lead Actor"
+                actorType="lead"
                 selected={resignLeadIDs.includes(t.id)}
                 returnable={isReturnable(t)}
                 canSelect={resignLeadIDs.length < leadSlots}
@@ -442,6 +449,7 @@ export default function RenewScreen() {
                 key={t.id}
                 talent={t}
                 role="Supporting"
+                actorType="supporting"
                 selected={resignSupportingIDs.includes(t.id)}
                 returnable={isReturnable(t)}
                 canSelect={resignSupportingIDs.length < supportingSlots}
