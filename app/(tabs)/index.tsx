@@ -18,36 +18,7 @@ import { EmmyCeremonyModal } from '../components/EmmyCeremonyModal';
 import WeeklyRecapModal from '../components/WeeklyRecapModal';
 import GlobalViewershipModal from '../components/GlobalViewershipModal';
 import { hap } from '../../src/utils/haptics';
-
-// ── Design tokens ─────────────────────────────────────────────────────────────
-const C = {
-  pageBg:      '#0f1220',
-  cardBg:      '#191c2a',
-  cardBg2:     '#1d2035',
-  border:      '#252840',
-  borderGold:  '#e6b25430',  // gold @ 18% opacity
-  borderGold55:'#e6b2548c',  // gold @ 55% opacity
-
-  text:        '#f0ede8',
-  muted:       '#9a958e',
-  mutedMid:    '#6b6880',
-
-  gold:        '#e6b254',
-  goldDim:     '#e6b25420',
-  goldMid:     '#c49440',
-  goldBtnText: '#161008',
-
-  green:       '#4ec46e',
-  greenBg:     '#1a3325',
-  amber:       '#d4753a',
-  amberBg:     '#2a1f12',
-  red:         '#c43820',
-  redBg:       '#2a130f',
-  blue:        '#cccee0',
-  blueBg:      '#141e33',
-  teal:        '#3db8a8',
-  tealBg:      '#0f2525',
-};
+import { useTheme } from '../../src/context/ThemeContext';
 
 // Font helpers
 const F = {
@@ -56,16 +27,6 @@ const F = {
   bodyMd:  'Manrope_600SemiBold',
   bodyBd:  'Manrope_700Bold',
   bodyXBd: 'Manrope_800ExtraBold',
-};
-
-const STATUS_META: Record<string, { label: string; color: string; bg: string; borderColor: string }> = {
-  airing:            { label: 'AIRING',    color: C.green, bg: '#0f2a1a', borderColor: '#4ec46e55' },
-  filming:           { label: 'FILMING',   color: C.amber, bg: C.amberBg, borderColor: '#d4753a55' },
-  writing:           { label: 'WRITING',   color: C.blue,  bg: C.blueBg,  borderColor: '#cccee055' },
-  marketing:         { label: 'MKT',       color: C.teal,  bg: C.tealBg,  borderColor: '#3db8a855' },
-  'renewal-pending': { label: 'RENEWAL',   color: C.gold,  bg: '#261e0a', borderColor: '#e6b25455' },
-  completed:         { label: 'DONE',      color: C.muted, bg: C.cardBg2, borderColor: '#9a958e44' },
-  cancelled:         { label: 'CANCELLED', color: C.red,   bg: C.redBg,   borderColor: '#c4382055' },
 };
 
 function fmt(n: number): string {
@@ -84,6 +45,7 @@ function fmtViewers(n: number): string {
 
 // ── Film ribbon ambient texture ───────────────────────────────────────────────
 function FilmRibbonAmbient() {
+  const { C } = useTheme();
   return (
     <Image
       source={require('../../assets/tvbg.png')}
@@ -96,6 +58,8 @@ function FilmRibbonAmbient() {
 
 // ── Decorative dot row ────────────────────────────────────────────────────────
 function DotRow() {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={s.dotRow}>
       {Array.from({ length: 50 }).map((_, i) => (
@@ -107,6 +71,8 @@ function DotRow() {
 
 // ── DEADLINE news card ────────────────────────────────────────────────────────
 function NewsCard({ item, week, year }: { item: NewsItem | null; week: number; year: number }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const headline = item?.headline ?? 'Welcome to TV Studio Sim';
   const body     = item?.body     ?? 'Greenlight your first show to get started. The ratings race begins now.';
   const cardWeek = item?.week ?? week;
@@ -128,6 +94,8 @@ function NewsCard({ item, week, year }: { item: NewsItem | null; week: number; y
 
 // ── Rating dot (episode heatmap) ──────────────────────────────────────────────
 function RatingDot({ rating, empty }: { rating: number | null; empty?: boolean }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   let color = C.border;
   if (!empty && rating !== null) {
     color = rating >= 8 ? '#3db87a' : rating >= 6.5 ? '#7db840' : rating >= 5 ? '#c8a135' : '#c04040';
@@ -139,6 +107,8 @@ function RatingDot({ rating, empty }: { rating: number | null; empty?: boolean }
 function StatCard({ label, value, valueColor }: {
   label: string; value: string; valueColor?: string;
 }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={s.statCard}>
       <Text style={s.statCardLabel}>{label}</Text>
@@ -149,6 +119,8 @@ function StatCard({ label, value, valueColor }: {
 
 // ── News ticker (chyron) ──────────────────────────────────────────────────────
 function NewsTicker({ items }: { items: NewsItem[] }) {
+  const { C } = useTheme();
+  const tk = useMemo(() => makeTkStyles(C), [C]);
   const { width: SW } = useWindowDimensions();
   const translateX = useRef(new Animated.Value(0)).current;
   const textWidthRef = useRef(0);
@@ -207,6 +179,8 @@ function NewsTicker({ items }: { items: NewsItem[] }) {
 function ScheduleStrip({ currentWeek, currentYear, onPress }: {
   currentWeek: number; currentYear: number; onPress: () => void;
 }) {
+  const { C } = useTheme();
+  const sc = useMemo(() => makeScStyles(C), [C]);
   const VISIBLE = 7;
   const half = Math.floor(VISIBLE / 2);
   const weeks = Array.from({ length: VISIBLE }, (_, i) => {
@@ -225,7 +199,7 @@ function ScheduleStrip({ currentWeek, currentYear, onPress }: {
         {weeks.map(({ week, offset }) => {
           const win = THEME_WINDOWS.find(tw => week >= tw.startWeek && week <= tw.endWeek);
           const isCurrent = offset === 0;
-          const cellBg    = isCurrent ? '#1e2a18' : 'transparent';
+          const cellBg    = isCurrent ? C.greenBg : 'transparent';
           const cellBorder= isCurrent ? C.green + '88' : 'transparent';
           const numColor  = isCurrent ? C.green : C.mutedMid;
 
@@ -249,6 +223,19 @@ function ScheduleStrip({ currentWeek, currentYear, onPress }: {
 
 // ── Show card ─────────────────────────────────────────────────────────────────
 function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
+
+  const STATUS_META: Record<string, { label: string; color: string; bg: string; borderColor: string }> = {
+    airing:            { label: 'AIRING',    color: C.green, bg: C.greenBg, borderColor: C.green + '55' },
+    filming:           { label: 'FILMING',   color: C.amber, bg: C.amberBg, borderColor: C.amber + '55' },
+    writing:           { label: 'WRITING',   color: C.blue,  bg: C.blueBg,  borderColor: C.blue  + '55' },
+    marketing:         { label: 'MKT',       color: C.teal,  bg: C.tealBg,  borderColor: C.teal  + '55' },
+    'renewal-pending': { label: 'RENEWAL',   color: C.gold,  bg: C.amberBg, borderColor: C.gold  + '55' },
+    completed:         { label: 'DONE',      color: C.muted, bg: C.cardBg2, borderColor: C.muted + '44' },
+    cancelled:         { label: 'CANCELLED', color: C.red,   bg: C.redBg,   borderColor: C.red   + '55' },
+  };
+
   const season = show.seasons[show.currentSeasonIndex];
   if (!season) return null;
 
@@ -381,16 +368,16 @@ function fmtDelta(n: number): string {
 }
 
 function StudioEventModal({ event: ev, visible }: { event: StudioEvent; visible: boolean }) {
+  const { C } = useTheme();
+  const m = useMemo(() => makeMStyles(C), [C]);
   const { resolveStudioEvent } = useGameStore();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const typeColor = EVENT_COLORS[ev.type] ?? '#9a958e';
+  const typeColor = EVENT_COLORS[ev.type] ?? C.muted;
 
   function handleConfirm() {
     if (selectedIndex === null) return;
     hap.medium();
     resolveStudioEvent(ev.id, selectedIndex);
-    // Modal disappears automatically when the store marks the event resolved
-    // and pendingEvent becomes null in the parent — no manual dismiss needed.
   }
 
   const chosen = selectedIndex !== null ? ev.choices[selectedIndex] : null;
@@ -399,23 +386,16 @@ function StudioEventModal({ event: ev, visible }: { event: StudioEvent; visible:
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={m.overlay}>
         <View style={m.card}>
-          {/* Event type badge + type label */}
           <View style={m.topRow}>
             <View style={[m.typeBadge, { backgroundColor: typeColor + '22', borderColor: typeColor + '88' }]}>
               <Text style={[m.typeBadgeText, { color: typeColor }]}>{ev.type.toUpperCase()}</Text>
             </View>
           </View>
 
-          {/* Title */}
           <Text style={m.title}>{ev.title.toUpperCase()}</Text>
-
-          {/* Situation body */}
           <Text style={m.body}>{ev.body}</Text>
-
-          {/* Divider */}
           <View style={m.divider} />
 
-          {/* Choices or confirm */}
           {selectedIndex === null ? (
             <View style={m.choicesCol}>
               {ev.choices.map((choice, i) => (
@@ -441,12 +421,12 @@ function StudioEventModal({ event: ev, visible }: { event: StudioEvent; visible:
                 {((chosen!.consequence.prestigeDelta ?? 0) !== 0 || (chosen!.consequence.cashDelta ?? 0) !== 0) && (
                   <View style={m.consequenceRow}>
                     {(chosen!.consequence.prestigeDelta ?? 0) !== 0 && (
-                      <Text style={[m.consequenceStat, { color: (chosen!.consequence.prestigeDelta ?? 0) > 0 ? '#4ec46e' : '#c43820' }]}>
+                      <Text style={[m.consequenceStat, { color: (chosen!.consequence.prestigeDelta ?? 0) > 0 ? C.green : C.red }]}>
                         {(chosen!.consequence.prestigeDelta ?? 0) > 0 ? '+' : ''}{chosen!.consequence.prestigeDelta} Prestige
                       </Text>
                     )}
                     {(chosen!.consequence.cashDelta ?? 0) !== 0 && (
-                      <Text style={[m.consequenceStat, { color: (chosen!.consequence.cashDelta ?? 0) > 0 ? '#4ec46e' : '#c43820' }]}>
+                      <Text style={[m.consequenceStat, { color: (chosen!.consequence.cashDelta ?? 0) > 0 ? C.green : C.red }]}>
                         {fmtDelta(chosen!.consequence.cashDelta ?? 0)}
                       </Text>
                     )}
@@ -478,6 +458,8 @@ function StudioEventModal({ event: ev, visible }: { event: StudioEvent; visible:
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const {
@@ -504,16 +486,13 @@ export default function Dashboard() {
   const [globeHasIntl,       setGlobeHasIntl]        = useState(false);
   const pendingGlobeRef = useRef(false);
 
-  const tutorialStep   = useTutorialStore(s => s.step);
-  const tutorialActive = useTutorialStore(s => s.active);
-  const tutorialAdvance = useTutorialStore(s => s.advance);
-  const tutorialJumpTo  = useTutorialStore(s => s.jumpTo);
+  const tutorialStep   = useTutorialStore(st => st.step);
+  const tutorialActive = useTutorialStore(st => st.active);
+  const tutorialAdvance = useTutorialStore(st => st.advance);
+  const tutorialJumpTo  = useTutorialStore(st => st.jumpTo);
 
-  // Derive the current pending event directly — when it's resolved in the store
-  // this becomes null and the modal disappears automatically with no stale-closure issues.
   const pendingEvent = (studioEvents ?? []).find(e => !e.resolved) ?? null;
 
-  // Advance button ripple — one-way pulse: expands out and fades, instant reset
   useEffect(() => {
     const loop = Animated.loop(
       Animated.timing(glowAnim, { toValue: 1, duration: 1400, useNativeDriver: true })
@@ -542,19 +521,17 @@ export default function Dashboard() {
     });
   }, [network.currentWeek, network.currentYear, initialized]);
 
-  // ── New-game redirect ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!initialized) {
       router.replace('/home' as any);
     }
   }, [initialized]);
 
-  // ── Tutorial game-state reactions ────────────────────────────────────────────
   useEffect(() => {
     if (!tutorialActive) return;
-    const hasFilming   = shows.some(s => s.status === 'filming');
-    const hasMarketing = shows.some(s => ['marketing', 'airing', 'renewal-pending', 'completed', 'cancelled'].includes(s.status));
-    const hasAiring    = shows.some(s => s.status === 'airing' || s.status === 'renewal-pending');
+    const hasFilming   = shows.some(sh => sh.status === 'filming');
+    const hasMarketing = shows.some(sh => ['marketing', 'airing', 'renewal-pending', 'completed', 'cancelled'].includes(sh.status));
+    const hasAiring    = shows.some(sh => sh.status === 'airing' || sh.status === 'renewal-pending');
 
     if (tutorialStep === 'show-writing' && hasFilming) {
       tutorialJumpTo('post-writing-tasks');
@@ -565,7 +542,6 @@ export default function Dashboard() {
     }
   }, [shows, tutorialStep, tutorialActive]);
 
-  // ── Tutorial scroll-to-tasks when post-writing-tasks activates ───────────────
   useEffect(() => {
     if (tutorialStep === 'post-writing-tasks' && tasksYRef.current > 0) {
       setTimeout(() => {
@@ -582,7 +558,6 @@ export default function Dashboard() {
     .sort((a, b) => {
       const airingScore = (sh: typeof a) => sh.status === 'airing' ? 1 : 0;
       if (airingScore(b) !== airingScore(a)) return airingScore(b) - airingScore(a);
-      // Both airing: most recently aired episode first
       const aEps = a.seasons[a.currentSeasonIndex]?.episodesAired ?? 0;
       const bEps = b.seasons[b.currentSeasonIndex]?.episodesAired ?? 0;
       return bEps - aEps;
@@ -663,7 +638,7 @@ export default function Dashboard() {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <LinearGradient
-      colors={['#141726', '#0c0f1a', '#070a12']}
+      colors={[C.gradientTop, C.gradientMid, C.gradientBot]}
       locations={[0, 0.55, 1]}
       style={{ flex: 1 }}
     >
@@ -674,16 +649,13 @@ export default function Dashboard() {
           {/* ── Header ── */}
           <View style={[s.header, { paddingTop: insets.top }]}>
             <View style={s.headerRow}>
-              {/* Network badge */}
               <LogoBadge size={46} initials={network.initials} config={network.logoConfig} />
 
-              {/* Network name + subtitle */}
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={s.networkName}>{network.name.toUpperCase()}</Text>
                 <Text style={s.networkSub}>Independent · Year {network.currentYear}</Text>
               </View>
 
-              {/* Week widget — tappable, leads to schedule */}
               <TouchableOpacity style={s.weekCard} onPress={() => router.push('/schedule')} activeOpacity={0.8}>
                 <Text style={s.weekCardLabel}>WEEK</Text>
                 <Text style={s.weekCardNumber}>{network.currentWeek}</Text>
@@ -696,34 +668,11 @@ export default function Dashboard() {
 
           {/* ── Stats 2×2 grid ── */}
           <View style={s.statsGrid}>
-            <StatCard
-              label="CASH ON HAND"
-              value={fmt(network.cashOnHand)}
-              valueColor={C.gold}
-            />
-            <StatCard
-              label="CAREER EARNINGS"
-              value={fmt(network.careerEarnings)}
-            />
-            <StatCard
-              label="ACTIVE SHOWS"
-              value={String(activeShows.length)}
-              valueColor={C.gold}
-            />
-            <StatCard
-              label="EMMYS WON"
-              value={String(network.emmysWon)}
-            />
+            <StatCard label="CASH ON HAND"    value={fmt(network.cashOnHand)}     valueColor={C.gold} />
+            <StatCard label="CAREER EARNINGS" value={fmt(network.careerEarnings)} />
+            <StatCard label="ACTIVE SHOWS"    value={String(activeShows.length)}  valueColor={C.gold} />
+            <StatCard label="EMMYS WON"       value={String(network.emmysWon)} />
           </View>
-
-          {/* ── Schedule strip (hidden — week card taps to schedule instead) ── */}
-          {/*
-          <ScheduleStrip
-            currentWeek={network.currentWeek}
-            currentYear={network.currentYear}
-            onPress={() => router.push('/schedule')}
-          />
-          */}
 
           {/* ── Tasks ── */}
           {tasks.length > 0 && (
@@ -863,7 +812,6 @@ export default function Dashboard() {
             hap.medium();
             if (tutorialStep === 'dashboard') tutorialAdvance();
 
-            // Detect season finale before advancing so we can show globe after recap
             let finaleShow: { title: string; seasonNumber: number; hasIntl: boolean } | null = null;
             for (const show of shows) {
               if (show.status !== 'airing') continue;
@@ -905,7 +853,6 @@ export default function Dashboard() {
             </LinearGradient>
           </TouchableOpacity>
         </TutorialTarget>
-
 
       </SafeAreaView>
 
@@ -952,165 +899,171 @@ export default function Dashboard() {
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-  container:     { flex: 1 },
-  scroll:        { flex: 1 },
-  scrollContent: { paddingBottom: 8 },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    container:     { flex: 1 },
+    scroll:        { flex: 1 },
+    scrollContent: { paddingBottom: 8 },
 
-  // Setup splash
-  setupContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  setupTitle:     { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 48, letterSpacing: 8, marginBottom: 40 },
+    setupContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+    setupTitle:     { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 48, letterSpacing: 8, marginBottom: 40 },
 
-  // ── Header ──────────────────────────────────────────────────────────────────
-  header:    { backgroundColor: C.cardBg, borderBottomWidth: 1, borderBottomColor: C.border },
-  dotRow:    { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, overflow: 'hidden', gap: 3 },
-  dot:       { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.borderGold },
-  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+    // ── Header ──────────────────────────────────────────────────────────────────
+    header:    { backgroundColor: C.cardBg, borderBottomWidth: 1, borderBottomColor: C.border },
+    dotRow:    { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, overflow: 'hidden', gap: 3 },
+    dot:       { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.borderGold },
+    headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
 
-  networkBadge:    { width: 46, height: 46, borderRadius: 23, backgroundColor: C.goldDim, borderWidth: 1.5, borderColor: C.gold, justifyContent: 'center', alignItems: 'center' },
-  networkInitials: { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 17, letterSpacing: 1 },
-  networkName:     { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 22, letterSpacing: 3 },
-  networkSub:      { fontFamily: 'Manrope_600SemiBold', color: C.mutedMid, fontSize: 9, letterSpacing: 1.5, marginTop: 2 },
+    networkBadge:    { width: 46, height: 46, borderRadius: 23, backgroundColor: C.goldDim, borderWidth: 1.5, borderColor: C.gold, justifyContent: 'center', alignItems: 'center' },
+    networkInitials: { fontFamily: 'BebasNeue_400Regular', color: C.gold, fontSize: 17, letterSpacing: 1 },
+    networkName:     { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 22, letterSpacing: 3 },
+    networkSub:      { fontFamily: 'Manrope_600SemiBold', color: C.mutedMid, fontSize: 9, letterSpacing: 1.5, marginTop: 2 },
 
-  // Week widget — column card
-  weekCard:       { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minWidth: 54, minHeight: 48, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#e6b25459' },
-  weekCardLabel:  { fontFamily: 'Manrope_600SemiBold', fontSize: 8.5, letterSpacing: 1.5, color: C.muted },
-  weekCardNumber: { fontFamily: 'BebasNeue_400Regular', fontSize: 22, color: '#ffffff', lineHeight: 24 },
+    weekCard:       { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minWidth: 54, minHeight: 48, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: C.cardBg2, borderWidth: 1, borderColor: C.borderGold55 },
+    weekCardLabel:  { fontFamily: 'Manrope_600SemiBold', fontSize: 8.5, letterSpacing: 1.5, color: C.muted },
+    weekCardNumber: { fontFamily: 'BebasNeue_400Regular', fontSize: 22, color: C.text, lineHeight: 24 },
 
-  // ── Stats 2×2 grid (individual cards) ───────────────────────────────────────
-  statsGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 6, marginBottom: 10 },
-  statCard:       { width: '47.5%', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.borderGold, padding: 12 },
-  statCardLabel:  { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 2, marginBottom: 6 },
-  statCardValue:  { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 26, letterSpacing: 1 },
+    // ── Stats 2×2 grid ───────────────────────────────────────────────────────────
+    statsGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingTop: 16, paddingBottom: 6, marginBottom: 10 },
+    statCard:       { width: '47.5%', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.borderGold, padding: 12 },
+    statCardLabel:  { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 2, marginBottom: 6 },
+    statCardValue:  { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 26, letterSpacing: 1 },
 
-  // ── DEADLINE news card ───────────────────────────────────────────────────────
-  newsCard:              { backgroundColor: '#1a1108', borderRadius: 14, borderWidth: 1, borderColor: '#e6b2544d', marginHorizontal: 14, marginBottom: 20, padding: 14 },
-  newsCardTopRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
-  newsDeadlinePill:      { backgroundColor: C.gold, borderRadius: 5, paddingHorizontal: 9, paddingVertical: 3 },
-  newsDeadlinePillText:  { fontFamily: 'BebasNeue_400Regular', color: '#161008', fontSize: 11, letterSpacing: 2 },
-  newsWeekLabel:         { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 10 },
-  newsHeadline:          { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 16, letterSpacing: 0.5, lineHeight: 20 },
-  newsBody:              { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11.5, marginTop: 7, lineHeight: 18 },
+    // ── DEADLINE news card ───────────────────────────────────────────────────────
+    newsCard:              { backgroundColor: C.amberBg, borderRadius: 14, borderWidth: 1, borderColor: C.borderGold, marginHorizontal: 14, marginBottom: 20, padding: 14 },
+    newsCardTopRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
+    newsDeadlinePill:      { backgroundColor: C.gold, borderRadius: 5, paddingHorizontal: 9, paddingVertical: 3 },
+    newsDeadlinePillText:  { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 11, letterSpacing: 2 },
+    newsWeekLabel:         { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 10 },
+    newsHeadline:          { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 16, letterSpacing: 0.5, lineHeight: 20 },
+    newsBody:              { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11.5, marginTop: 7, lineHeight: 18 },
 
-  // ── Section headers ──────────────────────────────────────────────────────────
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 10 },
-  sectionTitle:  { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 21, letterSpacing: 1.5 },
-  sectionMeta:   { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 11 },
-  sectionAction: { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 10, letterSpacing: 1.5 },
+    // ── Section headers ──────────────────────────────────────────────────────────
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 10 },
+    sectionTitle:  { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 21, letterSpacing: 1.5 },
+    sectionMeta:   { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 11 },
+    sectionAction: { fontFamily: 'Manrope_700Bold', color: C.gold, fontSize: 10, letterSpacing: 1.5 },
 
-  // ── Show cards ──────────────────────────────────────────────────────────────
-  showCard:       { backgroundColor: C.cardBg, borderRadius: 16, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
-  showCardInner:  { padding: 14 },
-  showCardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  showTitle:      { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 18, letterSpacing: 1.5 },
-  showGenre:      { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 9, letterSpacing: 2, marginTop: 4 },
+    // ── Show cards ──────────────────────────────────────────────────────────────
+    showCard:       { backgroundColor: C.cardBg, borderRadius: 16, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10 },
+    showCardInner:  { padding: 14 },
+    showCardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
+    showTitle:      { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 18, letterSpacing: 1.5 },
+    showGenre:      { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 9, letterSpacing: 2, marginTop: 4 },
 
-  statusCapsule:     { borderRadius: 999, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 4 },
-  statusCapsuleText: { fontFamily: 'Manrope_800ExtraBold', fontSize: 9, letterSpacing: 1 },
+    statusCapsule:     { borderRadius: 999, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 4 },
+    statusCapsuleText: { fontFamily: 'Manrope_800ExtraBold', fontSize: 9, letterSpacing: 1 },
 
-  heatmap:   { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 12 },
-  ratingDot: { width: 18, height: 18, borderRadius: 4 },
+    heatmap:   { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 12 },
+    ratingDot: { width: 18, height: 18, borderRadius: 4 },
 
-  streamBanner: { backgroundColor: '#192b22', borderRadius: 8, padding: 8, marginBottom: 10 },
-  streamText:   { fontFamily: 'Manrope_400Regular', color: C.green, fontSize: 11 },
+    streamBanner: { backgroundColor: C.greenBg, borderRadius: 8, padding: 8, marginBottom: 10 },
+    streamText:   { fontFamily: 'Manrope_400Regular', color: C.green, fontSize: 11 },
 
-  showStatsRow:       { flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 },
-  showStatCell:       { flex: 1, alignItems: 'center' },
-  showStatCellBorder: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: C.border },
-  showStatVal:        { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 20 },
-  showStatLbl:        { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 1.5, marginTop: 4 },
+    showStatsRow:       { flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 },
+    showStatCell:       { flex: 1, alignItems: 'center' },
+    showStatCellBorder: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: C.border },
+    showStatVal:        { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 20 },
+    showStatLbl:        { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 1.5, marginTop: 4 },
 
-  progressRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  progressLabel: { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11 },
-  progressPct:   { fontFamily: 'Manrope_800ExtraBold', fontSize: 12, letterSpacing: 0.5 },
-  progressTrack: { height: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden', marginBottom: 8 },
-  progressFill:  { height: '100%', borderRadius: 999 },
-  showSubDetail: { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 10, letterSpacing: 0.3 },
+    progressRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+    progressLabel: { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11 },
+    progressPct:   { fontFamily: 'Manrope_800ExtraBold', fontSize: 12, letterSpacing: 0.5 },
+    progressTrack: { height: 6, backgroundColor: C.border, borderRadius: 999, overflow: 'hidden', marginBottom: 8 },
+    progressFill:  { height: '100%', borderRadius: 999 },
+    showSubDetail: { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 10, letterSpacing: 0.3 },
 
-  // ── Empty slate ──────────────────────────────────────────────────────────────
-  emptyCard:       { backgroundColor: C.cardBg, borderRadius: 16, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10, padding: 28, alignItems: 'center' },
-  emptyTitle:      { fontFamily: 'BebasNeue_400Regular', color: C.mutedMid, fontSize: 18, letterSpacing: 3, marginBottom: 8 },
-  emptyBody:       { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
-  emptyAction:     { marginTop: 18, backgroundColor: C.goldDim, borderRadius: 999, borderWidth: 1, borderColor: C.gold + '55', paddingHorizontal: 18, paddingVertical: 8 },
-  emptyActionText: { fontFamily: 'Manrope_800ExtraBold', color: C.gold, fontSize: 11, letterSpacing: 1.5 },
+    // ── Empty slate ──────────────────────────────────────────────────────────────
+    emptyCard:       { backgroundColor: C.cardBg, borderRadius: 16, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 10, padding: 28, alignItems: 'center' },
+    emptyTitle:      { fontFamily: 'BebasNeue_400Regular', color: C.mutedMid, fontSize: 18, letterSpacing: 3, marginBottom: 8 },
+    emptyBody:       { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
+    emptyAction:     { marginTop: 18, backgroundColor: C.goldDim, borderRadius: 999, borderWidth: 1, borderColor: C.borderGold55, paddingHorizontal: 18, paddingVertical: 8 },
+    emptyActionText: { fontFamily: 'Manrope_800ExtraBold', color: C.gold, fontSize: 11, letterSpacing: 1.5 },
 
-  // ── Tasks ────────────────────────────────────────────────────────────────────
-  taskCountPill: { backgroundColor: C.red + '25', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, borderColor: C.red + '44' },
-  taskCountText: { fontFamily: 'Manrope_800ExtraBold', color: C.red, fontSize: 11 },
-  taskRow:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.borderGold, marginHorizontal: 14, marginBottom: 6, paddingHorizontal: 14, paddingVertical: 13 },
-  taskDot:       { width: 9, height: 9, borderRadius: 4.5, marginRight: 12 },
-  taskBody:      { flex: 1 },
-  taskLabel:     { fontFamily: 'Manrope_600SemiBold', color: C.text, fontSize: 13 },
-  taskSub:       { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 1.5, marginTop: 4 },
-  chevron:       { fontFamily: 'Manrope_400Regular', color: C.gold, fontSize: 24 },
+    // ── Tasks ────────────────────────────────────────────────────────────────────
+    taskCountPill: { backgroundColor: C.redBg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 1, borderColor: C.red + '44' },
+    taskCountText: { fontFamily: 'Manrope_800ExtraBold', color: C.red, fontSize: 11 },
+    taskRow:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.borderGold, marginHorizontal: 14, marginBottom: 6, paddingHorizontal: 14, paddingVertical: 13 },
+    taskDot:       { width: 9, height: 9, borderRadius: 4.5, marginRight: 12 },
+    taskBody:      { flex: 1 },
+    taskLabel:     { fontFamily: 'Manrope_600SemiBold', color: C.text, fontSize: 13 },
+    taskSub:       { fontFamily: 'Manrope_700Bold', color: C.mutedMid, fontSize: 8, letterSpacing: 1.5, marginTop: 4 },
+    chevron:       { fontFamily: 'Manrope_400Regular', color: C.gold, fontSize: 24 },
 
-  // ── Inbox ────────────────────────────────────────────────────────────────────
-  inboxRow:     { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, padding: 14, marginBottom: 6, gap: 12 },
-  inboxDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: C.gold, marginTop: 2 },
-  inboxTitle:   { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 13 },
-  inboxPreview: { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11, marginTop: 3 },
-  inboxChevron: { color: C.gold, fontSize: 22 },
+    // ── Inbox ────────────────────────────────────────────────────────────────────
+    inboxRow:     { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, padding: 14, marginBottom: 6, gap: 12 },
+    inboxDot:     { width: 6, height: 6, borderRadius: 3, backgroundColor: C.gold, marginTop: 2 },
+    inboxTitle:   { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 13 },
+    inboxPreview: { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 11, marginTop: 3 },
+    inboxChevron: { color: C.gold, fontSize: 22 },
 
-  // ── Advance Week ─────────────────────────────────────────────────────────────
-  advanceWrap:        { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: C.border },
-  advanceGlowRing:    { position: 'absolute', left: 16, right: 16, top: 12, borderRadius: 999, height: 56, backgroundColor: C.gold },
-  advanceBtn:         { borderRadius: 999 },
-  advanceBtnGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
-  advanceBtnText:     { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
-});
+    // ── Advance Week ─────────────────────────────────────────────────────────────
+    advanceWrap:        { paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: C.border },
+    advanceGlowRing:    { position: 'absolute', left: 16, right: 16, top: 12, borderRadius: 999, height: 56, backgroundColor: C.gold },
+    advanceBtn:         { borderRadius: 999 },
+    advanceBtnGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
+    advanceBtnText:     { fontFamily: 'BebasNeue_400Regular', color: C.goldBtnText, fontSize: 16, letterSpacing: 3 },
+  });
+}
 
 // ── News ticker styles ────────────────────────────────────────────────────────
-const tk = StyleSheet.create({
-  strip:    { flexDirection: 'row', alignItems: 'center', height: 36, backgroundColor: '#12142a', borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.borderGold, marginBottom: 14, overflow: 'hidden' },
-  pill:     { paddingHorizontal: 12, borderRightWidth: 1, borderRightColor: C.borderGold, alignSelf: 'stretch', justifyContent: 'center', backgroundColor: C.goldDim },
-  pillText: { fontFamily: F.bodyXBd, color: C.gold, fontSize: 8, letterSpacing: 2 },
-  textArea: { flex: 1, overflow: 'hidden', alignSelf: 'stretch', justifyContent: 'center' },
-  text:     { fontFamily: F.bodyMd, color: C.text, fontSize: 12, letterSpacing: 0.2 },
-});
+function makeTkStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    strip:    { flexDirection: 'row', alignItems: 'center', height: 36, backgroundColor: C.cardBg2, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.borderGold, marginBottom: 14, overflow: 'hidden' },
+    pill:     { paddingHorizontal: 12, borderRightWidth: 1, borderRightColor: C.borderGold, alignSelf: 'stretch', justifyContent: 'center', backgroundColor: C.goldDim },
+    pillText: { fontFamily: F.bodyXBd, color: C.gold, fontSize: 8, letterSpacing: 2 },
+    textArea: { flex: 1, overflow: 'hidden', alignSelf: 'stretch', justifyContent: 'center' },
+    text:     { fontFamily: F.bodyMd, color: C.text, fontSize: 12, letterSpacing: 0.2 },
+  });
+}
 
 // ── Schedule strip styles ─────────────────────────────────────────────────────
-const sc = StyleSheet.create({
-  strip:        { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 16, padding: 12 },
-  stripHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  stripLabel:   { fontFamily: F.bodyBd, color: C.muted, fontSize: 9, letterSpacing: 2 },
-  stripAction:  { fontFamily: F.bodyBd, color: C.gold, fontSize: 9, letterSpacing: 1.5 },
-  stripCells:   { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
-  cell:         { flex: 1, alignItems: 'center', borderRadius: 8, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 2, gap: 2 },
-  cellEmoji:    { fontSize: 12, lineHeight: 14 },
-  cellWeek:     { fontFamily: F.bodyBd, fontSize: 11, letterSpacing: 0 },
-  cellNow:      { fontFamily: F.bodyXBd, color: C.green, fontSize: 7, letterSpacing: 1 },
-});
+function makeScStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    strip:        { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, marginHorizontal: 14, marginBottom: 16, padding: 12 },
+    stripHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+    stripLabel:   { fontFamily: F.bodyBd, color: C.muted, fontSize: 9, letterSpacing: 2 },
+    stripAction:  { fontFamily: F.bodyBd, color: C.gold, fontSize: 9, letterSpacing: 1.5 },
+    stripCells:   { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
+    cell:         { flex: 1, alignItems: 'center', borderRadius: 8, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 2, gap: 2 },
+    cellEmoji:    { fontSize: 12, lineHeight: 14 },
+    cellWeek:     { fontFamily: F.bodyBd, fontSize: 11, letterSpacing: 0 },
+    cellNow:      { fontFamily: F.bodyXBd, color: C.green, fontSize: 7, letterSpacing: 1 },
+  });
+}
 
 // ── Studio Event Modal styles ─────────────────────────────────────────────────
-const m = StyleSheet.create({
-  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  card:           { backgroundColor: '#191c2a', borderRadius: 20, borderWidth: 1, borderColor: '#252840', padding: 20, width: '100%', maxWidth: 420 },
+function makeMStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    card:           { backgroundColor: C.cardBg, borderRadius: 20, borderWidth: 1, borderColor: C.border, padding: 20, width: '100%', maxWidth: 420 },
 
-  topRow:         { flexDirection: 'row', marginBottom: 10 },
-  typeBadge:      { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
-  typeBadgeText:  { fontFamily: 'Manrope_800ExtraBold', fontSize: 10, letterSpacing: 1 },
+    topRow:         { flexDirection: 'row', marginBottom: 10 },
+    typeBadge:      { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+    typeBadgeText:  { fontFamily: 'Manrope_800ExtraBold', fontSize: 10, letterSpacing: 1 },
 
-  title:          { fontFamily: 'BebasNeue_400Regular', color: '#f0ede8', fontSize: 24, letterSpacing: 0.5, lineHeight: 28, marginBottom: 10 },
-  body:           { fontFamily: 'Manrope_400Regular', color: '#9a958e', fontSize: 14, lineHeight: 21, marginBottom: 14 },
-  divider:        { height: 1, backgroundColor: '#252840', marginBottom: 14 },
+    title:          { fontFamily: 'BebasNeue_400Regular', color: C.text, fontSize: 24, letterSpacing: 0.5, lineHeight: 28, marginBottom: 10 },
+    body:           { fontFamily: 'Manrope_400Regular', color: C.muted, fontSize: 14, lineHeight: 21, marginBottom: 14 },
+    divider:        { height: 1, backgroundColor: C.border, marginBottom: 14 },
 
-  choicesCol:     { gap: 8 },
-  choiceCard:     { backgroundColor: '#0f1220', borderRadius: 12, borderWidth: 1, borderColor: '#252840', padding: 12 },
-  choiceRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
-  choiceLabel:    { fontFamily: 'Manrope_700Bold', color: '#f0ede8', fontSize: 14, flex: 1 },
-  choiceArrow:    { fontSize: 20, marginLeft: 8 },
-  choiceDesc:     { fontFamily: 'Manrope_400Regular', color: '#6b6880', fontSize: 12, lineHeight: 17 },
+    choicesCol:     { gap: 8 },
+    choiceCard:     { backgroundColor: C.pageBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 12 },
+    choiceRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
+    choiceLabel:    { fontFamily: 'Manrope_700Bold', color: C.text, fontSize: 14, flex: 1 },
+    choiceArrow:    { fontSize: 20, marginLeft: 8 },
+    choiceDesc:     { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 12, lineHeight: 17 },
 
-  selectedCard:   { backgroundColor: '#0f1220', borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 12 },
-  selectedLabel:  { fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 4 },
-  selectedDesc:   { fontFamily: 'Manrope_400Regular', color: '#6b6880', fontSize: 12, lineHeight: 17 },
-  consequenceRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  consequenceStat:{ fontFamily: 'Manrope_700Bold', fontSize: 12 },
+    selectedCard:   { backgroundColor: C.pageBg, borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 12 },
+    selectedLabel:  { fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 4 },
+    selectedDesc:   { fontFamily: 'Manrope_400Regular', color: C.mutedMid, fontSize: 12, lineHeight: 17 },
+    consequenceRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+    consequenceStat:{ fontFamily: 'Manrope_700Bold', fontSize: 12 },
 
-  confirmRow:     { flexDirection: 'row', gap: 10 },
-  backBtn:        { flex: 1, borderWidth: 1, borderColor: '#252840', borderRadius: 12, padding: 13, alignItems: 'center' },
-  backBtnText:    { fontFamily: 'Manrope_600SemiBold', color: '#9a958e', fontSize: 14 },
-  confirmBtn:     { flex: 2, borderRadius: 12 },
-  confirmBtnGrad: { padding: 13, alignItems: 'center', borderRadius: 12 },
-  confirmBtnText: { fontFamily: 'Manrope_800ExtraBold', color: '#0f1220', fontSize: 14 },
-});
+    confirmRow:     { flexDirection: 'row', gap: 10 },
+    backBtn:        { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 13, alignItems: 'center' },
+    backBtnText:    { fontFamily: 'Manrope_600SemiBold', color: C.muted, fontSize: 14 },
+    confirmBtn:     { flex: 2, borderRadius: 12 },
+    confirmBtnGrad: { padding: 13, alignItems: 'center', borderRadius: 12 },
+    confirmBtnText: { fontFamily: 'Manrope_800ExtraBold', color: C.goldBtnText, fontSize: 14 },
+  });
+}

@@ -1,20 +1,13 @@
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { Show } from '../../src/types';
 import { POSTER_BACKGROUNDS } from '../poster-creator';
-
-const C = {
-  pageBg: '#0f1220', cardBg: '#191c2a',
-  border: '#252840', borderGold: '#e6b25430',
-  text: '#f0ede8', muted: '#9a958e', mutedMid: '#6b6880',
-  gold: '#e6b254', goldDim: '#e6b25420',
-  green: '#4ec46e', amber: '#d4753a', red: '#c43820', teal: '#3db8a8',
-};
+import { useTheme } from '../../src/context/ThemeContext';
 
 const POSTER_W = 68;
 const POSTER_H = POSTER_W * 1.5; // 102
@@ -25,12 +18,31 @@ const FONT_MAP: Record<string, string> = {
   'manrope-light': 'Manrope_300Light',
 };
 
-// Scale factor: mini poster (68px) relative to full poster (SCREEN_WIDTH * 0.65 ≈ 253px)
 const SCALE = 68 / 253;
 
 function scaledSize(full: number, min = 5): number {
   return Math.max(min, Math.round(full * SCALE));
 }
+
+// Static poster-overlay styles — colors are hardcoded (overlay text on poster backgrounds)
+const posterStyles = StyleSheet.create({
+  miniPoster:        { width: POSTER_W, height: POSTER_H, borderRadius: 8, overflow: 'hidden' },
+  miniPresentsRow:   { alignItems: 'center', paddingTop: 5, paddingHorizontal: 4 },
+  miniPresents:      { fontFamily: 'Manrope_600SemiBold', color: '#ffffff77', fontSize: 5, letterSpacing: 1.2 },
+  miniCastBlock:     { position: 'absolute', left: 4, right: 4 },
+  miniCastTop:       { top: 18 },
+  miniCastBottom:    { bottom: 6 },
+  miniCast:          { fontFamily: 'Manrope_700Bold', fontSize: 5, letterSpacing: 1, textAlign: 'center' },
+  miniTextBlock:     { position: 'absolute', left: 5, right: 5 },
+  miniTextTop:       { top: 26 },
+  miniTextBottom:    { bottom: 10 },
+  miniTitle:         { letterSpacing: 0.3 },
+  miniSeason:        { fontFamily: 'Manrope_800ExtraBold', fontSize: 6, letterSpacing: 1.5, marginBottom: 2, marginTop: 1 },
+  miniTagline:       { fontFamily: 'Manrope_600SemiBold', color: '#ffffffaa', fontSize: 5.5, marginTop: 3, lineHeight: 7 },
+  miniNoPoster:      { flex: 1, justifyContent: 'flex-end', padding: 6 },
+  miniNoPosterText:  { fontFamily: 'Manrope_600SemiBold', color: '#ffffff66', fontSize: 5, letterSpacing: 1.2, textAlign: 'center', marginBottom: 4 },
+  miniNoPosterTitle: { fontFamily: 'BebasNeue_400Regular', color: '#ffffff55', fontSize: 11, letterSpacing: 0.5, lineHeight: 12 },
+});
 
 function MiniPoster({
   show, networkName, talent,
@@ -48,16 +60,16 @@ function MiniPoster({
 
   if (!config) {
     return (
-      <View style={styles.miniPoster}>
+      <View style={posterStyles.miniPoster}>
         {'render' in bg && bg.render
           ? bg.render(POSTER_W, POSTER_H)
           : <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
         }
-        <View style={[StyleSheet.absoluteFill, styles.miniNoPoster]}>
-          <Text style={styles.miniNoPosterText} numberOfLines={1}>
+        <View style={[StyleSheet.absoluteFill, posterStyles.miniNoPoster]}>
+          <Text style={posterStyles.miniNoPosterText} numberOfLines={1}>
             {networkName.toUpperCase()} PRESENTS
           </Text>
-          <Text style={styles.miniNoPosterTitle} numberOfLines={3}>
+          <Text style={posterStyles.miniNoPosterTitle} numberOfLines={3}>
             {show.title.toUpperCase()}
           </Text>
         </View>
@@ -65,7 +77,6 @@ function MiniPoster({
     );
   }
 
-  // Resolve cast names
   const leadNames = (season.leadActorIDs ?? [])
     .map(id => talent.find(t => t.id === id)?.name).filter(Boolean) as string[];
   const suppNames = (season.supportingActorIDs ?? [])
@@ -80,12 +91,11 @@ function MiniPoster({
   const titleAlign = config.titleAlignment ?? 'left';
   const seasonAlign = config.seasonAlignment ?? 'left';
 
-  // Title size: scale from full-poster pixel sizes
   const FULL_SIZES = { large: 50, medium: 36, small: 24 };
   const titlePx = scaledSize(FULL_SIZES[config.titleSize] ?? 50, 8);
 
   const seasonLabel = config.showSeasonNumber ? (
-    <Text style={[styles.miniSeason, { color: bg.accent, textAlign: seasonAlign }]}>
+    <Text style={[posterStyles.miniSeason, { color: bg.accent, textAlign: seasonAlign }]}>
       SEASON {season.seasonNumber}
     </Text>
   ) : null;
@@ -93,7 +103,7 @@ function MiniPoster({
   const titleEl = (
     <Text
       style={[
-        styles.miniTitle,
+        posterStyles.miniTitle,
         {
           color: config.titleColor,
           fontFamily: titleFont,
@@ -109,21 +119,21 @@ function MiniPoster({
   );
 
   const taglineEl = config.tagline?.trim() ? (
-    <Text style={[styles.miniTagline, { textAlign: titleAlign }]} numberOfLines={2}>
+    <Text style={[posterStyles.miniTagline, { textAlign: titleAlign }]} numberOfLines={2}>
       {config.tagline}
     </Text>
   ) : null;
 
   const castEl = castNames.length > 0 ? (
-    <Text style={[styles.miniCast, { color: bg.accent }]} numberOfLines={1}>
+    <Text style={[posterStyles.miniCast, { color: bg.accent }]} numberOfLines={1}>
       {castNames.join('  ·  ').toUpperCase()}
     </Text>
   ) : null;
 
   const textBlock = (
     <View style={[
-      styles.miniTextBlock,
-      config.titlePosition === 'top' ? styles.miniTextTop : styles.miniTextBottom,
+      posterStyles.miniTextBlock,
+      config.titlePosition === 'top' ? posterStyles.miniTextTop : posterStyles.miniTextBottom,
     ]}>
       {config.seasonPosition === 'above-title' ? seasonLabel : null}
       {titleEl}
@@ -134,24 +144,22 @@ function MiniPoster({
 
   const castBlock = castEl ? (
     <View style={[
-      styles.miniCastBlock,
-      config.castPosition === 'top' ? styles.miniCastTop : styles.miniCastBottom,
+      posterStyles.miniCastBlock,
+      config.castPosition === 'top' ? posterStyles.miniCastTop : posterStyles.miniCastBottom,
     ]}>
       {castEl}
     </View>
   ) : null;
 
   return (
-    <View style={styles.miniPoster}>
-      {/* Background — gradient or illustrated */}
+    <View style={posterStyles.miniPoster}>
       {'render' in bg && bg.render
         ? bg.render(POSTER_W, POSTER_H)
         : <LinearGradient colors={gradColors} style={StyleSheet.absoluteFill} />
       }
-      {/* Content overlay */}
       <View style={StyleSheet.absoluteFill}>
-        <View style={styles.miniPresentsRow}>
-          <Text style={styles.miniPresents} numberOfLines={1}>
+        <View style={posterStyles.miniPresentsRow}>
+          <Text style={posterStyles.miniPresents} numberOfLines={1}>
             {networkName.toUpperCase()} PRESENTS
           </Text>
         </View>
@@ -162,20 +170,11 @@ function MiniPoster({
   );
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  airing:            C.green,
-  filming:           C.teal,
-  writing:           '#5b8dee',
-  marketing:         C.amber,
-  'renewal-pending': C.gold,
-  completed:         C.muted,
-  cancelled:         C.red,
-};
-
 type Filter = 'all' | 'active' | 'ended';
 const ACTIVE_STATUSES = new Set(['writing', 'filming', 'marketing', 'airing', 'renewal-pending']);
 
 function FilmRibbonAmbient() {
+  const { C } = useTheme();
   return (
     <Image
       source={require('../../assets/tvbg.png')}
@@ -205,7 +204,6 @@ function getShowStats(show: Show) {
   let totalViewers = 0;
   let bestRating = 0;
   let totalEpisodesAired = 0;
-
   for (const season of show.seasons) {
     totalRevenue += season.totalAdRevenue + season.streamingRevenue;
     totalViewers += season.totalViewers;
@@ -216,15 +214,27 @@ function getShowStats(show: Show) {
       }
     }
   }
-
   return { totalRevenue, totalViewers, bestRating, totalEpisodesAired };
 }
 
 function ShowCard({ show, onPress, networkName, talent }: {
   show: Show; onPress: () => void; networkName: string; talent: { id: string; name: string }[];
 }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
+
+  const statusColors: Record<string, string> = {
+    airing:            C.green,
+    filming:           C.teal,
+    writing:           '#5b8dee',
+    marketing:         C.amber,
+    'renewal-pending': C.gold,
+    completed:         C.muted,
+    cancelled:         C.red,
+  };
+
   const season = show.seasons[show.currentSeasonIndex];
-  const statusColor = STATUS_COLORS[show.status] ?? C.muted;
+  const statusColor = statusColors[show.status] ?? C.muted;
   const statusLabel = show.status.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
   const stats = getShowStats(show);
   const isActive = ACTIVE_STATUSES.has(show.status);
@@ -239,51 +249,47 @@ function ShowCard({ show, onPress, networkName, talent }: {
   }
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
-      <View style={styles.cardInner}>
-
-        {/* Mini poster */}
-        <View style={styles.posterCol}>
+    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
+      <View style={s.cardInner}>
+        <View style={s.posterCol}>
           <MiniPoster show={show} networkName={networkName} talent={talent} />
         </View>
-
-        {/* Show info */}
-        <View style={styles.contentCol}>
-          <View style={styles.cardTop}>
+        <View style={s.contentCol}>
+          <View style={s.cardTop}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.showTitle} numberOfLines={1}>{show.title}</Text>
-              <Text style={styles.showMeta}>
+              <Text style={s.showTitle} numberOfLines={1}>{show.title}</Text>
+              <Text style={s.showMeta}>
                 {show.genre.charAt(0).toUpperCase() + show.genre.slice(1)}
                 {' · '}{show.theme.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-')}
                 {seasonCount > 1 ? ` · ${seasonCount}S` : ' · S1'}
                 {!show.inHouse ? ' · Pitch' : ''}
               </Text>
             </View>
-            <View style={[styles.statusPill, { backgroundColor: statusColor + '22', borderColor: statusColor }]}>
-              <Text style={[styles.statusText, { color: statusColor }]}>● {statusLabel}</Text>
+            <View style={[s.statusPill, { backgroundColor: statusColor + '22', borderColor: statusColor }]}>
+              <Text style={[s.statusText, { color: statusColor }]}>● {statusLabel}</Text>
             </View>
           </View>
 
           {isActive && ['writing', 'filming', 'marketing'].includes(show.status) && (
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progressPct}%` as any, backgroundColor: statusColor }]} />
+            <View style={s.progressTrack}>
+              <View style={[s.progressFill, { width: `${progressPct}%` as any, backgroundColor: statusColor }]} />
             </View>
           )}
 
           {(show.status === 'airing' || show.status === 'renewal-pending') && season && (
-            <View style={styles.dotRow}>
+            <View style={s.dotRow}>
               {Array.from({ length: season.episodeCount }, (_, i) => {
                 const ep = season.episodes[i];
                 let color = C.border;
                 if (ep?.rating !== null && ep?.rating !== undefined) {
                   color = ep.rating >= 8 ? '#2d8a5e' : ep.rating >= 6.5 ? '#5a9e45' : ep.rating >= 5 ? '#c8a135' : '#c04040';
                 }
-                return <View key={i} style={[styles.dot, { backgroundColor: color }]} />;
+                return <View key={i} style={[s.dot, { backgroundColor: color }]} />;
               })}
             </View>
           )}
 
-          <View style={styles.statsRow}>
+          <View style={s.statsRow}>
             <StatItem label="Ad Rev"   value={stats.totalRevenue > 0 ? fmt(stats.totalRevenue) : '—'} />
             <StatItem label="Viewers"  value={stats.totalViewers > 0 ? fmtViewers(stats.totalViewers) : '—'} />
             <StatItem label="Best Ep"  value={stats.bestRating > 0 ? stats.bestRating.toFixed(1) : '—'} />
@@ -296,10 +302,12 @@ function ShowCard({ show, onPress, networkName, talent }: {
 }
 
 function StatItem({ label, value }: { label: string; value: string }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   return (
-    <View style={styles.statItem}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View style={s.statItem}>
+      <Text style={s.statValue}>{value}</Text>
+      <Text style={s.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -307,6 +315,8 @@ function StatItem({ label, value }: { label: string; value: string }) {
 export default function ShowsScreen() {
   const router = useRouter();
   const { shows, network, talent } = useGameStore();
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const [filter, setFilter] = useState<Filter>('all');
 
   const filtered = shows.filter(show => {
@@ -321,25 +331,25 @@ export default function ShowsScreen() {
   };
   const sorted = [...filtered].sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
 
-  const activeCount = shows.filter(s => ACTIVE_STATUSES.has(s.status)).length;
-  const endedCount  = shows.filter(s => s.status === 'completed' || s.status === 'cancelled').length;
+  const activeCount = shows.filter(sh => ACTIVE_STATUSES.has(sh.status)).length;
+  const endedCount  = shows.filter(sh => sh.status === 'completed' || sh.status === 'cancelled').length;
 
   return (
-    <SafeAreaView edges={['top']} style={styles.container}>
+    <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient
-        colors={['#131829', '#0f1220', '#0a0d18']}
+        colors={[C.gradientTop, C.gradientMid, C.gradientBot]}
         style={StyleSheet.absoluteFill}
       />
       <FilmRibbonAmbient />
 
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Shows</Text>
+      <View style={s.header}>
+        <Text style={s.headerTitle}>Shows</Text>
         <TouchableOpacity onPress={() => router.push('/create-show')}>
-          <Text style={styles.newShow}>+ New</Text>
+          <Text style={s.newShow}>+ New</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.filterRow}>
+      <View style={s.filterRow}>
         {([
           ['all',    `All (${shows.length})`],
           ['active', `Active (${activeCount})`],
@@ -347,10 +357,10 @@ export default function ShowsScreen() {
         ] as [Filter, string][]).map(([val, label]) => (
           <TouchableOpacity
             key={val}
-            style={[styles.filterTab, filter === val && styles.filterTabActive]}
+            style={[s.filterTab, filter === val && s.filterTabActive]}
             onPress={() => setFilter(val)}
           >
-            <Text style={[styles.filterTabText, filter === val && styles.filterTabTextActive]}>
+            <Text style={[s.filterTabText, filter === val && s.filterTabTextActive]}>
               {label}
             </Text>
           </TouchableOpacity>
@@ -358,13 +368,13 @@ export default function ShowsScreen() {
       </View>
 
       {sorted.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>
+        <View style={s.empty}>
+          <Text style={s.emptyText}>
             {filter === 'all' ? 'No shows yet.' : `No ${filter} shows.`}
           </Text>
           {filter !== 'ended' && (
             <TouchableOpacity onPress={() => router.push('/create-show')}>
-              <Text style={[styles.emptyText, { color: C.gold, marginTop: 8 }]}>
+              <Text style={[s.emptyText, { color: C.gold, marginTop: 8 }]}>
                 + Create your first show
               </Text>
             </TouchableOpacity>
@@ -373,8 +383,8 @@ export default function ShowsScreen() {
       ) : (
         <FlatList
           data={sorted}
-          keyExtractor={s => s.id}
-          contentContainerStyle={styles.list}
+          keyExtractor={sh => sh.id}
+          contentContainerStyle={s.list}
           renderItem={({ item }) => (
             <ShowCard
               show={item}
@@ -389,65 +399,45 @@ export default function ShowsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container:           { flex: 1, backgroundColor: C.pageBg },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    container:           { flex: 1, backgroundColor: C.pageBg },
 
-  header:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
-  headerTitle:         { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 1 },
-  newShow:             { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+    header:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+    headerTitle:         { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 1 },
+    newShow:             { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
 
-  filterRow:           { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-  filterTab:           { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
-  filterTabActive:     { borderColor: C.gold, backgroundColor: C.goldDim },
-  filterTabText:       { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
-  filterTabTextActive: { color: C.gold },
+    filterRow:           { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
+    filterTab:           { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
+    filterTabActive:     { borderColor: C.gold, backgroundColor: C.goldDim },
+    filterTabText:       { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
+    filterTabTextActive: { color: C.gold },
 
-  list:                { padding: 12, gap: 10 },
+    list:                { padding: 12, gap: 10 },
 
-  card:                { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 12 },
-  cardInner:           { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
-  posterCol:           { width: POSTER_W },
-  contentCol:          { flex: 1, minWidth: 0 },
+    card:                { backgroundColor: C.cardBg, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 12 },
+    cardInner:           { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
+    posterCol:           { width: POSTER_W },
+    contentCol:          { flex: 1, minWidth: 0 },
 
-  // Mini poster
-  miniPoster:          { width: POSTER_W, height: POSTER_H, borderRadius: 8, overflow: 'hidden' },
+    cardTop:             { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
+    showTitle:           { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 2 },
+    showMeta:            { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11 },
+    statusPill:          { borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
+    statusText:          { fontFamily: 'Manrope_600SemiBold', fontSize: 11 },
 
-  miniPresentsRow:     { alignItems: 'center', paddingTop: 5, paddingHorizontal: 4 },
-  miniPresents:        { fontFamily: 'Manrope_600SemiBold', color: '#ffffff77', fontSize: 5, letterSpacing: 1.2 },
+    progressTrack:       { height: 3, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden', marginBottom: 10 },
+    progressFill:        { height: '100%' as any, borderRadius: 2 },
 
-  miniCastBlock:       { position: 'absolute', left: 4, right: 4 },
-  miniCastTop:         { top: 18 },
-  miniCastBottom:      { bottom: 6 },
-  miniCast:            { fontFamily: 'Manrope_700Bold', fontSize: 5, letterSpacing: 1, textAlign: 'center' },
+    dotRow:              { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 10 },
+    dot:                 { width: 18, height: 18, borderRadius: 3 },
 
-  miniTextBlock:       { position: 'absolute', left: 5, right: 5 },
-  miniTextTop:         { top: 26 },
-  miniTextBottom:      { bottom: 10 },
-  miniTitle:           { letterSpacing: 0.3 },
-  miniSeason:          { fontFamily: 'Manrope_800ExtraBold', fontSize: 6, letterSpacing: 1.5, marginBottom: 2, marginTop: 1 },
-  miniTagline:         { fontFamily: 'Manrope_600SemiBold', color: '#ffffffaa', fontSize: 5.5, marginTop: 3, lineHeight: 7 },
+    statsRow:            { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 10, borderTopWidth: 1, borderTopColor: C.border },
+    statItem:            { alignItems: 'center' },
+    statValue:           { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14 },
+    statLabel:           { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11, marginTop: 2 },
 
-  miniNoPoster:        { flex: 1, justifyContent: 'flex-end', padding: 6 },
-  miniNoPosterText:    { fontFamily: 'Manrope_600SemiBold', color: '#ffffff66', fontSize: 5, letterSpacing: 1.2, textAlign: 'center', marginBottom: 4 },
-  miniNoPosterTitle:   { fontFamily: 'BebasNeue_400Regular', color: '#ffffff55', fontSize: 11, letterSpacing: 0.5, lineHeight: 12 },
-
-  cardTop:             { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
-  showTitle:           { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14, marginBottom: 2 },
-  showMeta:            { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11 },
-  statusPill:          { borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
-  statusText:          { fontFamily: 'Manrope_600SemiBold', fontSize: 11 },
-
-  progressTrack:       { height: 3, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden', marginBottom: 10 },
-  progressFill:        { height: '100%', borderRadius: 2 },
-
-  dotRow:              { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 10 },
-  dot:                 { width: 18, height: 18, borderRadius: 3 },
-
-  statsRow:            { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 10, borderTopWidth: 1, borderTopColor: C.border },
-  statItem:            { alignItems: 'center' },
-  statValue:           { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14 },
-  statLabel:           { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11, marginTop: 2 },
-
-  empty:               { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyText:           { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 15, textAlign: 'center' },
-});
+    empty:               { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+    emptyText:           { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 15, textAlign: 'center' },
+  });
+}

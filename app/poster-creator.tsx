@@ -5,21 +5,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useState, type ReactElement } from 'react';
+import { useState, useMemo, type ReactElement } from 'react';
 import { useGameStore } from '../src/store/gameStore';
 import { PosterConfig } from '../src/types';
-
-const C = {
-  pageBg:   '#0f1220',
-  cardBg:   '#191c2a',
-  border:   '#252840',
-  text:     '#f0ede8',
-  muted:    '#9a958e',
-  mutedMid: '#6b6880',
-  gold:     '#e6b254',
-  goldDim:  '#e6b25420',
-  goldText: '#161008',
-};
+import { useTheme } from '../src/context/ThemeContext';
 
 const F = {
   display:  'BebasNeue_400Regular',
@@ -696,8 +685,11 @@ function PosterPreview({ config, title, seasonNumber, studioName, castNames, pos
   posterWidth: number;
   posterHeight: number;
 }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
+
   const bg = POSTER_BACKGROUNDS.find(b => b.id === config.backgroundID) ?? POSTER_BACKGROUNDS[0];
-  const sizeEntry = TITLE_SIZES.find(s => s.value === config.titleSize) ?? TITLE_SIZES[2];
+  const sizeEntry = TITLE_SIZES.find(it => it.value === config.titleSize) ?? TITLE_SIZES[2];
   const fontEntry = TITLE_FONTS.find(f => f.value === config.titleFont) ?? TITLE_FONTS[0];
 
   const titleAlign = config.titleAlignment;
@@ -705,7 +697,7 @@ function PosterPreview({ config, title, seasonNumber, studioName, castNames, pos
 
   const seasonLabel = (
     config.showSeasonNumber
-      ? <Text style={[st.posterSeason, { color: bg.accent, textAlign: seasonAlign }]}>
+      ? <Text style={[s.posterSeason, { color: bg.accent, textAlign: seasonAlign }]}>
           SEASON {seasonNumber}
         </Text>
       : null
@@ -714,7 +706,7 @@ function PosterPreview({ config, title, seasonNumber, studioName, castNames, pos
   const titleText = (
     <Text
       style={[
-        st.posterTitle,
+        s.posterTitle,
         {
           color: config.titleColor,
           fontSize: sizeEntry.fontSize,
@@ -731,14 +723,14 @@ function PosterPreview({ config, title, seasonNumber, studioName, castNames, pos
 
   const mainBlock = (
     <View style={[
-      st.posterTextBlock,
-      config.titlePosition === 'top' ? st.posterTextTop : st.posterTextBottom,
+      s.posterTextBlock,
+      config.titlePosition === 'top' ? s.posterTextTop : s.posterTextBottom,
     ]}>
       {config.seasonPosition === 'above-title' && seasonLabel}
       {titleText}
       {config.seasonPosition === 'below-title' && seasonLabel}
       {config.tagline.trim().length > 0 && (
-        <Text style={[st.posterTagline, { textAlign: titleAlign }]} numberOfLines={2}>
+        <Text style={[s.posterTagline, { textAlign: titleAlign }]} numberOfLines={2}>
           {config.tagline}
         </Text>
       )}
@@ -747,17 +739,17 @@ function PosterPreview({ config, title, seasonNumber, studioName, castNames, pos
 
   const castBlock = castNames.length > 0 ? (
     <View style={[
-      st.posterCast,
-      config.castPosition === 'top' ? st.posterCastTop : st.posterCastBottom,
+      s.posterCast,
+      config.castPosition === 'top' ? s.posterCastTop : s.posterCastBottom,
     ]}>
-      <Text style={[st.posterCastText, { color: bg.accent }]}>
+      <Text style={[s.posterCastText, { color: bg.accent }]}>
         {castNames.join('  ·  ').toUpperCase()}
       </Text>
     </View>
   ) : null;
 
   return (
-    <View style={[st.posterFrame, { width: posterWidth, height: posterHeight }]}>
+    <View style={[s.posterFrame, { width: posterWidth, height: posterHeight }]}>
       {/* Background — gradient or illustrated */}
       {'render' in bg && bg.render
         ? bg.render(posterWidth, posterHeight)
@@ -765,8 +757,8 @@ function PosterPreview({ config, title, seasonNumber, studioName, castNames, pos
       }
       {/* Content overlay (all children are already position:absolute) */}
       <View style={StyleSheet.absoluteFill}>
-        <View style={st.posterPresents}>
-          <Text style={st.posterPresentsText}>{studioName.toUpperCase()} PRESENTS</Text>
+        <View style={s.posterPresents}>
+          <Text style={s.posterPresentsText}>{studioName.toUpperCase()} PRESENTS</Text>
         </View>
         {castBlock}
         {mainBlock}
@@ -785,15 +777,18 @@ function ToggleRow<T extends string>({
   value: T;
   onSelect: (v: T) => void;
 }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
+
   return (
-    <View style={st.toggleRow}>
+    <View style={s.toggleRow}>
       {options.map(opt => (
         <TouchableOpacity
           key={opt.value}
-          style={[st.toggleBtn, value === opt.value && st.toggleBtnActive]}
+          style={[s.toggleBtn, value === opt.value && s.toggleBtnActive]}
           onPress={() => onSelect(opt.value)}
         >
-          <Text style={[st.toggleBtnText, value === opt.value && st.toggleBtnTextActive]}>
+          <Text style={[s.toggleBtnText, value === opt.value && s.toggleBtnTextActive]}>
             {opt.label}
           </Text>
         </TouchableOpacity>
@@ -804,6 +799,9 @@ function ToggleRow<T extends string>({
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function PosterCreatorScreen() {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
+
   const { width: screenWidth } = useWindowDimensions();
   const POSTER_WIDTH  = screenWidth * 0.65;
   const POSTER_HEIGHT = POSTER_WIDTH * 1.5;
@@ -814,7 +812,7 @@ export default function PosterCreatorScreen() {
   }>();
 
   const { shows, network, talent } = useGameStore();
-  const show = shows.find(s => s.id === showID);
+  const show = shows.find(sh => sh.id === showID);
   const season = show?.seasons[show.currentSeasonIndex];
 
   const [config, setConfig] = useState<PosterConfig>(() => ({
@@ -824,8 +822,8 @@ export default function PosterCreatorScreen() {
 
   if (!show || !season) {
     return (
-      <SafeAreaView edges={['top']} style={st.container}>
-        <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
+      <SafeAreaView edges={['top']} style={s.container}>
+        <LinearGradient colors={[C.gradientTop, C.gradientMid]} style={StyleSheet.absoluteFill} />
         <Text style={{ color: C.muted, padding: 32, fontFamily: F.body }}>Show not found.</Text>
       </SafeAreaView>
     );
@@ -855,10 +853,10 @@ export default function PosterCreatorScreen() {
 
   function handleConfirm() {
     // Inline the posterConfig save — write directly to store state
-    const showID = show!.id;
-    useGameStore.setState(s => ({
-      shows: s.shows.map(sh => {
-        if (sh.id !== showID) return sh;
+    const currentShowID = show!.id;
+    useGameStore.setState(store => ({
+      shows: store.shows.map(sh => {
+        if (sh.id !== currentShowID) return sh;
         return {
           ...sh,
           seasons: sh.seasons.map((se, i) =>
@@ -867,7 +865,7 @@ export default function PosterCreatorScreen() {
         };
       }),
     }));
-    useGameStore.getState().setAirDate(showID, Number(targetWeek), Number(targetYear));
+    useGameStore.getState().setAirDate(currentShowID, Number(targetWeek), Number(targetYear));
     router.back();
   }
 
@@ -879,22 +877,22 @@ export default function PosterCreatorScreen() {
   const seasonNumber = season.seasonNumber;
 
   return (
-    <LinearGradient colors={['#141726', '#0c0f1a', '#070a12']} locations={[0, 0.55, 1]} style={{ flex: 1 }}>
-      <SafeAreaView edges={['top']} style={st.safeArea}>
+    <LinearGradient colors={[C.gradientTop, C.gradientMid, C.gradientBot]} locations={[0, 0.55, 1]} style={{ flex: 1 }}>
+      <SafeAreaView edges={['top']} style={s.safeArea}>
 
         {/* Header */}
-        <View style={st.header}>
+        <View style={s.header}>
           <TouchableOpacity onPress={handleSkip} style={{ width: 60 }}>
-            <Text style={st.skipText}>Skip</Text>
+            <Text style={s.skipText}>Skip</Text>
           </TouchableOpacity>
-          <Text style={st.headerTitle}>DESIGN POSTER</Text>
+          <Text style={s.headerTitle}>DESIGN POSTER</Text>
           <View style={{ width: 60 }} />
         </View>
 
-        <ScrollView style={st.scroll} contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
           {/* Centered preview */}
-          <View style={st.previewCenter}>
+          <View style={s.previewCenter}>
             <PosterPreview
               config={config}
               title={show.title}
@@ -907,26 +905,26 @@ export default function PosterCreatorScreen() {
           </View>
 
           {/* Background picker */}
-          <Text style={st.sectionLabel}>BACKGROUND</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={st.bgScroll} contentContainerStyle={{ gap: 10, paddingHorizontal: 16 }}>
+          <Text style={s.sectionLabel}>BACKGROUND</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.bgScroll} contentContainerStyle={{ gap: 10, paddingHorizontal: 16 }}>
             {POSTER_BACKGROUNDS.map(bg => {
               const selected = config.backgroundID === bg.id;
               return (
                 <TouchableOpacity key={bg.id} onPress={() => update({ backgroundID: bg.id })} activeOpacity={0.8}>
-                  <View style={[st.bgSwatch, selected && { borderColor: C.gold, borderWidth: 2 }, { overflow: 'hidden' }]}>
+                  <View style={[s.bgSwatch, selected && { borderColor: C.gold, borderWidth: 2 }, { overflow: 'hidden' }]}>
                     {'render' in bg && bg.render
                       ? bg.render(64, 96)
                       : <LinearGradient colors={[...bg.colors] as [string, string, ...string[]]} style={StyleSheet.absoluteFill} />
                     }
                   </View>
-                  <Text style={[st.bgLabel, selected && { color: C.gold }]}>{bg.name}</Text>
+                  <Text style={[s.bgLabel, selected && { color: C.gold }]}>{bg.name}</Text>
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
 
           {/* Title position */}
-          <Text style={st.sectionLabel}>TITLE POSITION</Text>
+          <Text style={s.sectionLabel}>TITLE POSITION</Text>
           <ToggleRow
             options={[{ label: 'TOP', value: 'top' }, { label: 'BOTTOM', value: 'bottom' }]}
             value={config.titlePosition}
@@ -934,7 +932,7 @@ export default function PosterCreatorScreen() {
           />
 
           {/* Title font */}
-          <Text style={st.sectionLabel}>TITLE FONT</Text>
+          <Text style={s.sectionLabel}>TITLE FONT</Text>
           <ToggleRow
             options={TITLE_FONTS.map(f => ({ label: f.label, value: f.value }))}
             value={config.titleFont}
@@ -942,15 +940,15 @@ export default function PosterCreatorScreen() {
           />
 
           {/* Title size */}
-          <Text style={st.sectionLabel}>TITLE SIZE</Text>
+          <Text style={s.sectionLabel}>TITLE SIZE</Text>
           <ToggleRow
-            options={TITLE_SIZES.map(s => ({ label: s.label, value: s.value }))}
+            options={TITLE_SIZES.map(it => ({ label: it.label, value: it.value }))}
             value={config.titleSize}
             onSelect={v => update({ titleSize: v })}
           />
 
           {/* Title alignment */}
-          <Text style={st.sectionLabel}>TITLE ALIGNMENT</Text>
+          <Text style={s.sectionLabel}>TITLE ALIGNMENT</Text>
           <ToggleRow
             options={ALIGN_OPTIONS}
             value={config.titleAlignment}
@@ -958,20 +956,20 @@ export default function PosterCreatorScreen() {
           />
 
           {/* Title color */}
-          <Text style={st.sectionLabel}>TITLE COLOR</Text>
-          <View style={st.colorRow}>
+          <Text style={s.sectionLabel}>TITLE COLOR</Text>
+          <View style={s.colorRow}>
             {TITLE_COLORS.map(col => (
               <TouchableOpacity
                 key={col.value}
                 onPress={() => update({ titleColor: col.value })}
-                style={[st.colorSwatch, { backgroundColor: col.value }, config.titleColor === col.value && st.colorSwatchSelected]}
+                style={[s.colorSwatch, { backgroundColor: col.value }, config.titleColor === col.value && s.colorSwatchSelected]}
               />
             ))}
           </View>
 
           {/* Season number */}
-          <View style={st.switchRow}>
-            <Text style={st.switchLabel}>Show Season Number</Text>
+          <View style={s.switchRow}>
+            <Text style={s.switchLabel}>Show Season Number</Text>
             <Switch
               value={config.showSeasonNumber}
               onValueChange={v => update({ showSeasonNumber: v })}
@@ -982,13 +980,13 @@ export default function PosterCreatorScreen() {
 
           {config.showSeasonNumber && (
             <>
-              <Text style={st.sectionLabel}>SEASON NUMBER POSITION</Text>
+              <Text style={s.sectionLabel}>SEASON NUMBER POSITION</Text>
               <ToggleRow
                 options={[{ label: 'ABOVE TITLE', value: 'above-title' }, { label: 'BELOW TITLE', value: 'below-title' }]}
                 value={config.seasonPosition}
                 onSelect={v => update({ seasonPosition: v })}
               />
-              <Text style={st.sectionLabel}>SEASON NUMBER ALIGNMENT</Text>
+              <Text style={s.sectionLabel}>SEASON NUMBER ALIGNMENT</Text>
               <ToggleRow
                 options={ALIGN_OPTIONS}
                 value={config.seasonAlignment}
@@ -1000,7 +998,7 @@ export default function PosterCreatorScreen() {
           {/* Cast billing */}
           {castNames.length > 0 && (
             <>
-              <Text style={st.sectionLabel}>CAST BILLING POSITION</Text>
+              <Text style={s.sectionLabel}>CAST BILLING POSITION</Text>
               <ToggleRow
                 options={[{ label: 'TOP', value: 'top' }, { label: 'BOTTOM', value: 'bottom' }]}
                 value={config.castPosition}
@@ -1010,26 +1008,26 @@ export default function PosterCreatorScreen() {
           )}
 
           {/* Tagline */}
-          <Text style={st.sectionLabel}>TAGLINE (OPTIONAL)</Text>
+          <Text style={s.sectionLabel}>TAGLINE (OPTIONAL)</Text>
           <TextInput
-            style={st.taglineInput}
+            style={s.taglineInput}
             value={config.tagline}
             onChangeText={v => update({ tagline: v })}
             placeholder="Add a tagline…"
             placeholderTextColor={C.mutedMid}
             maxLength={60}
           />
-          <Text style={st.charCount}>{config.tagline.length}/60</Text>
+          <Text style={s.charCount}>{config.tagline.length}/60</Text>
 
           {/* Confirm button */}
-          <TouchableOpacity style={st.confirmBtn} onPress={handleConfirm} activeOpacity={0.88}>
+          <TouchableOpacity style={s.confirmBtn} onPress={handleConfirm} activeOpacity={0.88}>
             <LinearGradient
-              colors={['#f0c060', '#c49440']}
+              colors={['#f0c060', C.goldMid]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={st.confirmBtnGrad}
+              style={s.confirmBtnGrad}
             >
-              <Text style={st.confirmBtnText}>CONFIRM & SET PREMIERE DATE</Text>
+              <Text style={s.confirmBtnText}>CONFIRM & SET PREMIERE DATE</Text>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -1040,102 +1038,104 @@ export default function PosterCreatorScreen() {
   );
 }
 
-const st = StyleSheet.create({
-  safeArea:  { flex: 1 },
-  container: { flex: 1, backgroundColor: C.pageBg },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    safeArea:  { flex: 1 },
+    container: { flex: 1, backgroundColor: C.pageBg },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-  },
-  skipText:    { fontFamily: F.bodyMd, color: C.muted, fontSize: 14 },
-  headerTitle: { fontFamily: F.display, color: C.text, fontSize: 24, letterSpacing: 3 },
+    header: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12,
+      borderBottomWidth: 1, borderBottomColor: C.border,
+    },
+    skipText:    { fontFamily: F.bodyMd, color: C.muted, fontSize: 14 },
+    headerTitle: { fontFamily: F.display, color: C.text, fontSize: 24, letterSpacing: 3 },
 
-  scroll:        { flex: 1 },
-  scrollContent: { paddingBottom: 24 },
+    scroll:        { flex: 1 },
+    scrollContent: { paddingBottom: 24 },
 
-  // ── Centered preview ─────────────────────────────────────────────────────────
-  previewCenter: {
-    alignItems: 'center', paddingVertical: 24,
-  },
-  posterFrame: {
-    borderRadius: 12, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6, shadowRadius: 20, elevation: 16,
-  },
-  posterGradient: { flex: 1 },
+    // ── Centered preview ─────────────────────────────────────────────────────────
+    previewCenter: {
+      alignItems: 'center', paddingVertical: 24,
+    },
+    posterFrame: {
+      borderRadius: 12, overflow: 'hidden',
+      shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.6, shadowRadius: 20, elevation: 16,
+    },
+    posterGradient: { flex: 1 },
 
-  // Studio presents strip
-  posterPresents: {
-    position: 'absolute', top: 10, left: 0, right: 0, alignItems: 'center',
-  },
-  posterPresentsText: {
-    fontFamily: F.bodyMd, color: '#ffffff88', fontSize: 8, letterSpacing: 2,
-  },
+    // Studio presents strip
+    posterPresents: {
+      position: 'absolute', top: 10, left: 0, right: 0, alignItems: 'center',
+    },
+    posterPresentsText: {
+      fontFamily: F.bodyMd, color: '#ffffff88', fontSize: 8, letterSpacing: 2,
+    },
 
-  // Cast billing
-  posterCast: {
-    position: 'absolute', left: 12, right: 12,
-  },
-  posterCastTop:    { top: 28 },
-  posterCastBottom: { bottom: 10 },
-  posterCastText: {
-    fontFamily: F.bodyBd, fontSize: 8, letterSpacing: 1.5, textAlign: 'center',
-  },
+    // Cast billing
+    posterCast: {
+      position: 'absolute', left: 12, right: 12,
+    },
+    posterCastTop:    { top: 28 },
+    posterCastBottom: { bottom: 10 },
+    posterCastText: {
+      fontFamily: F.bodyBd, fontSize: 8, letterSpacing: 1.5, textAlign: 'center',
+    },
 
-  // Title block
-  posterTextBlock:  { position: 'absolute', left: 12, right: 12 },
-  posterTextTop:    { top: 48 },
-  posterTextBottom: { bottom: 20 },
-  posterTitle:      { letterSpacing: 1 },
-  posterSeason: {
-    fontFamily: F.bodyXBd, fontSize: 8, letterSpacing: 2,
-    marginBottom: 3, marginTop: 3,
-  },
-  posterTagline: {
-    fontFamily: F.bodyMd, color: '#ffffffaa', fontSize: 9,
-    marginTop: 5, lineHeight: 13, letterSpacing: 0.3,
-  },
+    // Title block
+    posterTextBlock:  { position: 'absolute', left: 12, right: 12 },
+    posterTextTop:    { top: 48 },
+    posterTextBottom: { bottom: 20 },
+    posterTitle:      { letterSpacing: 1 },
+    posterSeason: {
+      fontFamily: F.bodyXBd, fontSize: 8, letterSpacing: 2,
+      marginBottom: 3, marginTop: 3,
+    },
+    posterTagline: {
+      fontFamily: F.bodyMd, color: '#ffffffaa', fontSize: 9,
+      marginTop: 5, lineHeight: 13, letterSpacing: 0.3,
+    },
 
-  // ── Controls ─────────────────────────────────────────────────────────────────
-  sectionLabel: {
-    fontFamily: F.bodyXBd, color: C.muted, fontSize: 10,
-    letterSpacing: 1.5, paddingHorizontal: 16, marginTop: 20, marginBottom: 10,
-  },
+    // ── Controls ─────────────────────────────────────────────────────────────────
+    sectionLabel: {
+      fontFamily: F.bodyXBd, color: C.muted, fontSize: 10,
+      letterSpacing: 1.5, paddingHorizontal: 16, marginTop: 20, marginBottom: 10,
+    },
 
-  bgScroll: { marginBottom: 4 },
-  bgSwatch: {
-    width: 64, height: 96, borderRadius: 8,
-    borderWidth: 1, borderColor: C.border,
-  },
-  bgLabel: { fontFamily: F.bodyMd, color: C.mutedMid, fontSize: 10, textAlign: 'center', marginTop: 5 },
+    bgScroll: { marginBottom: 4 },
+    bgSwatch: {
+      width: 64, height: 96, borderRadius: 8,
+      borderWidth: 1, borderColor: C.border,
+    },
+    bgLabel: { fontFamily: F.bodyMd, color: C.mutedMid, fontSize: 10, textAlign: 'center', marginTop: 5 },
 
-  toggleRow:           { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
-  toggleBtn:           { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg, alignItems: 'center' },
-  toggleBtnActive:     { borderColor: C.gold, backgroundColor: C.goldDim },
-  toggleBtnText:       { fontFamily: F.bodyBd, color: C.mutedMid, fontSize: 12 },
-  toggleBtnTextActive: { color: C.gold },
+    toggleRow:           { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
+    toggleBtn:           { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg, alignItems: 'center' },
+    toggleBtnActive:     { borderColor: C.gold, backgroundColor: C.goldDim },
+    toggleBtnText:       { fontFamily: F.bodyBd, color: C.mutedMid, fontSize: 12 },
+    toggleBtnTextActive: { color: C.gold },
 
-  colorRow:            { flexDirection: 'row', gap: 14, paddingHorizontal: 16 },
-  colorSwatch:         { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: 'transparent' },
-  colorSwatchSelected: { borderColor: C.gold },
+    colorRow:            { flexDirection: 'row', gap: 14, paddingHorizontal: 16 },
+    colorSwatch:         { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: 'transparent' },
+    colorSwatchSelected: { borderColor: C.gold },
 
-  switchRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, marginTop: 20,
-    backgroundColor: C.cardBg, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border,
-    paddingVertical: 14,
-  },
-  switchLabel: { fontFamily: F.bodyMd, color: C.text, fontSize: 15 },
+    switchRow: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 16, marginTop: 20,
+      backgroundColor: C.cardBg, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.border,
+      paddingVertical: 14,
+    },
+    switchLabel: { fontFamily: F.bodyMd, color: C.text, fontSize: 15 },
 
-  taglineInput: {
-    marginHorizontal: 16, backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border,
-    borderRadius: 12, padding: 14, color: C.text, fontFamily: F.body, fontSize: 15,
-  },
-  charCount: { fontFamily: F.body, color: C.mutedMid, fontSize: 11, textAlign: 'right', paddingRight: 16, marginTop: 4 },
+    taglineInput: {
+      marginHorizontal: 16, backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border,
+      borderRadius: 12, padding: 14, color: C.text, fontFamily: F.body, fontSize: 15,
+    },
+    charCount: { fontFamily: F.body, color: C.mutedMid, fontSize: 11, textAlign: 'right', paddingRight: 16, marginTop: 4 },
 
-  confirmBtn:     { marginHorizontal: 16, marginTop: 28, borderRadius: 14 },
-  confirmBtnGrad: { padding: 16, alignItems: 'center', borderRadius: 14 },
-  confirmBtnText: { fontFamily: F.bodyXBd, color: C.goldText, fontSize: 15, letterSpacing: 0.5 },
-});
+    confirmBtn:     { marginHorizontal: 16, marginTop: 28, borderRadius: 14 },
+    confirmBtnGrad: { padding: 16, alignItems: 'center', borderRadius: 14 },
+    confirmBtnText: { fontFamily: F.bodyXBd, color: C.goldBtnText, fontSize: 15, letterSpacing: 0.5 },
+  });
+}

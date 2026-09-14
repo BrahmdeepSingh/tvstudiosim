@@ -7,8 +7,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import type { Episode, Show } from '../../src/types';
 
-// ── Design tokens (newspaper palette) ────────────────────────────────────────
-const C = {
+// Intentional fixed newspaper palette — does not change with app theme
+const PAPER = {
   paper:      '#f5f0e8',
   paperDark:  '#e8e2d4',
   ink:        '#1a1612',
@@ -233,7 +233,7 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
                         <View style={[s.statStrip, s.multiStatStrip]}>
                           <View style={s.statCell}>
                             <Text style={s.statLabel}>RATING</Text>
-                            <Text style={[s.statValue, { color: C.ink }]}>
+                            <Text style={[s.statValue, { color: PAPER.ink }]}>
                               {ae.episode.rating?.toFixed(1)}
                             </Text>
                           </View>
@@ -247,7 +247,7 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
                           <View style={s.statDivider} />
                           <View style={s.statCell}>
                             <Text style={s.statLabel}>AD REVENUE</Text>
-                            <Text style={[s.statValue, { color: C.green }]}>
+                            <Text style={[s.statValue, { color: PAPER.green }]}>
                               {fmtMoney(ae.episode.adRevenue ?? 0)}
                             </Text>
                           </View>
@@ -308,14 +308,14 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
                       <View style={s.statDivider} />
                       <View style={s.statCell}>
                         <Text style={s.statLabel}>AD REVENUE</Text>
-                        <Text style={[s.statValue, { color: C.green }]}>
+                        <Text style={[s.statValue, { color: PAPER.green }]}>
                           {fmtMoney(primary!.episode.adRevenue ?? 0)}
                         </Text>
                       </View>
                       <View style={s.statDivider} />
                       <View style={s.statCell}>
                         <Text style={s.statLabel}>PRESTIGE</Text>
-                        <Text style={[s.statValue, { color: C.gold }]}>
+                        <Text style={[s.statValue, { color: PAPER.gold }]}>
                           {network.prestige}
                         </Text>
                       </View>
@@ -396,7 +396,7 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
                     <View style={s.statStrip}>
                       <View style={s.statCell}>
                         <Text style={s.statLabel}>PRESTIGE</Text>
-                        <Text style={[s.statValue, { color: C.gold }]}>{network.prestige}</Text>
+                        <Text style={[s.statValue, { color: PAPER.gold }]}>{network.prestige}</Text>
                       </View>
                       <View style={s.statDivider} />
                       <View style={s.statCell}>
@@ -467,7 +467,7 @@ export default function WeeklyRecapModal({ visible, onClose, week, year }: Props
 const s = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: C.overlay,
+    backgroundColor: PAPER.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -500,20 +500,20 @@ const s = StyleSheet.create({
     fontFamily: F.bodyMd,
     fontSize: 9,
     letterSpacing: 2.5,
-    color: C.gold,
+    color: PAPER.gold,
     marginBottom: 4,
   },
   mastheadRule: {
     width: '100%',
     height: 1.5,
-    backgroundColor: C.ink,
+    backgroundColor: PAPER.ink,
     marginVertical: 5,
   },
   mastheadTitle: {
     fontFamily: F.display,
     fontSize: 36,
     letterSpacing: 4,
-    color: C.ink,
+    color: PAPER.ink,
     marginTop: 0,
     marginBottom: 4,
   },
@@ -521,7 +521,7 @@ const s = StyleSheet.create({
     fontFamily: F.body,
     fontStyle: 'italic',
     fontSize: 10,
-    color: C.inkLight,
+    color: PAPER.inkLight,
     marginTop: 4,
   },
 
@@ -535,33 +535,33 @@ const s = StyleSheet.create({
     fontFamily: F.display,
     fontSize: 28,
     letterSpacing: 1.5,
-    color: C.ink,
+    color: PAPER.ink,
     lineHeight: 32,
   },
   headlineEp: {
     fontFamily: F.bodyMd,
     fontSize: 10,
     letterSpacing: 2,
-    color: C.inkLight,
+    color: PAPER.inkLight,
     marginTop: 4,
   },
 
   // ── Dividers ─────────────────────────────────────────────────────────────
   divider: {
     height: 1,
-    backgroundColor: C.ruleLine,
+    backgroundColor: PAPER.ruleLine,
     marginHorizontal: 20,
     marginVertical: 12,
   },
   dividerThin: {
     height: 0.5,
-    backgroundColor: C.ruleLineDk,
+    backgroundColor: PAPER.ruleLineDk,
     marginHorizontal: 20,
     marginBottom: 10,
   },
   dividerHeavy: {
     height: 2,
-    backgroundColor: C.ink,
+    backgroundColor: PAPER.ink,
     marginHorizontal: 20,
     marginVertical: 14,
   },
@@ -578,19 +578,19 @@ const s = StyleSheet.create({
     fontFamily: F.bodyMd,
     fontSize: 9,
     letterSpacing: 3,
-    color: C.inkLight,
+    color: PAPER.inkLight,
     marginBottom: 2,
   },
   ratingNumber: {
     fontFamily: F.display,
     fontSize: 72,
-    color: C.ink,
+    color: PAPER.ink,
     lineHeight: 78,
   },
   ratingOutOf: {
     fontFamily: F.body,
     fontSize: 14,
-    color: C.inkMid,
+    color: PAPER.inkMid,
     marginTop: -4,
   },
 
@@ -604,14 +604,14 @@ const s = StyleSheet.create({
     fontFamily: F.display,
     fontSize: 22,
     letterSpacing: 1,
-    color: C.ink,
+    color: PAPER.ink,
     lineHeight: 26,
   },
   multiShowEp: {
     fontFamily: F.bodyMd,
     fontSize: 9,
     letterSpacing: 2,
-    color: C.inkLight,
+    color: PAPER.inkLight,
     marginTop: 2,
   },
   multiStatStrip: {
@@ -623,15 +623,15 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: C.ruleLine,
+    borderColor: PAPER.ruleLine,
     borderRadius: 2,
-    backgroundColor: C.paperDark,
+    backgroundColor: PAPER.paperDark,
   },
   pipelineNoteText: {
     fontFamily: F.bodyMd,
     fontSize: 9,
     letterSpacing: 1.5,
-    color: C.inkLight,
+    color: PAPER.inkLight,
   },
 
   // ── Single-show pipeline note under headline ──────────────────────────────
@@ -639,7 +639,7 @@ const s = StyleSheet.create({
     fontFamily: F.bodyMd,
     fontSize: 9,
     letterSpacing: 1.5,
-    color: C.inkLight,
+    color: PAPER.inkLight,
     marginTop: 6,
   },
 
@@ -648,7 +648,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 20,
     borderWidth: 1,
-    borderColor: C.ruleLine,
+    borderColor: PAPER.ruleLine,
     borderRadius: 2,
   },
   statCell: {
@@ -659,19 +659,19 @@ const s = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    backgroundColor: C.ruleLine,
+    backgroundColor: PAPER.ruleLine,
   },
   statLabel: {
     fontFamily: F.bodyMd,
     fontSize: 8,
     letterSpacing: 2,
-    color: C.inkLight,
+    color: PAPER.inkLight,
     marginBottom: 3,
   },
   statValue: {
     fontFamily: F.bodyXBd,
     fontSize: 14,
-    color: C.ink,
+    color: PAPER.ink,
   },
 
   // ── Trend cards ──────────────────────────────────────────────────────────
@@ -688,26 +688,26 @@ const s = StyleSheet.create({
   },
   trendCardUp:      { backgroundColor: '#f0f7f2', borderColor: '#a8d4b4' },
   trendCardDown:    { backgroundColor: '#faf0f0', borderColor: '#d4a8a8' },
-  trendCardNeutral: { backgroundColor: '#f5f3ee', borderColor: C.ruleLine },
+  trendCardNeutral: { backgroundColor: '#f5f3ee', borderColor: PAPER.ruleLine },
   trendBadge: {
     fontFamily: F.bodyBd,
     fontSize: 8,
     letterSpacing: 1.5,
     marginBottom: 5,
   },
-  trendBadgeUp:      { color: C.green },
-  trendBadgeDown:    { color: C.red },
-  trendBadgeNeutral: { color: C.inkLight },
+  trendBadgeUp:      { color: PAPER.green },
+  trendBadgeDown:    { color: PAPER.red },
+  trendBadgeNeutral: { color: PAPER.inkLight },
   trendShowTitle: {
     fontFamily: F.bodyXBd,
     fontSize: 12,
-    color: C.ink,
+    color: PAPER.ink,
     marginBottom: 3,
   },
   trendDelta: {
     fontFamily: F.body,
     fontSize: 10,
-    color: C.inkMid,
+    color: PAPER.inkMid,
   },
 
   // ── Social buzz / tweets ─────────────────────────────────────────────────
@@ -715,7 +715,7 @@ const s = StyleSheet.create({
     fontFamily: F.bodyBd,
     fontSize: 9,
     letterSpacing: 2.5,
-    color: C.inkMid,
+    color: PAPER.inkMid,
     marginHorizontal: 20,
     marginBottom: 8,
   },
@@ -730,7 +730,7 @@ const s = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: C.ink,
+    backgroundColor: PAPER.ink,
     marginTop: 6,
   },
   tweetBody: {
@@ -745,26 +745,26 @@ const s = StyleSheet.create({
   tweetHandle: {
     fontFamily: F.bodyBd,
     fontSize: 11,
-    color: C.gold,
+    color: PAPER.gold,
   },
   tweetLikesChip: {
-    backgroundColor: C.paperDark,
+    backgroundColor: PAPER.paperDark,
     borderRadius: 2,
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderWidth: 1,
-    borderColor: C.ruleLine,
+    borderColor: PAPER.ruleLine,
   },
   tweetLikesText: {
     fontFamily: F.bodyMd,
     fontSize: 9,
-    color: C.inkMid,
+    color: PAPER.inkMid,
   },
   tweetContent: {
     fontFamily: F.body,
     fontStyle: 'italic',
     fontSize: 12,
-    color: C.inkMid,
+    color: PAPER.inkMid,
     lineHeight: 17,
   },
 
@@ -772,7 +772,7 @@ const s = StyleSheet.create({
   quietBody: {
     fontFamily: F.body,
     fontSize: 13,
-    color: C.inkMid,
+    color: PAPER.inkMid,
     marginHorizontal: 20,
     lineHeight: 20,
     paddingBottom: 4,

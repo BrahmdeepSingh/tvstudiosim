@@ -1,13 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect, Circle, Polyline, Line } from 'react-native-svg';
-
-const C = {
-  tabBar:   '#0d1025',
-  gold:     '#e6b254',
-  inactive: '#4a4760',
-  border:   '#1e2240',
-};
+import { useTheme } from '../../src/context/ThemeContext';
 
 function IconDashboard({ color }: { color: string }) {
   return (
@@ -59,6 +53,7 @@ function IconStudio({ color }: { color: string }) {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { C } = useTheme();
 
   return (
     <Tabs
@@ -66,13 +61,13 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarStyle: {
           backgroundColor: C.tabBar,
-          borderTopColor: C.border,
+          borderTopColor: C.tabBorder,
           borderTopWidth: 1,
           height: 60 + insets.bottom,
           paddingBottom: 8 + insets.bottom,
         },
         tabBarActiveTintColor: C.gold,
-        tabBarInactiveTintColor: C.inactive,
+        tabBarInactiveTintColor: C.tabInactive,
         tabBarLabelStyle: { fontSize: 11 },
       }}
     >

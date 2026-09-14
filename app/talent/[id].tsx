@@ -12,16 +12,7 @@ import { getYearsActive } from '../../src/engine/talent';
 import { EMMY_CATEGORY_LABELS, TALENT_FEES, SUPPORTING_ACTOR_FEES, GENRE_CONFIG, popularityToFeeTier } from '../../src/constants/game';
 import { AVATAR_MAP } from '../../src/utils/avatars';
 import { TalentRole, Talent } from '../../src/types';
-
-const C = {
-  pageBg: '#0f1220', cardBg: '#191c2a',
-  border: '#252840',
-  text: '#f0ede8', muted: '#9a958e',
-  gold: '#e6b254', goldDim: '#e6b25420', goldBtnText: '#161008',
-  green: '#4ec46e', greenBg: '#1a3325',
-  amber: '#d4753a', red: '#c43820', redBg: '#2a130f',
-  teal: '#3db8a8',
-};
+import { useTheme } from '../../src/context/ThemeContext';
 
 const CHEM_COLORS = { green: '#4ec46e', blue: '#5b8dee', red: '#c43820' };
 
@@ -80,15 +71,16 @@ function computeLikelihood(
 }
 
 
-function likelihoodColor(pct: number): string {
-  if (pct >= 85) return '#4ec46e'; // will sign
+function likelihoodColor(C: ReturnType<typeof useTheme>['C'], pct: number): string {
+  if (pct >= 85) return C.green;
   if (pct >= 65) return '#8ecf5a';
   if (pct >= 40) return '#d4c14a';
-  if (pct >= 15) return '#d4753a';
-  return '#c43820';
+  if (pct >= 15) return C.amber;
+  return C.red;
 }
 
 function FilmRibbonAmbient() {
+  const { C } = useTheme();
   return (
     <Image
       source={require('../../assets/tvbg.png')}
@@ -113,14 +105,16 @@ function fmt(n: number): string {
   return `$${n}`;
 }
 
-function tierStyle(value: number) {
+function tierStyle(C: ReturnType<typeof useTheme>['C'], value: number) {
   if (value >= 90) return { borderColor: C.gold, backgroundColor: C.goldDim, color: C.gold };
   if (value >= 75) return { borderColor: C.teal, backgroundColor: C.teal + '18', color: C.teal };
   return { borderColor: C.border, backgroundColor: C.cardBg, color: C.text };
 }
 
 function RatingTile({ label, value }: { label: string; value: number }) {
-  const t = tierStyle(value);
+  const { C } = useTheme();
+  const { rs } = useMemo(() => makeStyles(C), [C]);
+  const t = tierStyle(C, value);
   return (
     <View style={[rs.tile, { borderColor: t.borderColor, backgroundColor: t.backgroundColor }]}>
       <Text style={[rs.tileValue, { color: t.color }]}>{value}</Text>
@@ -132,6 +126,9 @@ function RatingTile({ label, value }: { label: string; value: number }) {
 type OfferStatus = 'idle' | 'accepted' | 'rejected';
 
 export default function TalentDetailScreen() {
+  const { C } = useTheme();
+  const { s, rs, m } = useMemo(() => makeStyles(C), [C]);
+
   const router = useRouter();
   const params = useLocalSearchParams<{
     id: string;
@@ -180,7 +177,7 @@ export default function TalentDetailScreen() {
   }, [sheetKeyboardOffset]);
 
   // Expected season ad revenue for the hire-context show (genre baseline at rating 7)
-  const hireShow = shows.find(s => s.id === hireShowID);
+  const hireShow = shows.find(sh => sh.id === hireShowID);
   const expectedSeasonRevenue = useMemo(() => {
     if (!hireShow) return 0;
     const season = hireShow.seasons[hireShow.currentSeasonIndex];
@@ -195,22 +192,22 @@ export default function TalentDetailScreen() {
   const eligibleShows = useMemo(() => {
     if (!person || !person.available) return [];
     if (person.role === 'showrunner') {
-      return shows.filter(s => {
-        const season = s.seasons[s.currentSeasonIndex];
-        return s.status === 'writing' &&
+      return shows.filter(sh => {
+        const season = sh.seasons[sh.currentSeasonIndex];
+        return sh.status === 'writing' &&
           season != null &&
           season.showrunnerIDs.length < season.showrunnerSlots;
       });
     }
     if (person.role === 'director') {
-      return shows.filter(s =>
-        s.status === 'filming' &&
-        s.seasons[s.currentSeasonIndex]?.directorID === null
+      return shows.filter(sh =>
+        sh.status === 'filming' &&
+        sh.seasons[sh.currentSeasonIndex]?.directorID === null
       );
     }
-    return shows.filter(s => {
-      if (s.status !== 'filming') return false;
-      const season = s.seasons[s.currentSeasonIndex];
+    return shows.filter(sh => {
+      if (sh.status !== 'filming') return false;
+      const season = sh.seasons[sh.currentSeasonIndex];
       if (!season) return false;
       return (
         season.leadActorIDs.length < season.leadActorSlots ||
@@ -222,7 +219,7 @@ export default function TalentDetailScreen() {
   if (!person) {
     return (
       <SafeAreaView edges={['top']} style={s.container}>
-        <LinearGradient colors={['#131829', '#0f1220']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={[C.gradientTop, C.gradientMid]} style={StyleSheet.absoluteFill} />
         <FilmRibbonAmbient />
         <View style={s.header}>
           <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
@@ -289,7 +286,7 @@ export default function TalentDetailScreen() {
     ? computeLikelihood(person, flatFee, revShare, network.prestige, hireActorType, expectedSeasonRevenue, hireShowHeat)
     : 0;
   const voiceLine = getVoiceLine(person, likelihood, offerStatus, hasTyped);
-  const lColor = likelihoodColor(likelihood);
+  const lColor = likelihoodColor(C, likelihood);
   const revSharePayout = Math.round(revShare / 100 * expectedSeasonRevenue);
 
   function openOfferSheet() {
@@ -337,7 +334,7 @@ export default function TalentDetailScreen() {
           // so the user lands back on the show/dashboard. If actor slots still
           // have room, stay on hire-talent to pick another.
           const { shows: latestShows } = useGameStore.getState();
-          const latestShow = latestShows.find(s => s.id === hireShowID);
+          const latestShow = latestShows.find(sh => sh.id === hireShowID);
           const latestSeason = latestShow?.seasons[latestShow.currentSeasonIndex];
           let slotsFull = false;
           if (hireRole === 'director') {
@@ -366,7 +363,7 @@ export default function TalentDetailScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={s.container}>
-      <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[C.gradientTop, C.gradientMid, C.gradientBot]} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 
       <View style={s.header}>
@@ -416,7 +413,7 @@ export default function TalentDetailScreen() {
         {inHireContext && person.available && (
           <TouchableOpacity style={s.offerBtnWrap} onPress={openOfferSheet} activeOpacity={0.85}>
             <LinearGradient
-              colors={['#c49440', '#e6b254', '#f0c96a']}
+              colors={[C.goldMid, C.gold, C.gold]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={s.offerBtnGrad}
@@ -637,7 +634,7 @@ export default function TalentDetailScreen() {
             {/* Voice bubble */}
             <View style={m.voiceBubble}>
               <Text style={m.voiceName}>{person.name.split(' ')[0]}:</Text>
-              <Text style={[m.voiceText, offerStatus === 'rejected' && { color: '#d4753a' }, offerStatus === 'accepted' && { color: '#4ec46e' }]}>
+              <Text style={[m.voiceText, offerStatus === 'rejected' && { color: C.amber }, offerStatus === 'accepted' && { color: C.green }]}>
                 {' '}{voiceLine}
               </Text>
             </View>
@@ -717,7 +714,7 @@ export default function TalentDetailScreen() {
                   >
                     {validOffer ? (
                       <LinearGradient
-                        colors={['#c49440', '#e6b254']}
+                        colors={[C.goldMid, C.gold]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={m.submitBtnGrad}
@@ -740,114 +737,118 @@ export default function TalentDetailScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: C.pageBg },
-  header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn:      { padding: 4 },
-  backText:     { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  const s = StyleSheet.create({
+    container:    { flex: 1, backgroundColor: C.pageBg },
+    header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+    backBtn:      { padding: 4 },
+    backText:     { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
 
-  portraitWrap: { alignItems: 'center', marginBottom: 16 },
-  portrait:     { width: 140, height: 165, borderRadius: 70 },
-  nameRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
-  name:         { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 32, letterSpacing: 0.5 },
-  chemBadge:    { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  chemDot:      { width: 8, height: 8, borderRadius: 4 },
-  chemText:     { fontFamily: 'Manrope_700Bold', fontSize: 12 },
+    portraitWrap: { alignItems: 'center', marginBottom: 16 },
+    portrait:     { width: 140, height: 165, borderRadius: 70 },
+    nameRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+    name:         { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 32, letterSpacing: 0.5 },
+    chemBadge:    { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+    chemDot:      { width: 8, height: 8, borderRadius: 4 },
+    chemText:     { fontFamily: 'Manrope_700Bold', fontSize: 12 },
 
-  meta:         { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14, marginTop: 6 },
-  subMeta:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, marginTop: 4 },
-  quirk:        { color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 14, fontStyle: 'italic', marginTop: 10, lineHeight: 20 },
+    meta:         { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 14, marginTop: 6 },
+    subMeta:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, marginTop: 4 },
+    quirk:        { color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 14, fontStyle: 'italic', marginTop: 10, lineHeight: 20 },
 
-  sectionLabel: { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginTop: 24, marginBottom: 10 },
-  calloutRow:   { marginTop: 8 },
-  callout:      { fontFamily: 'Manrope_800ExtraBold', fontSize: 13 },
+    sectionLabel: { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginTop: 24, marginBottom: 10 },
+    calloutRow:   { marginTop: 8 },
+    callout:      { fontFamily: 'Manrope_800ExtraBold', fontSize: 13 },
 
-  // Make an Offer button (hire-talent context)
-  offerBtnWrap: { marginTop: 20, borderRadius: 16, overflow: 'hidden', elevation: 4, shadowColor: C.gold, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 8 },
-  offerBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18 },
-  offerBtnIcon: { fontSize: 20 },
-  offerBtnText: { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 18, letterSpacing: 0.3 },
+    // Make an Offer button (hire-talent context)
+    offerBtnWrap: { marginTop: 20, borderRadius: 16, overflow: 'hidden', elevation: 4, shadowColor: C.gold, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 8 },
+    offerBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18 },
+    offerBtnIcon: { fontSize: 20 },
+    offerBtnText: { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 18, letterSpacing: 0.3 },
 
-  card:         { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12 },
-  cardRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  cardLabel:    { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
-  cardValue:    { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13 },
+    card:         { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12 },
+    cardRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+    cardLabel:    { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 14 },
+    cardValue:    { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13 },
 
-  emptyText:    { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, fontStyle: 'italic' },
+    emptyText:    { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, fontStyle: 'italic' },
 
-  awardRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  awardIcon:    { fontSize: 18 },
-  awardSub:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
+    awardRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+    awardIcon:    { fontSize: 18 },
+    awardSub:     { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
 
-  statusRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
-  statusDot:    { width: 8, height: 8, borderRadius: 4 },
-  statusText:   { fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
+    statusRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+    statusDot:    { width: 8, height: 8, borderRadius: 4 },
+    statusText:   { fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
 
-  hireRow:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  hireSlotBtn:  { backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.gold, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  hireSlotText: { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 12 },
-  hireArrow:    { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 13 },
-});
+    hireRow:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+    hireSlotBtn:  { backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.gold, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+    hireSlotText: { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 12 },
+    hireArrow:    { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 13 },
+  });
 
-const rs = StyleSheet.create({
-  row:       { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  tile:      { width: 78, height: 78, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  tileValue: { fontFamily: 'BebasNeue_400Regular', fontSize: 30, letterSpacing: 0.5 },
-  tileLabel: { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 10, marginTop: 2, letterSpacing: 0.5 },
-});
+  const rs = StyleSheet.create({
+    row:       { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+    tile:      { width: 78, height: 78, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+    tileValue: { fontFamily: 'BebasNeue_400Regular', fontSize: 30, letterSpacing: 0.5 },
+    tileLabel: { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 10, marginTop: 2, letterSpacing: 0.5 },
+  });
 
-const m = StyleSheet.create({
-  backdrop:   { ...StyleSheet.absoluteFillObject, backgroundColor: '#000000bb' },
-  sheet:      { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#16192a', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderColor: '#252840', padding: 24, paddingBottom: 40 },
-  handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: '#3a3d55', alignSelf: 'center', marginBottom: 20 },
+  const m = StyleSheet.create({
+    backdrop:   { ...StyleSheet.absoluteFillObject, backgroundColor: '#000000bb' },
+    sheet:      { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.cardBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderColor: C.border, padding: 24, paddingBottom: 40 },
+    handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 20 },
 
-  sheetHeader:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  chemBadge:  { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
-  chemText:   { fontFamily: 'Manrope_700Bold', fontSize: 12 },
-  closeBtn:   { padding: 4 },
-  closeBtnText: { color: '#9a958e', fontSize: 18 },
+    sheetHeader:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    chemBadge:  { borderWidth: 1, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+    chemText:   { fontFamily: 'Manrope_700Bold', fontSize: 12 },
+    closeBtn:   { padding: 4 },
+    closeBtnText: { color: C.muted, fontSize: 18 },
 
-  nameRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
-  avatar:     { width: 44, height: 52, borderRadius: 8 },
-  name:       { color: '#f0ede8', fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
-  role:       { color: '#9a958e', fontFamily: 'Manrope_400Regular', fontSize: 13 },
+    nameRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
+    avatar:     { width: 44, height: 52, borderRadius: 8 },
+    name:       { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
+    role:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13 },
 
-  // Voice bubble
-  voiceBubble:  { backgroundColor: '#1e2238', borderWidth: 1, borderColor: '#2e3255', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 18, flexDirection: 'row', flexWrap: 'wrap' },
-  voiceName:    { color: '#e6b254', fontFamily: 'Manrope_700Bold', fontSize: 13 },
-  voiceText:    { color: '#f0ede8', fontFamily: 'Manrope_400Regular', fontSize: 13, fontStyle: 'italic', lineHeight: 18 },
+    // Voice bubble
+    voiceBubble:  { backgroundColor: C.cardBg2, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 18, flexDirection: 'row', flexWrap: 'wrap' },
+    voiceName:    { color: C.gold, fontFamily: 'Manrope_700Bold', fontSize: 13 },
+    voiceText:    { color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 13, fontStyle: 'italic', lineHeight: 18 },
 
-  // Offer input
-  offerLabel:       { color: '#9a958e', fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 8 },
-  offerRow:         { flexDirection: 'row', alignItems: 'center', backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#252840', borderRadius: 12, paddingHorizontal: 14, marginBottom: 16 },
+    // Offer input
+    offerLabel:       { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1.5, marginBottom: 8 },
+    offerRow:         { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, marginBottom: 16 },
 
-  // Revenue share stepper
-  revShareRow:      { flexDirection: 'row', alignItems: 'center', backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#252840', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 10, marginBottom: 16 },
-  stepBtn:          { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  stepBtnText:      { color: '#e6b254', fontSize: 24, fontFamily: 'Manrope_700Bold' },
-  revShareValueWrap:{ flex: 1, alignItems: 'center' },
-  revShareValue:    { color: '#f0ede8', fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
-  revShareEst:      { color: '#9a958e', fontFamily: 'Manrope_400Regular', fontSize: 11, marginTop: 2 },
+    // Revenue share stepper
+    revShareRow:      { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 10, marginBottom: 16 },
+    stepBtn:          { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+    stepBtnText:      { color: C.gold, fontSize: 24, fontFamily: 'Manrope_700Bold' },
+    revShareValueWrap:{ flex: 1, alignItems: 'center' },
+    revShareValue:    { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
+    revShareEst:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11, marginTop: 2 },
 
-  // Likelihood meter
-  likelihoodRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  likelihoodLabel:  { color: '#9a958e', fontFamily: 'Manrope_700Bold', fontSize: 10, letterSpacing: 1.2, width: 80 },
-  likelihoodBarBg:  { flex: 1, height: 6, backgroundColor: '#252840', borderRadius: 3, overflow: 'hidden' },
-  likelihoodBarFill:{ height: 6, borderRadius: 3 },
-  likelihoodPct:    { fontFamily: 'Manrope_700Bold', fontSize: 13, width: 36, textAlign: 'right' },
-  dollarSign: { color: '#9a958e', fontSize: 20, marginRight: 4 },
-  offerInput: { flex: 1, color: '#f0ede8', fontFamily: 'Manrope_700Bold', fontSize: 24, paddingVertical: 14 },
-  millionLabel: { color: '#9a958e', fontSize: 18 },
-  cashAvail:  { color: '#9a958e', fontFamily: 'Manrope_400Regular', fontSize: 12, marginBottom: 16 },
+    // Likelihood meter
+    likelihoodRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+    likelihoodLabel:  { color: C.muted, fontFamily: 'Manrope_700Bold', fontSize: 10, letterSpacing: 1.2, width: 80 },
+    likelihoodBarBg:  { flex: 1, height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
+    likelihoodBarFill:{ height: 6, borderRadius: 3 },
+    likelihoodPct:    { fontFamily: 'Manrope_700Bold', fontSize: 13, width: 36, textAlign: 'right' },
+    dollarSign: { color: C.muted, fontSize: 20, marginRight: 4 },
+    offerInput: { flex: 1, color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 24, paddingVertical: 14 },
+    millionLabel: { color: C.muted, fontSize: 18 },
+    cashAvail:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginBottom: 16 },
 
-  submitBtn:         { borderRadius: 14 },
-  submitBtnDisabled: { backgroundColor: '#191c2a', borderWidth: 1, borderColor: '#252840', borderRadius: 14 },
-  submitBtnGrad:     { padding: 16, alignItems: 'center', borderRadius: 14 },
-  submitBtnText:     { color: '#161008', fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
-  submitBtnTextDisabled: { color: '#9a958e', fontFamily: 'Manrope_600SemiBold', fontSize: 16 },
+    submitBtn:         { borderRadius: 14 },
+    submitBtnDisabled: { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 14 },
+    submitBtnGrad:     { padding: 16, alignItems: 'center', borderRadius: 14 },
+    submitBtnText:     { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
+    submitBtnTextDisabled: { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 16 },
 
-  acceptedBanner: { backgroundColor: '#1a3325', borderRadius: 12, padding: 16, alignItems: 'center' },
-  acceptedText:   { color: '#4ec46e', fontFamily: 'Manrope_700Bold', fontSize: 16 },
-  rejectedBanner: { backgroundColor: '#2a130f', borderRadius: 12, padding: 16, alignItems: 'center' },
-  rejectedText:   { color: '#c43820', fontFamily: 'Manrope_700Bold', fontSize: 16 },
-});
+    acceptedBanner: { backgroundColor: C.greenBg, borderRadius: 12, padding: 16, alignItems: 'center' },
+    acceptedText:   { color: C.green, fontFamily: 'Manrope_700Bold', fontSize: 16 },
+    rejectedBanner: { backgroundColor: C.redBg, borderRadius: 12, padding: 16, alignItems: 'center' },
+    rejectedText:   { color: C.red, fontFamily: 'Manrope_700Bold', fontSize: 16 },
+  });
+
+  return { s, rs, m };
+}

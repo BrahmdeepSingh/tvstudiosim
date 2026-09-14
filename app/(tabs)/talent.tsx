@@ -8,14 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
 import { Talent, TalentRole } from '../../src/types';
 import { AVATAR_MAP } from '../../src/utils/avatars';
-
-const C = {
-  pageBg: '#0f1220', cardBg: '#191c2a',
-  border: '#252840',
-  text: '#f0ede8', muted: '#9a958e',
-  gold: '#e6b254', goldDim: '#e6b25420',
-  green: '#4ec46e', amber: '#d4753a', red: '#c43820', blue: '#5b8dee',
-};
+import { useTheme } from '../../src/context/ThemeContext';
 
 const CHEM_COLORS = { green: '#4ec46e', blue: '#5b8dee', red: '#c43820' };
 
@@ -24,6 +17,7 @@ type AvailFilter = 'all' | 'available' | 'booked';
 type ChemFilter = 'all' | 'green' | 'blue' | 'red';
 
 function FilmRibbonAmbient() {
+  const { C } = useTheme();
   return (
     <Image
       source={require('../../assets/tvbg.png')}
@@ -49,6 +43,8 @@ function blendedSkill(t: Talent): number {
 }
 
 function TalentCard({ talent, onPress }: { talent: Talent; onPress: () => void }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const chemColor = CHEM_COLORS[talent.chemistryColor];
   const skill = blendedSkill(talent);
 
@@ -57,7 +53,7 @@ function TalentCard({ talent, onPress }: { talent: Talent; onPress: () => void }
       <View style={s.cardLeft}>
         <View style={s.avatarWrap}>
           <Image source={AVATAR_MAP[talent.avatarId]} style={s.avatarThumb} />
-          <View style={[s.chemPip, { backgroundColor: chemColor }]} />
+          <View style={[s.chemPip, { backgroundColor: chemColor, borderColor: C.cardBg }]} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.name}>{talent.name}</Text>
@@ -82,6 +78,8 @@ function TalentCard({ talent, onPress }: { talent: Talent; onPress: () => void }
 export default function TalentScreen() {
   const { talent } = useGameStore();
   const router = useRouter();
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [availFilter, setAvailFilter] = useState<AvailFilter>('all');
   const [chemFilter, setChemFilter] = useState<ChemFilter>('all');
@@ -110,7 +108,7 @@ export default function TalentScreen() {
   return (
     <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient
-        colors={['#131829', '#0f1220', '#0a0d18']}
+        colors={[C.gradientTop, C.gradientMid, C.gradientBot]}
         style={StyleSheet.absoluteFill}
       />
       <FilmRibbonAmbient />
@@ -206,46 +204,48 @@ export default function TalentScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: C.pageBg },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    container:        { flex: 1, backgroundColor: C.pageBg },
 
-  header:           { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
-  headerTitle:      { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 1 },
-  headerSub:        { color: C.green, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
+    header:           { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+    headerTitle:      { color: C.gold, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 1 },
+    headerSub:        { color: C.green, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
 
-  searchRow:        { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4 },
-  searchInput:      { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9, color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 15 },
+    searchRow:        { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4 },
+    searchInput:      { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9, color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 15 },
 
-  filterRow:        { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
-  filterTab:        { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
-  filterTabActive:  { borderColor: C.gold, backgroundColor: C.goldDim },
-  filterText:       { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
-  filterTextActive: { color: C.gold },
+    filterRow:        { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
+    filterTab:        { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
+    filterTabActive:  { borderColor: C.gold, backgroundColor: C.goldDim },
+    filterText:       { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 13 },
+    filterTextActive: { color: C.gold },
 
-  availRow:         { flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 8, gap: 6 },
-  availTab:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
-  availTabActive:   { borderColor: C.gold, backgroundColor: C.goldDim },
-  availText:        { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 12 },
-  availTextActive:  { color: C.gold },
+    availRow:         { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingBottom: 8, gap: 6 },
+    availTab:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
+    availTabActive:   { borderColor: C.gold, backgroundColor: C.goldDim },
+    availText:        { color: C.muted, fontFamily: 'Manrope_600SemiBold', fontSize: 12 },
+    availTextActive:  { color: C.gold },
 
-  chemTab:          { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
-  chemTabDot:       { width: 8, height: 8, borderRadius: 4 },
+    chemTab:          { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg },
+    chemTabDot:       { width: 8, height: 8, borderRadius: 4 },
 
-  list:             { padding: 12, gap: 8 },
+    list:             { padding: 12, gap: 8 },
 
-  card:             { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
-  cardLeft:         { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatarWrap:       { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
-  avatarThumb:      { width: 44, height: 52 },
-  chemPip:          { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
-  name:             { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15, marginBottom: 2 },
-  meta:             { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
-  cardRight:        { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  availPip:         { width: 7, height: 7, borderRadius: 4 },
-  statCol:          { alignItems: 'flex-end' },
-  statNum:          { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 24, letterSpacing: 0.5 },
-  statLbl:          { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 10 },
+    card:             { backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
+    cardLeft:         { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+    avatarWrap:       { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
+    avatarThumb:      { width: 44, height: 52 },
+    chemPip:          { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5 },
+    name:             { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15, marginBottom: 2 },
+    meta:             { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12 },
+    cardRight:        { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    availPip:         { width: 7, height: 7, borderRadius: 4 },
+    statCol:          { alignItems: 'flex-end' },
+    statNum:          { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 24, letterSpacing: 0.5 },
+    statLbl:          { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 10 },
 
-  empty:            { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 8 },
-  emptyText:        { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 15, textAlign: 'center' },
-});
+    empty:            { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 8 },
+    emptyText:        { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 15, textAlign: 'center' },
+  });
+}

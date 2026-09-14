@@ -10,14 +10,7 @@ import { useGameStore } from '../src/store/gameStore';
 import { Talent, TalentRole } from '../src/types';
 import { AVATAR_MAP } from '../src/utils/avatars';
 import { TutorialTarget } from './components/TutorialTarget';
-
-const C = {
-  pageBg: '#0f1220', cardBg: '#191c2a',
-  border: '#252840',
-  text: '#f0ede8', muted: '#9a958e', mutedMid: '#6b6880',
-  gold: '#e6b254', goldDim: '#e6b25420', goldBtnText: '#161008',
-  green: '#4ec46e',
-};
+import { useTheme } from '../src/context/ThemeContext';
 
 const CHEM_COLORS = {
   green: '#4ec46e',
@@ -40,6 +33,7 @@ function blendedSkill(talent: Talent): number {
 }
 
 function FilmRibbonAmbient() {
+  const { C } = useTheme();
   return (
     <Image
       source={require('../assets/tvbg.png')}
@@ -50,7 +44,6 @@ function FilmRibbonAmbient() {
   );
 }
 
-
 function TalentCard({
   talent,
   onPress,
@@ -60,6 +53,8 @@ function TalentCard({
   onPress: () => void;
   locked?: boolean;
 }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const skill = blendedSkill(talent);
 
   return (
@@ -85,7 +80,6 @@ function TalentCard({
         </View>
       </View>
 
-      {/* Prestige lock overlay — absolutely positioned over the whole card */}
       {locked && (
         <View style={s.lockOverlay} pointerEvents="none">
           <View style={s.lockBadge}>
@@ -99,6 +93,8 @@ function TalentCard({
 }
 
 export default function HireTalentScreen() {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const router = useRouter();
   const params = useLocalSearchParams<{ showID: string; role: TalentRole; actorType?: string }>();
   const showID = params.showID ?? '';
@@ -109,14 +105,13 @@ export default function HireTalentScreen() {
   const { talent, network, shows } = useGameStore();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const show = shows.find(s => s.id === showID);
+  const show = shows.find(sh => sh.id === showID);
   const season = show?.seasons[show.currentSeasonIndex];
 
   const listItems = useMemo(() => {
     const query = searchQuery.toLowerCase();
     const prestige = network.prestige;
 
-    // Unlocked + available: fully tappable, sorted by popularity desc
     const unlocked = talent
       .filter(t =>
         t.role === role &&
@@ -127,7 +122,6 @@ export default function HireTalentScreen() {
       .sort((a, b) => b.popularity - a.popularity)
       .map(t => ({ talent: t, locked: false }));
 
-    // Prestige-locked: shown with overlay, sorted by threshold asc then popularity desc
     const locked = talent
       .filter(t =>
         t.role === role &&
@@ -174,7 +168,7 @@ export default function HireTalentScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={s.container}>
-      <LinearGradient colors={['#131829', '#0f1220', '#0a0d18']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[C.gradientTop, C.gradientMid, C.gradientBot]} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 
       <View style={s.header}>
@@ -242,7 +236,7 @@ export default function HireTalentScreen() {
           </Text>
           <TouchableOpacity style={s.doneBtn} onPress={() => router.back()}>
             <LinearGradient
-              colors={['#c49440', '#e6b254']}
+              colors={[C.goldMid, C.gold]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={s.doneBtnGrad}
@@ -256,48 +250,48 @@ export default function HireTalentScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: C.pageBg },
-  header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn:        { width: 60 },
-  backText:       { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  headerTitle:    { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 22, letterSpacing: 0.5 },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    container:      { flex: 1, backgroundColor: C.pageBg },
+    header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
+    backBtn:        { width: 60 },
+    backText:       { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+    headerTitle:    { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 22, letterSpacing: 0.5, flex: 1, textAlign: 'center' },
 
-  showBanner:     { backgroundColor: C.cardBg, borderBottomWidth: 1, borderBottomColor: C.border, paddingHorizontal: 16, paddingVertical: 10 },
-  showBannerText: { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14 },
-  slotCount:      { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 12, marginTop: 4 },
+    showBanner:     { backgroundColor: C.cardBg, borderBottomWidth: 1, borderBottomColor: C.border, paddingHorizontal: 16, paddingVertical: 10 },
+    showBannerText: { color: C.text, fontFamily: 'Manrope_700Bold', fontSize: 14 },
+    slotCount:      { color: C.gold, fontFamily: 'Manrope_600SemiBold', fontSize: 12, marginTop: 4 },
 
-  descRow:        { paddingHorizontal: 16, paddingVertical: 12 },
-  descText:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 19 },
+    descRow:        { paddingHorizontal: 16, paddingVertical: 12 },
+    descText:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, lineHeight: 19 },
 
-  searchRow:      { paddingHorizontal: 16, paddingBottom: 8 },
-  searchInput:    { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 15 },
+    searchRow:      { paddingHorizontal: 16, paddingBottom: 8 },
+    searchInput:    { backgroundColor: C.cardBg, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: C.text, fontFamily: 'Manrope_400Regular', fontSize: 15 },
 
-  talentCard:       { position: 'relative', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14 },
-  talentCardLeft:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatarWrap:       { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
-  avatarThumb:      { width: 44, height: 52 },
-  chemPip:          { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
-  talentName:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
-  talentMeta:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
-  talentCardRight:  { marginLeft: 'auto', alignItems: 'flex-end' },
-  talentStat:       { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
-  talentStatLabel:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11 },
+    talentCard:       { position: 'relative', backgroundColor: C.cardBg, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 14 },
+    talentCardLeft:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    avatarWrap:       { width: 44, height: 52, borderRadius: 8, overflow: 'hidden' },
+    avatarThumb:      { width: 44, height: 52 },
+    chemPip:          { position: 'absolute', bottom: 3, right: 3, width: 9, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: C.cardBg },
+    talentName:       { color: C.text, fontFamily: 'Manrope_600SemiBold', fontSize: 15 },
+    talentMeta:       { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 12, marginTop: 2 },
+    talentCardRight:  { marginLeft: 'auto', alignItems: 'flex-end' },
+    talentStat:       { color: C.text, fontFamily: 'BebasNeue_400Regular', fontSize: 28, letterSpacing: 0.5 },
+    talentStatLabel:  { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 11 },
 
-  // ── Prestige lock ──────────────────────────────────────────────────────────
-  lockOverlay:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,12,22,0.72)', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  lockBadge:      { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#13162266', borderWidth: 1, borderColor: '#252840', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
-  lockIcon:       { fontSize: 12 },
-  lockLabel:      { color: C.mutedMid, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1 },
-  lockedContent:  { opacity: 0.35 },
-  lockedText:     { color: C.mutedMid },
+    lockOverlay:    { ...StyleSheet.absoluteFillObject, backgroundColor: C.pageBg + 'b7', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    lockBadge:      { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.cardBg2 + '88', borderWidth: 1, borderColor: C.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+    lockIcon:       { fontSize: 12 },
+    lockLabel:      { color: C.mutedMid, fontFamily: 'Manrope_700Bold', fontSize: 11, letterSpacing: 1 },
+    lockedContent:  { opacity: 0.35 },
 
-  emptyState:     { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyText:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 15, textAlign: 'center' },
+    emptyState:     { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+    emptyText:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 15, textAlign: 'center' },
 
-  footer:         { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
-  castCount:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, textAlign: 'center' },
-  doneBtn:        { borderRadius: 14 },
-  doneBtnGrad:    { padding: 16, alignItems: 'center', borderRadius: 14 },
-  doneBtnText:    { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
-});
+    footer:         { padding: 16, borderTopWidth: 1, borderTopColor: C.border, gap: 8 },
+    castCount:      { color: C.muted, fontFamily: 'Manrope_400Regular', fontSize: 13, textAlign: 'center' },
+    doneBtn:        { borderRadius: 14 },
+    doneBtnGrad:    { padding: 16, alignItems: 'center', borderRadius: 14 },
+    doneBtnText:    { color: C.goldBtnText, fontFamily: 'Manrope_800ExtraBold', fontSize: 16 },
+  });
+}

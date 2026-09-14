@@ -5,20 +5,12 @@ import {
 } from 'react-native';
 import { usePathname } from 'expo-router';
 import { useTutorialStore, STEP_CONFIG, ACTION_GATED_STEPS, HIDDEN_STEPS, TutorialStep, TargetRect } from '../../src/store/tutorialStore';
+import { useTheme } from '../../src/context/ThemeContext';
 
 const { width: W, height: H } = Dimensions.get('window');
-const DIM = '#0a0c18e8';
 const TOOLTIP_MARGIN = 16;
 const TOOLTIP_GAP    = 14;
 
-const C = {
-  card:   '#12162a',
-  border: '#e6b25440',
-  gold:   '#e6b254',
-  text:   '#f0ede8',
-  muted:  '#9a958e',
-  mutedDim: '#5a566a',
-};
 const F = {
   display: 'BebasNeue_400Regular',
   body:    'Manrope_400Regular',
@@ -26,14 +18,12 @@ const F = {
   bodyBd:  'Manrope_700Bold',
 };
 
-// Visible steps only — hidden/waiting steps are excluded from the progress counter
 const STEP_ORDER: Exclude<TutorialStep, 'done' | 'waiting-for-marketing'>[] = [
   'dashboard', 'create-show', 'casting', 'show-writing',
   'post-writing-tasks', 'post-filming', 'marketing-premiere', 'marketing-channels',
   'episode-aired', 'social-buzz',
 ];
 
-// ── Pulsing gold border on the spotlight target ───────────────────────────────
 function SpotlightBorder({ rect }: { rect: TargetRect }) {
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -73,29 +63,25 @@ function SpotlightBorder({ rect }: { rect: TargetRect }) {
   );
 }
 
-// ── 4-rect spotlight (hole-punch effect) ─────────────────────────────────────
 function Spotlight({ rect }: { rect: TargetRect }) {
+  const { C } = useTheme();
+  const dim = C.pageBg + 'e8';
   return (
     <>
-      {/* top */}
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: rect.y, backgroundColor: DIM }} pointerEvents="none" />
-      {/* bottom */}
-      <View style={{ position: 'absolute', top: rect.y + rect.h, left: 0, right: 0, bottom: 0, backgroundColor: DIM }} pointerEvents="none" />
-      {/* left */}
-      <View style={{ position: 'absolute', top: rect.y, left: 0, width: rect.x, height: rect.h, backgroundColor: DIM }} pointerEvents="none" />
-      {/* right */}
-      <View style={{ position: 'absolute', top: rect.y, left: rect.x + rect.w, right: 0, height: rect.h, backgroundColor: DIM }} pointerEvents="none" />
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: rect.y, backgroundColor: dim }} pointerEvents="none" />
+      <View style={{ position: 'absolute', top: rect.y + rect.h, left: 0, right: 0, bottom: 0, backgroundColor: dim }} pointerEvents="none" />
+      <View style={{ position: 'absolute', top: rect.y, left: 0, width: rect.x, height: rect.h, backgroundColor: dim }} pointerEvents="none" />
+      <View style={{ position: 'absolute', top: rect.y, left: rect.x + rect.w, right: 0, height: rect.h, backgroundColor: dim }} pointerEvents="none" />
       <SpotlightBorder rect={rect} />
     </>
   );
 }
 
-// ── Full dim (no spotlight target) ────────────────────────────────────────────
 function FullDim() {
-  return <View style={[StyleSheet.absoluteFill, { backgroundColor: DIM }]} pointerEvents="none" />;
+  const { C } = useTheme();
+  return <View style={[StyleSheet.absoluteFill, { backgroundColor: C.pageBg + 'e8' }]} pointerEvents="none" />;
 }
 
-// ── Tooltip card ──────────────────────────────────────────────────────────────
 function Tooltip({
   step, stepIdx, total, rect, fadeAnim, slideAnim, onNext, onSkip,
 }: {
@@ -108,21 +94,19 @@ function Tooltip({
   onNext: () => void;
   onSkip: () => void;
 }) {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const config = STEP_CONFIG[step];
 
-  // Smart placement: if target is in bottom half of screen, tooltip goes above; else below.
   const posStyle = useMemo((): object => {
     if (!rect) {
-      // No spotlight — pin to bottom
       return { bottom: Platform.OS === 'web' ? 40 : 56 };
     }
     const targetCenter = rect.y + rect.h / 2;
     if (targetCenter > H * 0.52) {
-      // Target in lower half → tooltip above it
       const bottom = H - rect.y + TOOLTIP_GAP;
       return { bottom: Math.min(bottom, H - 120) };
     } else {
-      // Target in upper half → tooltip below it
       const top = rect.y + rect.h + TOOLTIP_GAP;
       return { top: Math.min(top, H - 220) };
     }
@@ -131,42 +115,41 @@ function Tooltip({
   return (
     <Animated.View
       style={[
-        styles.tooltip,
+        s.tooltip,
         posStyle,
         { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
       ]}
       pointerEvents="box-none"
     >
-      {/* Step counter + dot progress */}
-      <View style={styles.counterRow}>
-        <Text style={styles.counterText}>{stepIdx + 1} / {total}</Text>
-        <View style={styles.dots}>
+      <View style={s.counterRow}>
+        <Text style={s.counterText}>{stepIdx + 1} / {total}</Text>
+        <View style={s.dots}>
           {Array.from({ length: total }).map((_, i) => (
             <View
               key={i}
-              style={[styles.dot, i === stepIdx ? styles.dotActive : styles.dotInactive]}
+              style={[s.dot, i === stepIdx ? s.dotActive : s.dotInactive]}
             />
           ))}
         </View>
       </View>
 
-      <Text style={styles.title}>{config.title}</Text>
-      <Text style={styles.body}>{config.body}</Text>
+      <Text style={s.title}>{config.title}</Text>
+      <Text style={s.body}>{config.body}</Text>
 
-      <View style={styles.actions}>
+      <View style={s.actions}>
         <TouchableOpacity onPress={onSkip} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.skipBtn}>Skip tutorial</Text>
+          <Text style={s.skipBtn}>Skip tutorial</Text>
         </TouchableOpacity>
 
         {!ACTION_GATED_STEPS.includes(step) && (
-          <TouchableOpacity style={styles.nextBtn} onPress={onNext} activeOpacity={0.82}>
-            <Text style={styles.nextBtnText}>
+          <TouchableOpacity style={s.nextBtn} onPress={onNext} activeOpacity={0.82}>
+            <Text style={s.nextBtnText}>
               {stepIdx + 1 < total ? 'NEXT  →' : 'GOT IT  ✓'}
             </Text>
           </TouchableOpacity>
         )}
         {ACTION_GATED_STEPS.includes(step) && (
-          <Text style={styles.actionHint}>
+          <Text style={s.actionHint}>
             {step === 'dashboard' ? 'Tap the button above ↑' : 'Tap CREATE SHOW ↑'}
           </Text>
         )}
@@ -175,8 +158,9 @@ function Tooltip({
   );
 }
 
-// ── Main overlay ──────────────────────────────────────────────────────────────
 export function TutorialOverlay() {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const { active, step, targetRect, advance, skip } = useTutorialStore();
   const pathname = usePathname();
 
@@ -209,7 +193,7 @@ export function TutorialOverlay() {
   const typedStep = step as Exclude<TutorialStep, 'done'>;
 
   return (
-    <Animated.View style={[styles.root, { opacity: fadeAnim }]} pointerEvents="box-none">
+    <Animated.View style={[s.root, { opacity: fadeAnim }]} pointerEvents="box-none">
       {targetRect
         ? <Spotlight rect={targetRect} />
         : <FullDim />
@@ -238,96 +222,97 @@ function matchesRoute(pathname: string, configRoute: string): boolean {
     return (
       p === '/' || p === '/index' ||
       p === '/(tabs)' || p === '/(tabs)/index' ||
-      p === '/(tabs)/financials' || // allow on any tab
+      p === '/(tabs)/financials' ||
       p.startsWith('/(tabs)')
     );
   }
-  // Partial prefix match for parameterized routes (e.g. /hire-talent?...)
   if (p.startsWith(r)) return true;
   return false;
 }
 
-const styles = StyleSheet.create({
-  root: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 9999,
-    elevation: 999,
-  },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    root: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 9999,
+      elevation: 999,
+    },
 
-  tooltip: {
-    position: 'absolute',
-    left: TOOLTIP_MARGIN,
-    right: TOOLTIP_MARGIN,
-    backgroundColor: C.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: C.border,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.6,
-    shadowRadius: 24,
-    elevation: 30,
-  },
+    tooltip: {
+      position: 'absolute',
+      left: TOOLTIP_MARGIN,
+      right: TOOLTIP_MARGIN,
+      backgroundColor: C.cardBg,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: C.borderGold,
+      padding: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.6,
+      shadowRadius: 24,
+      elevation: 30,
+    },
 
-  counterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  counterText: {
-    color: C.mutedDim,
-    fontFamily: F.bodyBd,
-    fontSize: 11,
-    letterSpacing: 1.5,
-  },
-  dots: { flexDirection: 'row', gap: 5 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  dotActive:   { backgroundColor: C.gold },
-  dotInactive: { backgroundColor: '#252840' },
+    counterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    counterText: {
+      color: C.mutedMid,
+      fontFamily: F.bodyBd,
+      fontSize: 11,
+      letterSpacing: 1.5,
+    },
+    dots: { flexDirection: 'row', gap: 5 },
+    dot: { width: 6, height: 6, borderRadius: 3 },
+    dotActive:   { backgroundColor: C.gold },
+    dotInactive: { backgroundColor: C.border },
 
-  title: {
-    color: C.gold,
-    fontFamily: F.display,
-    fontSize: 26,
-    letterSpacing: 2,
-    marginBottom: 8,
-  },
-  body: {
-    color: C.text,
-    fontFamily: F.body,
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 20,
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  skipBtn: {
-    color: C.muted,
-    fontFamily: F.bodyMd,
-    fontSize: 13,
-    textDecorationLine: 'underline',
-  },
-  nextBtn: {
-    backgroundColor: C.gold,
-    paddingVertical: 10,
-    paddingHorizontal: 22,
-    borderRadius: 8,
-  },
-  nextBtnText: {
-    color: '#161008',
-    fontFamily: F.bodyBd,
-    fontSize: 14,
-    letterSpacing: 0.8,
-  },
-  actionHint: {
-    color: C.gold,
-    fontFamily: F.bodyMd,
-    fontSize: 13,
-    fontStyle: 'italic',
-  },
-});
+    title: {
+      color: C.gold,
+      fontFamily: F.display,
+      fontSize: 26,
+      letterSpacing: 2,
+      marginBottom: 8,
+    },
+    body: {
+      color: C.text,
+      fontFamily: F.body,
+      fontSize: 14,
+      lineHeight: 21,
+      marginBottom: 20,
+    },
+    actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    skipBtn: {
+      color: C.muted,
+      fontFamily: F.bodyMd,
+      fontSize: 13,
+      textDecorationLine: 'underline',
+    },
+    nextBtn: {
+      backgroundColor: C.gold,
+      paddingVertical: 10,
+      paddingHorizontal: 22,
+      borderRadius: 8,
+    },
+    nextBtnText: {
+      color: C.goldBtnText,
+      fontFamily: F.bodyBd,
+      fontSize: 14,
+      letterSpacing: 0.8,
+    },
+    actionHint: {
+      color: C.gold,
+      fontFamily: F.bodyMd,
+      fontSize: 13,
+      fontStyle: 'italic',
+    },
+  });
+}

@@ -1,22 +1,11 @@
-import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../src/store/gameStore';
 import { LogoBadge } from './components/LogoBadge';
-
-const C = {
-  pageBg:      '#0f1220',
-  cardBg:      '#191c2a',
-  border:      '#252840',
-  text:        '#f0ede8',
-  muted:       '#9a958e',
-  mutedMid:    '#6b6880',
-  gold:        '#e6b254',
-  goldDim:     '#e6b25418',
-  goldBorder:  '#e6b25440',
-};
+import { useTheme } from '../src/context/ThemeContext';
 
 const F = {
   display: 'BebasNeue_400Regular',
@@ -32,14 +21,15 @@ function initials(name: string): string {
 }
 
 export default function AllStudiosScreen() {
+  const { C } = useTheme();
+  const s = useMemo(() => makeStyles(C), [C]);
   const router = useRouter();
   const { network, shows, competitors } = useGameStore();
 
-  const playerActiveCount = shows.filter(s =>
-    ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(s.status),
+  const playerActiveCount = shows.filter(sh =>
+    ['writing', 'filming', 'marketing', 'airing', 'renewal-pending'].includes(sh.status),
   ).length;
 
-  // Build one sorted list: player + all competitors
   type StudioRow = {
     id: string;
     isPlayer: boolean;
@@ -67,8 +57,8 @@ export default function AllStudiosScreen() {
       name: c.name,
       initials: initials(c.name),
       logoConfig: c.logoConfig ?? { bgColor: '#3a4a6a', iconID: null, textColor: '#f0ede8' },
-      activeCount: c.activeShows.filter(s =>
-        ['pre-production', 'filming', 'marketing', 'airing'].includes(s.status),
+      activeCount: c.activeShows.filter(sh =>
+        ['pre-production', 'filming', 'marketing', 'airing'].includes(sh.status),
       ).length,
     })),
   ].sort((a, b) => b.prestige - a.prestige);
@@ -76,7 +66,7 @@ export default function AllStudiosScreen() {
   return (
     <SafeAreaView edges={['top']} style={s.container}>
       <LinearGradient
-        colors={['#131829', '#0f1220', '#0a0d18']}
+        colors={[C.gradientTop, C.gradientMid, C.gradientBot]}
         style={StyleSheet.absoluteFill}
       />
 
@@ -113,7 +103,7 @@ export default function AllStudiosScreen() {
                 onPress={() => router.push({ pathname: '/studio-profile', params: { id: 'player' } })}
               >
                 <LinearGradient
-                  colors={[C.goldDim, '#e6b25408', C.goldDim]}
+                  colors={[C.goldDim, C.borderGold, C.goldDim]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={[StyleSheet.absoluteFill, { borderRadius: 12 }]}
                 />
@@ -153,37 +143,36 @@ export default function AllStudiosScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: C.pageBg },
-  scroll:       { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 16 },
+function makeStyles(C: ReturnType<typeof useTheme>['C']) {
+  return StyleSheet.create({
+    container:     { flex: 1, backgroundColor: C.pageBg },
+    scroll:        { flex: 1 },
+    scrollContent: { paddingHorizontal: 16, paddingBottom: 16 },
 
-  header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn:      { width: 40, alignItems: 'flex-start', justifyContent: 'center' },
-  backText:     { color: C.gold, fontSize: 22, fontFamily: F.body },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  headerTitle:  { color: C.gold, fontFamily: F.display, fontSize: 26, letterSpacing: 1 },
-  yearBadge:    { backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.goldBorder, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  yearText:     { color: C.gold, fontFamily: F.bodyBd, fontSize: 10, letterSpacing: 1 },
+    header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
+    backBtn:      { width: 40, alignItems: 'flex-start', justifyContent: 'center' },
+    backText:     { color: C.gold, fontSize: 22, fontFamily: F.body },
+    headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+    headerTitle:  { color: C.gold, fontFamily: F.display, fontSize: 26, letterSpacing: 1 },
+    yearBadge:    { backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.borderGold, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+    yearText:     { color: C.gold, fontFamily: F.bodyBd, fontSize: 10, letterSpacing: 1 },
 
-  subtitle:     { color: C.muted, fontFamily: F.body, fontSize: 13, marginTop: 16, marginBottom: 10, textAlign: 'center' },
-  dots:         { color: C.mutedMid, fontSize: 12, textAlign: 'center', letterSpacing: 2, marginBottom: 16 },
+    subtitle: { color: C.muted, fontFamily: F.body, fontSize: 13, marginTop: 16, marginBottom: 10, textAlign: 'center' },
+    dots:     { color: C.mutedMid, fontSize: 12, textAlign: 'center', letterSpacing: 2, marginBottom: 16 },
 
-  colHeaders:   { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, marginBottom: 8 },
-  colLabel:     { color: C.muted, fontFamily: F.bodyBd, fontSize: 10, letterSpacing: 1.5 },
+    colHeaders: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, marginBottom: 8 },
+    colLabel:   { color: C.muted, fontFamily: F.bodyBd, fontSize: 10, letterSpacing: 1.5 },
 
-  // Player row
-  playerRowWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: C.goldBorder, paddingVertical: 12, paddingHorizontal: 10, marginBottom: 6, overflow: 'hidden' },
-  playerBorder:  { borderRadius: 12, borderWidth: 1, borderColor: C.goldBorder },
+    playerRowWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: C.borderGold, paddingVertical: 12, paddingHorizontal: 10, marginBottom: 6, overflow: 'hidden' },
+    playerBorder:  { borderRadius: 12, borderWidth: 1, borderColor: C.borderGold },
 
-  // Competitor row
-  row:          { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg, paddingVertical: 12, paddingHorizontal: 10, marginBottom: 6 },
+    row:        { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: C.border, backgroundColor: C.cardBg, paddingVertical: 12, paddingHorizontal: 10, marginBottom: 6 },
 
-  rankNum:      { color: C.muted, fontFamily: F.bodyBd, fontSize: 13, width: 26, textAlign: 'center' },
+    rankNum:    { color: C.muted, fontFamily: F.bodyBd, fontSize: 13, width: 26, textAlign: 'center' },
+    rowInfo:    { flex: 1, marginLeft: 12 },
+    rowName:    { color: C.text, fontFamily: F.bodyBd, fontSize: 14, marginBottom: 2 },
+    rowSub:     { color: C.muted, fontFamily: F.body, fontSize: 12 },
 
-  rowInfo:      { flex: 1, marginLeft: 12 },
-  rowName:      { color: C.text, fontFamily: F.bodyBd, fontSize: 14, marginBottom: 2 },
-  rowSub:       { color: C.muted, fontFamily: F.body, fontSize: 12 },
-
-  prestigeNum:  { color: C.text, fontFamily: F.display, fontSize: 24, letterSpacing: 0.5, minWidth: 40, textAlign: 'right' },
-});
+    prestigeNum: { color: C.text, fontFamily: F.display, fontSize: 24, letterSpacing: 0.5, minWidth: 40, textAlign: 'right' },
+  });
+}
