@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useGameStore } from '../src/store/gameStore';
 import { ActiveLoan } from '../src/types';
 import { useTheme } from '../src/context/ThemeContext';
+import HomeButton from './components/HomeButton';
 
 const LOAN_OPTIONS: { size: 'small' | 'medium' | 'large'; label: string; principal: number }[] = [
   { size: 'small',  label: '$2M',  principal: 2_000_000 },
@@ -90,7 +91,7 @@ export default function LoanSharkScreen() {
           <Text style={s.backText}>← Back</Text>
         </TouchableOpacity>
         <Text style={s.headerTitle}>LOAN SHARK</Text>
-        <View style={s.backBtn} />
+        <HomeButton tab="/(tabs)/financials" />
       </View>
 
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>

@@ -11,6 +11,7 @@ import { Talent, TalentRole } from '../src/types';
 import { AVATAR_MAP } from '../src/utils/avatars';
 import { TutorialTarget } from './components/TutorialTarget';
 import { useTheme } from '../src/context/ThemeContext';
+import HomeButton from './components/HomeButton';
 
 const CHEM_COLORS = {
   green: '#4ec46e',
@@ -176,7 +177,7 @@ export default function HireTalentScreen() {
           <Text style={s.backText}>← Back</Text>
         </TouchableOpacity>
         <Text style={s.headerTitle}>{roleTitle}</Text>
-        <View style={{ width: 60 }} />
+        <HomeButton tab="/(tabs)/shows" />
       </View>
 
       {show && (

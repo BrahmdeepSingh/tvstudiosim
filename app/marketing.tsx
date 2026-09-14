@@ -9,6 +9,7 @@ import { useGameStore } from '../src/store/gameStore';
 import { MARKETING_CHANNELS, WEEKS_PER_YEAR } from '../src/constants/game';
 import { getThemeWindow, isInThemeWindow } from '../src/constants/schedule';
 import { useTheme } from '../src/context/ThemeContext';
+import HomeButton from './components/HomeButton';
 
 function FilmRibbonAmbient() {
   const { C } = useTheme();
@@ -97,7 +98,7 @@ export default function MarketingScreen() {
           <Text style={s.backText}>← Back</Text>
         </TouchableOpacity>
         <Text style={s.headerTitle} numberOfLines={1}>Marketing</Text>
-        <View style={{ width: 60 }} />
+        <HomeButton tab="/(tabs)/shows" />
       </View>
 
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>

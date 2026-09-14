@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useGameStore } from '../src/store/gameStore';
 import { LogoBadge } from './components/LogoBadge';
 import { useTheme } from '../src/context/ThemeContext';
+import HomeButton from './components/HomeButton';
 
 const F = {
   display: 'BebasNeue_400Regular',
@@ -80,7 +81,7 @@ export default function AllStudiosScreen() {
             <Text style={s.yearText}>YEAR {network.currentYear}</Text>
           </View>
         </View>
-        <View style={s.backBtn} />
+        <HomeButton tab="/(tabs)/financials" />
       </View>
 
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>

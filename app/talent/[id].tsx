@@ -13,6 +13,7 @@ import { EMMY_CATEGORY_LABELS, TALENT_FEES, SUPPORTING_ACTOR_FEES, GENRE_CONFIG,
 import { AVATAR_MAP } from '../../src/utils/avatars';
 import { TalentRole, Talent } from '../../src/types';
 import { useTheme } from '../../src/context/ThemeContext';
+import HomeButton from '../components/HomeButton';
 
 const CHEM_COLORS = { green: '#4ec46e', blue: '#5b8dee', red: '#c43820' };
 
@@ -366,10 +367,11 @@ export default function TalentDetailScreen() {
       <LinearGradient colors={[C.gradientTop, C.gradientMid, C.gradientBot]} style={StyleSheet.absoluteFill} />
       <FilmRibbonAmbient />
 
-      <View style={s.header}>
+      <View style={[s.header, { justifyContent: 'space-between' }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <Text style={s.backText}>← Back</Text>
         </TouchableOpacity>
+        <HomeButton tab="/(tabs)/talent" />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>

@@ -12,6 +12,7 @@ import { TALENT_FEES, SUPPORTING_ACTOR_FEES, MIN_EPISODES, MAX_EPISODES, popular
 import { WRITERS_ROOM_PRESTIGE } from '../src/engine/quality';
 import { AVATAR_MAP } from '../src/utils/avatars';
 import { useTheme } from '../src/context/ThemeContext';
+import HomeButton from './components/HomeButton';
 
 function FilmRibbonAmbient() {
   const { C } = useTheme();
@@ -260,7 +261,7 @@ export default function RenewScreen() {
           <Text style={s.backText}>← Back</Text>
         </TouchableOpacity>
         <Text style={s.headerTitle}>Season Renewal</Text>
-        <View style={{ width: 60 }} />
+        <HomeButton tab="/(tabs)/shows" />
       </View>
 
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>

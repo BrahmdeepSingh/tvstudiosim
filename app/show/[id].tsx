@@ -10,6 +10,7 @@ import { Season, Episode } from '../../src/types';
 import { AVATAR_MAP } from '../../src/utils/avatars';
 import { hap } from '../../src/utils/haptics';
 import { useTheme } from '../../src/context/ThemeContext';
+import HomeButton from '../components/HomeButton';
 
 const F = {
   display: 'BebasNeue_400Regular',
@@ -223,7 +224,7 @@ export default function ShowDetailScreen() {
             <Text style={s.backText}>← BACK</Text>
           </TouchableOpacity>
           <Text style={s.headerTitle} numberOfLines={1}>{show.title.toUpperCase()}</Text>
-          <View style={{ width: 60 }} />
+          <HomeButton tab="/(tabs)/shows" />
         </View>
 
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>

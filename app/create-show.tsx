@@ -12,6 +12,7 @@ import { MIN_EPISODES, MAX_EPISODES, getShowCapacity, ACTIVE_SHOW_STATUSES } fro
 import { WRITERS_ROOM_PRESTIGE } from '../src/engine/quality';
 import { hap } from '../src/utils/haptics';
 import { useTheme } from '../src/context/ThemeContext';
+import HomeButton from './components/HomeButton';
 
 const F = {
   display: 'BebasNeue_400Regular',
@@ -153,7 +154,7 @@ export default function CreateShowScreen() {
               <Text style={s.backText}>← BACK</Text>
             </TouchableOpacity>
             <Text style={s.headerTitle}>NEW SHOW</Text>
-            <View style={{ width: 70 }} />
+            <HomeButton tab="/(tabs)/shows" />
           </View>
 
           <ScrollView

@@ -8,6 +8,7 @@ import { useGameStore } from '../src/store/gameStore';
 import { COMPETITOR_PRODUCTION_COSTS } from '../src/constants/game';
 import { CompetitorStudio, CompetitorShow } from '../src/types';
 import { useTheme } from '../src/context/ThemeContext';
+import HomeButton from './components/HomeButton';
 
 const F = {
   display: 'BebasNeue_400Regular',
@@ -198,7 +199,7 @@ export default function StudioProfileScreen() {
           <Text style={s.backText}>←</Text>
         </TouchableOpacity>
         <Text style={s.headerTitle}>STUDIO PROFILE</Text>
-        <View style={s.backBtn} />
+        <HomeButton tab="/(tabs)/financials" />
       </View>
 
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>

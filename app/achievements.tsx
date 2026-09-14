@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useGameStore } from '../src/store/gameStore';
 import { ACHIEVEMENTS, RARITY_COLOR, AchievementRarity } from '../src/constants/achievements';
 import { useTheme } from '../src/context/ThemeContext';
+import HomeButton from './components/HomeButton';
 
 const F = {
   display: 'BebasNeue_400Regular',
@@ -66,7 +67,7 @@ export default function AchievementsScreen() {
             <Text style={st.backText}>‹  BACK</Text>
           </TouchableOpacity>
           <Text style={st.screenTitle}>ACHIEVEMENTS</Text>
-          <View style={{ width: 72 }} />
+          <HomeButton tab="/(tabs)/financials" />
         </View>
 
         <View style={st.progressCard}>

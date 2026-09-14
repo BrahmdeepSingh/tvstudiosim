@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 import { useGameStore } from '../src/store/gameStore';
 import { Episode } from '../src/types';
 import { useTheme } from '../src/context/ThemeContext';
+import HomeButton from './components/HomeButton';
 
 const CHEM_COLORS = { green: '#4ec46e', blue: '#5b8dee', red: '#c43820' };
 
@@ -116,7 +117,7 @@ export default function SeasonDetailScreen() {
           <Text style={s.backText}>← Back</Text>
         </TouchableOpacity>
         <Text style={s.headerTitle} numberOfLines={1}>{show.title}</Text>
-        <View style={{ width: 60 }} />
+        <HomeButton tab="/(tabs)/shows" />
       </View>
 
       <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
