@@ -235,7 +235,10 @@ function ShowCard({ show, onPress, networkName, talent }: {
 
   const season = show.seasons[show.currentSeasonIndex];
   const statusColor = statusColors[show.status] ?? C.muted;
-  const statusLabel = show.status.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const lastSeason  = show.seasons[show.seasons.length - 1];
+  const statusLabel = (show.status === 'cancelled' && lastSeason?.isFinalSeason)
+    ? 'Finished'
+    : show.status.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
   const stats = getShowStats(show);
   const isActive = ACTIVE_STATUSES.has(show.status);
   const seasonCount = show.seasons.length;

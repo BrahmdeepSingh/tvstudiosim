@@ -239,7 +239,11 @@ function ShowCard({ show, onPress }: { show: Show; onPress: () => void }) {
   const season = show.seasons[show.currentSeasonIndex];
   if (!season) return null;
 
-  const meta       = STATUS_META[show.status] ?? STATUS_META.completed;
+  const rawMeta    = STATUS_META[show.status] ?? STATUS_META.completed;
+  const lastSeason = show.seasons[show.seasons.length - 1];
+  const meta       = (show.status === 'cancelled' && lastSeason?.isFinalSeason)
+    ? { ...rawMeta, label: 'FINISHED', color: C.muted, bg: C.cardBg2, borderColor: C.muted + '44' }
+    : rawMeta;
   const genreLabel = show.genre.replace('-', ' ').toUpperCase();
 
   const avgRating = season.episodes

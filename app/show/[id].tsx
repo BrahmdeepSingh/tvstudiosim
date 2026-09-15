@@ -191,7 +191,11 @@ export default function ShowDetailScreen() {
     cancelled:         { label: 'CANCELLED', color: C.red,   bg: C.redBg,    borderColor: C.red + '55' },
   };
 
-  const meta        = STATUS_META[show.status] ?? STATUS_META.completed;
+  const rawMeta     = STATUS_META[show.status] ?? STATUS_META.completed;
+  const lastSeason  = show.seasons[show.seasons.length - 1];
+  const meta        = (show.status === 'cancelled' && lastSeason?.isFinalSeason)
+    ? { ...rawMeta, label: 'FINISHED', color: C.muted, bg: C.cardBg2, borderColor: C.muted + '44' }
+    : rawMeta;
   const genreLabel  = show.genre.replace('-', ' ').toUpperCase();
   const themeLabel  = show.theme.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
 
