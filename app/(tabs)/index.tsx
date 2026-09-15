@@ -1,6 +1,6 @@
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Image, Modal,
-  Easing, useWindowDimensions,
+  Easing, useWindowDimensions, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -475,6 +475,7 @@ export default function Dashboard() {
   const scrollRef   = useRef<ScrollView>(null);
   const tasksYRef   = useRef<number>(0);
 
+  const [advancing, setAdvancing] = useState(false);
   const [recapVisible, setRecapVisible]   = useState(false);
   const [recapWeek,    setRecapWeek]      = useState(1);
   const [recapYear,    setRecapYear]      = useState(1);
@@ -811,6 +812,7 @@ export default function Dashboard() {
           <TouchableOpacity style={s.advanceBtn} onPress={() => {
             hap.medium();
             if (tutorialStep === 'dashboard') tutorialAdvance();
+            setAdvancing(true);
 
             let finaleShow: { title: string; seasonNumber: number; hasIntl: boolean } | null = null;
             for (const show of shows) {
@@ -830,8 +832,9 @@ export default function Dashboard() {
             setTimeout(() => {
               setRecapWeek(nextWeek);
               setRecapYear(nextYear);
-              setRecapVisible(true);
               advanceWeek();
+              setAdvancing(false);
+              setRecapVisible(true);
 
               if (finaleShow) {
                 setGlobeShowTitle(finaleShow.title);
@@ -894,6 +897,16 @@ export default function Dashboard() {
       {!recapVisible && emmyCeremonyPendingYear !== null && (
         <EmmyCeremonyModal />
       )}
+
+      <Modal visible={advancing} transparent animationType="fade" statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(10,14,28,0.72)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#0f1220', borderRadius: 20, paddingVertical: 28, paddingHorizontal: 40, alignItems: 'center', borderWidth: 1, borderColor: '#e6b25430', gap: 16 }}>
+            <ActivityIndicator size="large" color="#e6b254" />
+            <Text style={{ fontFamily: 'BebasNeue_400Regular', color: '#e6b254', fontSize: 18, letterSpacing: 3 }}>PROCESSING WEEK...</Text>
+          </View>
+        </View>
+      </Modal>
+
     </LinearGradient>
   );
 }
