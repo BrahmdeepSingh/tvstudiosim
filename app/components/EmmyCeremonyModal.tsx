@@ -110,6 +110,14 @@ export function EmmyCeremonyModal() {
     [awards, year],
   );
 
+  // ── Auto-dismiss if ceremony data is missing (corrupted/invalid save) ────────
+  useEffect(() => {
+    if (yearAwards.length === 0) {
+      const t = setTimeout(() => dismissEmmyCeremony(), 300);
+      return () => clearTimeout(t);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── View state ───────────────────────────────────────────────────────────────
   const [view, setView]           = useState<'tracker' | 'reveal' | 'done'>('tracker');
   const [openedUpTo, setOpenedUpTo] = useState(0);
@@ -185,10 +193,13 @@ export function EmmyCeremonyModal() {
 
   // ── Transitions ───────────────────────────────────────────────────────────────
   const fadeTransition = useCallback((cb: () => void) => {
-    Animated.timing(screenFade, { toValue: 0, duration: 190, useNativeDriver: true }).start(() => {
+    Animated.timing(screenFade, { toValue: 0, duration: 190, useNativeDriver: true }).start(({ finished }) => {
       cb();
       requestAnimationFrame(() => {
-        Animated.timing(screenFade, { toValue: 1, duration: 290, useNativeDriver: true }).start();
+        screenFade.setValue(0);
+        Animated.timing(screenFade, { toValue: 1, duration: 290, useNativeDriver: true }).start(({ finished: f2 }) => {
+          if (!f2) screenFade.setValue(1);
+        });
       });
     });
   }, [screenFade]);
@@ -685,6 +696,15 @@ export function EmmyCeremonyModal() {
           {view === 'reveal'  && renderReveal()}
           {view === 'done'    && renderDone()}
         </Animated.View>
+
+        {/* Always-visible escape hatch — tappable even if opacity is 0 */}
+        <TouchableOpacity
+          onPress={() => dismissEmmyCeremony()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={{ position: 'absolute', top: 52, right: 20, zIndex: 999, padding: 6 }}
+        >
+          <Text style={{ fontFamily: F.bodyMd, fontSize: 11, letterSpacing: 1.5, color: C.muted, opacity: 0.5 }}>SKIP ×</Text>
+        </TouchableOpacity>
       </LinearGradient>
     </Modal>
   );
