@@ -100,7 +100,8 @@ export default function StudioScreen() {
         `Reset Slot ${saveSlot}?\n\nThis will permanently delete all progress and return you to the home screen.`
       );
       if (confirmed) {
-        resetGame().then(() => setTimeout(() => router.replace('/home' as any), 50));
+        router.replace('/home' as any);
+        setTimeout(() => resetGame().catch(() => {}), 100);
       }
     } else {
       Alert.alert(
@@ -111,11 +112,9 @@ export default function StudioScreen() {
           {
             text: 'Reset',
             style: 'destructive',
-            onPress: async () => {
-              try {
-                await resetGame();
-              } catch (_) {}
-              setTimeout(() => router.replace('/home' as any), 50);
+            onPress: () => {
+              router.replace('/home' as any);
+              setTimeout(() => resetGame().catch(() => {}), 100);
             },
           },
         ],
