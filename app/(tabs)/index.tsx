@@ -834,17 +834,20 @@ export default function Dashboard() {
             }
 
             setTimeout(() => {
-              setRecapWeek(nextWeek);
-              setRecapYear(nextYear);
-              advanceWeek();
-              setAdvancing(false);
-              setRecapVisible(true);
+              try {
+                setRecapWeek(nextWeek);
+                setRecapYear(nextYear);
+                advanceWeek();
+                setRecapVisible(true);
 
-              if (finaleShow) {
-                setGlobeShowTitle(finaleShow.title);
-                setGlobeSeasonNumber(finaleShow.seasonNumber);
-                setGlobeHasIntl(finaleShow.hasIntl);
-                pendingGlobeRef.current = true;
+                if (finaleShow) {
+                  setGlobeShowTitle(finaleShow.title);
+                  setGlobeSeasonNumber(finaleShow.seasonNumber);
+                  setGlobeHasIntl(finaleShow.hasIntl);
+                  pendingGlobeRef.current = true;
+                }
+              } finally {
+                setAdvancing(false);
               }
             }, 16);
           }} activeOpacity={0.88}>
