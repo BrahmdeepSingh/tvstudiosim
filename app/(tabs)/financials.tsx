@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../../src/store/gameStore';
+import { deleteSave } from '../../src/store/storage';
 import { LogoBadge } from '../components/LogoBadge';
 import { useTutorialStore } from '../../src/store/tutorialStore';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -100,8 +101,10 @@ export default function StudioScreen() {
         `Reset Slot ${saveSlot}?\n\nThis will permanently delete all progress and return you to the home screen.`
       );
       if (confirmed) {
-        router.replace('/home' as any);
-        setTimeout(() => resetGame().catch(() => {}), 100);
+        deleteSave(saveSlot).then(() => {
+          router.replace('/home' as any);
+          setTimeout(() => resetGame().catch(() => {}), 150);
+        });
       }
     } else {
       Alert.alert(
@@ -113,8 +116,10 @@ export default function StudioScreen() {
             text: 'Reset',
             style: 'destructive',
             onPress: () => {
-              router.replace('/home' as any);
-              setTimeout(() => resetGame().catch(() => {}), 100);
+              deleteSave(saveSlot).then(() => {
+                router.replace('/home' as any);
+                setTimeout(() => resetGame().catch(() => {}), 150);
+              });
             },
           },
         ],
