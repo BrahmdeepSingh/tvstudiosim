@@ -905,7 +905,7 @@ export default function Dashboard() {
         <EmmyCeremonyModal />
       )}
 
-      <Modal visible={advancing} transparent animationType="fade" statusBarTranslucent>
+      <Modal visible={advancing} transparent animationType="none" statusBarTranslucent>
         <View style={{ flex: 1, backgroundColor: 'rgba(10,14,28,0.72)', justifyContent: 'center', alignItems: 'center' }}>
           <View style={{ backgroundColor: '#0f1220', borderRadius: 20, paddingVertical: 28, paddingHorizontal: 40, alignItems: 'center', borderWidth: 1, borderColor: '#e6b25430', gap: 16 }}>
             <ActivityIndicator size="large" color="#e6b254" />
