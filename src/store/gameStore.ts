@@ -1227,7 +1227,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       talent: migratedTalent,
       newsItems: migratedNewsItems,
       studioEvents: loaded.studioEvents ?? [],
-      emmyCeremonyPendingYear: loaded.emmyCeremonyPendingYear ?? null,
+      emmyCeremonyPendingYear: (() => {
+        const y = loaded.emmyCeremonyPendingYear ?? null;
+        if (y === null) return null;
+        const hasAwards = (migratedAwards).some((a: any) => a.year === y);
+        return hasAwards ? y : null;
+      })(),
       saveSlot: slot,
       ambientSocialPosts: loaded.ambientSocialPosts ?? [],
       recentSocialTemplateIds: loaded.recentSocialTemplateIds ?? [],
