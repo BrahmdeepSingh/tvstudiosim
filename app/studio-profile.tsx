@@ -77,9 +77,8 @@ function CompetitorShowCard({ show }: CompetitorShowCardProps) {
   };
 
   const rawMeta    = STATUS_META[show.status] ?? STATUS_META.cancelled;
-  const lastSeason = show.seasons[show.seasons.length - 1];
-  const meta       = (show.status === 'cancelled' && lastSeason?.isFinalSeason)
-    ? { ...rawMeta, label: 'FINISHED', color: C.muted, bg: '#1a1a2a', bd: '#3a3a5a' }
+  const meta       = show.status === 'cancelled'
+    ? { ...rawMeta, label: 'CANCELLED', color: C.red, bg: C.redBg, bd: C.red + '55' }
     : rawMeta;
   const showRating = show.status === 'airing' && show.currentRating > 0;
   const showViewers = show.status === 'airing' && show.weeklyViewers > 0;
