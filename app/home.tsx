@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
-  Alert, Animated, Platform,
+  Alert, Animated, Platform, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -204,7 +204,16 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <Text style={s.footer}>· · ·</Text>
+        <View style={s.footer}>
+          <TouchableOpacity
+            onPress={() => Linking.openURL('https://docs.google.com/forms/d/e/1FAIpQLSeErf-YUaWrCdaRW5xY8VGVhBZNkbtkWPjsEUYf12o6IIibQA/viewform')}
+            activeOpacity={0.7}
+          >
+            <Text style={s.footerLink}>Report a Bug / Request a Feature</Text>
+          </TouchableOpacity>
+          <Text style={s.footerDot}>·</Text>
+          <Text style={s.footerMuted}>v1.0</Text>
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -252,6 +261,9 @@ function makeStyles(C: ReturnType<typeof useTheme>['C']) {
     loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.pageBg + 'cc', alignItems: 'center', justifyContent: 'center', gap: 12 },
     loadingText:    { color: C.gold, fontFamily: F.bodyMd, fontSize: 14 },
 
-    footer: { color: C.mutedMid, fontSize: 12, marginTop: 32, letterSpacing: 3 },
+    footer:      { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 32 },
+    footerLink:  { color: C.gold, fontFamily: F.bodyMd, fontSize: 11, letterSpacing: 0.5 },
+    footerDot:   { color: C.mutedMid, fontFamily: F.body, fontSize: 12 },
+    footerMuted: { color: C.mutedMid, fontFamily: F.body, fontSize: 11 },
   });
 }
