@@ -241,6 +241,14 @@ export default function StudioScreen() {
             <Text style={[s.actionChevron, { color: C.gold }]}>↺</Text>
           </TouchableOpacity>
           <View style={s.divider} />
+          <TouchableOpacity style={s.actionRow} onPress={() => router.replace('/home' as any)}>
+            <View>
+              <Text style={s.actionLabel}>Main Menu</Text>
+              <Text style={s.actionSub}>Return to save slots (progress is kept)</Text>
+            </View>
+            <Text style={[s.actionChevron, { color: C.gold }]}>⌂</Text>
+          </TouchableOpacity>
+          <View style={s.divider} />
           <TouchableOpacity style={s.actionRow} onPress={handleReset}>
             <View>
               <Text style={[s.actionLabel, { color: C.red }]}>Reset Slot {saveSlot}</Text>
