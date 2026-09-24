@@ -207,11 +207,11 @@ export default function HomeScreen() {
         <View style={s.footer}>
           <TouchableOpacity
             onPress={() => Linking.openURL('https://docs.google.com/forms/d/e/1FAIpQLSeErf-YUaWrCdaRW5xY8VGVhBZNkbtkWPjsEUYf12o6IIibQA/viewform')}
-            activeOpacity={0.7}
+            activeOpacity={0.75}
+            style={s.feedbackBtn}
           >
-            <Text style={s.footerLink}>Report a Bug / Request a Feature</Text>
+            <Text style={s.feedbackBtnText}>Bug Report / Feature Request</Text>
           </TouchableOpacity>
-          <Text style={s.footerDot}>·</Text>
           <Text style={s.footerMuted}>v1.0</Text>
         </View>
       </SafeAreaView>
@@ -261,9 +261,16 @@ function makeStyles(C: ReturnType<typeof useTheme>['C']) {
     loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.pageBg + 'cc', alignItems: 'center', justifyContent: 'center', gap: 12 },
     loadingText:    { color: C.gold, fontFamily: F.bodyMd, fontSize: 14 },
 
-    footer:      { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 32 },
-    footerLink:  { color: C.gold, fontFamily: F.bodyMd, fontSize: 11, letterSpacing: 0.5 },
-    footerDot:   { color: C.mutedMid, fontFamily: F.body, fontSize: 12 },
-    footerMuted: { color: C.mutedMid, fontFamily: F.body, fontSize: 11 },
+    footer:      { alignItems: 'center', gap: 10, marginTop: 32 },
+    feedbackBtn: {
+      paddingVertical: 8,
+      paddingHorizontal: 18,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: C.borderGold55,
+      backgroundColor: C.goldDim,
+    },
+    feedbackBtnText: { color: C.gold, fontFamily: F.bodyMd, fontSize: 11, letterSpacing: 0.8 },
+    footerMuted: { color: C.mutedMid, fontFamily: F.body, fontSize: 10 },
   });
 }
