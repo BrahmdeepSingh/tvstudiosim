@@ -15,7 +15,6 @@ import { Show, NewsItem, StudioEvent } from '../../src/types';
 import { WEEKS_PER_YEAR } from '../../src/constants/game';
 import { THEME_WINDOWS } from '../../src/constants/schedule';
 import { EmmyCeremonyModal } from '../components/EmmyCeremonyModal';
-import { ConfettiOverlay } from '../components/ConfettiOverlay';
 import WeeklyRecapModal from '../components/WeeklyRecapModal';
 import GlobalViewershipModal from '../components/GlobalViewershipModal';
 import { hap } from '../../src/utils/haptics';
@@ -481,7 +480,6 @@ export default function Dashboard() {
   const tasksYRef   = useRef<number>(0);
 
   const [advancing, setAdvancing] = useState(false);
-  const [confettiTest, setConfettiTest] = useState(false);
   const [recapVisible, setRecapVisible]   = useState(false);
   const [recapWeek,    setRecapWeek]      = useState(1);
   const [recapYear,    setRecapYear]      = useState(1);
@@ -802,15 +800,6 @@ export default function Dashboard() {
           <View style={{ height: 24 }} />
         </ScrollView>
 
-        {/* ── Confetti test button (temporary) ── */}
-        <TouchableOpacity
-          onPress={() => { setConfettiTest(true); setTimeout(() => setConfettiTest(false), 5000); }}
-          style={{ alignSelf: 'center', marginBottom: 8, paddingVertical: 6, paddingHorizontal: 16, backgroundColor: C.cardBg, borderRadius: 999, borderWidth: 1, borderColor: C.borderGold55 }}
-          activeOpacity={0.75}
-        >
-          <Text style={{ fontFamily: F.bodyMd, fontSize: 11, letterSpacing: 1.5, color: C.gold }}>🎊 TEST CONFETTI</Text>
-        </TouchableOpacity>
-
         {/* ── Advance Week button ── */}
         <TutorialTarget stepID="dashboard" style={s.advanceWrap}>
           <Animated.View
@@ -915,8 +904,6 @@ export default function Dashboard() {
       {!recapVisible && emmyCeremonyPendingYear !== null && (
         <EmmyCeremonyModal />
       )}
-
-      <ConfettiOverlay visible={confettiTest} />
 
       <Modal visible={advancing} transparent animationType="none" statusBarTranslucent>
         <View style={{ flex: 1, backgroundColor: 'rgba(10,14,28,0.72)', justifyContent: 'center', alignItems: 'center' }}>
