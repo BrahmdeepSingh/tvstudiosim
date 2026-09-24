@@ -837,8 +837,8 @@ export default function Dashboard() {
               try {
                 setRecapWeek(nextWeek);
                 setRecapYear(nextYear);
-                advanceWeek();
                 setRecapVisible(true);
+                advanceWeek();
 
                 if (finaleShow) {
                   setGlobeShowTitle(finaleShow.title);
@@ -850,7 +850,7 @@ export default function Dashboard() {
                 setAdvancing(false);
               }
             }, 16);
-          }} activeOpacity={0.88}>
+          }} disabled={advancing || recapVisible} activeOpacity={0.88}>
             <LinearGradient
               colors={['#f0c060', '#c49440']}
               start={{ x: 0, y: 0 }}

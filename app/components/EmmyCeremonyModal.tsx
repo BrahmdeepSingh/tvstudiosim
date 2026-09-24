@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, Modal, ScrollView, TouchableOpacity,
-  StyleSheet, Animated, useWindowDimensions, SafeAreaView,
+  StyleSheet, Animated, SafeAreaView,
 } from 'react-native';
+import { ConfettiOverlay } from './ConfettiOverlay';
 import { hap } from '../../src/utils/haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useGameStore } from '../../src/store/gameStore';
@@ -64,16 +65,6 @@ function generateCompetitorPoster(showID: string): PosterConfig {
   };
 }
 
-// Confetti layout (positions/sizes only — colors resolved inside component)
-const CONFETTI_LAYOUT = [
-  { xf: 0.13, yf: 0.08, rotate: '20deg',  w: 6, h: 14 },
-  { xf: 0.81, yf: 0.14, rotate: '-25deg', w: 6, h: 14 },
-  { xf: 0.21, yf: 0.22, rotate: '-10deg', w: 5, h: 12 },
-  { xf: 0.69, yf: 0.10, rotate: '35deg',  w: 5, h: 12 },
-  { xf: 0.09, yf: 0.30, rotate: '-30deg', w: 6, h: 13 },
-  { xf: 0.49, yf: 0.06, rotate: '12deg',  w: 5, h: 12 },
-  { xf: 0.87, yf: 0.25, rotate: '-18deg', w: 6, h: 14 },
-];
 
 const F = {
   display: 'BebasNeue_400Regular',
@@ -87,17 +78,6 @@ const F = {
 export function EmmyCeremonyModal() {
   const { C } = useTheme();
   const s = useMemo(() => makeStyles(C), [C]);
-  const { width: SW, height: SH } = useWindowDimensions();
-
-  // Confetti colors resolved from theme
-  const CONFETTI_COLORS = [C.gold, C.green, C.amber, C.gold, C.blue, C.green, C.gold];
-  const CONFETTI = CONFETTI_LAYOUT.map((d, i) => ({
-    ...d,
-    x:     d.xf * SW,
-    y:     d.yf * SH,
-    color: CONFETTI_COLORS[i],
-  }));
-
   const {
     awards, shows, talent, competitors, network,
     emmyCeremonyPendingYear, dismissEmmyCeremony,
@@ -133,10 +113,7 @@ export function EmmyCeremonyModal() {
   const posterOp     = useRef(new Animated.Value(0)).current;
   const starGlow     = useRef(new Animated.Value(0)).current;
   const starGlowRef  = useRef<Animated.CompositeAnimation | null>(null);
-  const confetti    = useRef(CONFETTI_LAYOUT.map(() => ({
-    op: new Animated.Value(0),
-    ty: new Animated.Value(-14),
-  }))).current;
+  const [confettiOn, setConfettiOn] = useState(false);
   const scrollRef   = useRef<ScrollView>(null);
 
   // ── Auto-skip categories with zero nominations ────────────────────────────────
@@ -212,7 +189,7 @@ export function EmmyCeremonyModal() {
     pill2Op.setValue(0);
     posterOp.setValue(0);
     starGlow.setValue(0);
-    confetti.forEach(c => { c.op.setValue(0); c.ty.setValue(-14); });
+    setConfettiOn(false);
   }
 
   function startRevealAnims(isPlayerWin: boolean) {
@@ -237,16 +214,7 @@ export function EmmyCeremonyModal() {
         Animated.timing(winnerOp, { toValue: 1, duration: 420, useNativeDriver: true }),
       ]).start();
 
-      if (isPlayerWin) {
-        confetti.forEach((c, i) => {
-          setTimeout(() => {
-            Animated.parallel([
-              Animated.timing(c.op, { toValue: 1, duration: 480, useNativeDriver: true }),
-              Animated.timing(c.ty, { toValue: 0,  duration: 480, useNativeDriver: true }),
-            ]).start();
-          }, i * 65);
-        });
-      }
+      if (isPlayerWin) setConfettiOn(true);
     }, 1500);
 
     setTimeout(() => {
@@ -279,6 +247,7 @@ export function EmmyCeremonyModal() {
 
   function continueFromReveal() {
     starGlowRef.current?.stop();
+    setConfettiOn(false);
     const next = openedUpTo + 1;
     fadeTransition(() => {
       setOpenedUpTo(next);
@@ -549,27 +518,7 @@ export function EmmyCeremonyModal() {
           <View style={s.warmGlow} pointerEvents="none" />
         )}
 
-        {isPlayerWin && confetti.map((c, i) => (
-          <Animated.View
-            key={i}
-            pointerEvents="none"
-            style={[
-              s.confettiPiece,
-              {
-                left:            CONFETTI[i].x,
-                top:             CONFETTI[i].y,
-                width:           CONFETTI[i].w,
-                height:          CONFETTI[i].h,
-                backgroundColor: CONFETTI[i].color,
-                opacity:         c.op,
-                transform:       [
-                  { rotate: CONFETTI[i].rotate },
-                  { translateY: c.ty },
-                ],
-              },
-            ]}
-          />
-        ))}
+        <ConfettiOverlay visible={confettiOn} />
 
         <SafeAreaView style={{ flex: 1 }}>
           <View style={s.revealCenter}>
@@ -824,10 +773,6 @@ function makeStyles(C: ReturnType<typeof useTheme>['C']) {
       height: 260,
       borderRadius: 130,
       backgroundColor: C.goldDim,
-    },
-    confettiPiece: {
-      position: 'absolute',
-      borderRadius: 2,
     },
     revealCenter: {
       flex: 1,
